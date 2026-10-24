@@ -2,6 +2,13 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [Unreleased]
+
+### Eklendi
+
+- Markalı, animasyonlu NSIS kurulum sihirbazı: altı karelik karşılama animasyonu, özel header/sidebar, modern bitiş ekranı ve “şimdi başlat” seçeneği.
+- Installer sanatı için `npm run installer:art` üretim hattı (SVG → 24-bit BMP).
+
 ## [0.1.0] — 2026-10-24
 
 İlk resmi sürüm.

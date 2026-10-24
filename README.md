@@ -16,6 +16,7 @@ Roblox **Tower Defense Simulator** için masaüstü strateji yardımcısı. Topl
 - **Cüzdan ve market:** Coin ekonomisi, boost/tema/çerçeve paketleri, VIP.
 - **Ayarlar:** Tema, overlay yerleşimi, kısayollar, başlangıç davranışı, ölçek, veri araçları ve güncelleme denetimi.
 - **Admin:** Moderasyon kuyruğu, katalog düzenleme, toplu kule/harita/modifier içe aktarma, rozet ve ekonomi araçları.
+- **Kurulum:** Animasyonlu karşılama/bitiş ekranları, markalı header ve sidebar ile imzasız Windows kurulum sihirbazı.
 
 ## Otomatik güncelleme
 
@@ -42,7 +43,8 @@ Doğrulama ve derleme:
 ```bash
 npm run verify     # IPC + SQL + typecheck + 97 test
 npm run build
-npm run dist       # imzasız NSIS installer + latest.yml + blockmap
+npm run installer:art  # SVG → 24-bit BMP installer art
+npm run dist           # imzasız NSIS installer + latest.yml + blockmap
 ```
 
 `npm run dist` çıktısı `apps/desktop/release/` altındadır. `latest.yml`, `.exe` ve `.exe.blockmap` üçü birlikte yayınlanmalıdır; otomatik güncelleme `latest.yml` olmadan çalışmaz.

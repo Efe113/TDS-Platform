@@ -38,6 +38,11 @@ nsis:
   # generated asset path must match the uploaded asset byte-for-byte.
   artifactName: 'TDS-Companion-${version}-Setup.${ext}'
   shortcutName: TDS Companion
+  # Branded wizard: keep electron-builder's install logic, replace only the visual pages.
+  include: installer.nsh
+  installerHeader: installer/header.bmp
+  installerSidebar: installer/sidebar.bmp
+  uninstallerSidebar: installer/uninstallerSidebar.bmp
 
 # GitHub Releases is the feed. electron-builder writes this into app-update.yml at build time and
 # electron-updater reads that file at runtime, which is why an unpackaged build reports
