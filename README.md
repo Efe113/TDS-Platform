@@ -2,9 +2,9 @@
 
 Roblox **Tower Defense Simulator** için masaüstü strateji yardımcısı. Topluluk belgelerini içe aktarır, adımlara böler, oyunun üstünde takip eder ve keşfet/liderlik/profil tarafını tek uygulamada toplar.
 
-**Son sürüm:** [0.1.0](https://github.com/Efe113/TDS-Platform/releases/latest) · Windows 10/11 x64
+**Son sürüm:** [0.1.1](https://github.com/Efe113/TDS-Platform/releases/latest) · Windows 10/11 x64
 
-> Kurulum dosyası imzasızdır. Windows SmartScreen “tanınmayan yayıncı” uyarısı gösterebilir; bu bir sertifika eksikliğidir, otomatik güncellemeyi engellemez.
+> Kurulum dosyası imzasızdır. Windows SmartScreen “tanınmayan yayıncı” uyarısı gösterebilir; bu bir sertifika eksikliğidir, otomatik güncellemeyi engellemez. SignPath Foundation başvurusu bu sürümden sonra ele alınacak.
 
 ## Öne çıkanlar
 
@@ -24,7 +24,7 @@ Kurulu uygulama açılıştan 15 saniye sonra GitHub Releases’i denetler ve ye
 
 ## Kurulum
 
-1. [Releases](https://github.com/Efe113/TDS-Platform/releases/latest) sayfasından `TDS-Companion-0.1.0-Setup.exe` dosyasını indir.
+1. [Releases](https://github.com/Efe113/TDS-Platform/releases/latest) sayfasından `TDS-Companion-0.1.1-Setup.exe` dosyasını indir.
 2. Kurulumu çalıştır; kurulum dizinini seçebilirsin.
 3. Uygulama verileri Windows kullanıcı klasöründe tutulur; kaldırma sırasında hesap/ayar verisi silinmez.
 
@@ -65,6 +65,10 @@ npm run dist           # imzasız NSIS installer + latest.yml + blockmap
 - Topluluk, hesap, yayınlama ve liderlik özellikleri Supabase bağlantısı gerektirir; overlay ve içe aktarma çevrimdışı da çalışır.
 - Google Docs içe aktarma yalnızca “bağlantıya sahip herkes: görüntüleyebilir” belgelerde çalışır.
 - Supabase free-tier kota/uyku davranışı canlı ortamda değişebilir.
+
+## Lisans
+
+[MIT](LICENSE) — kaynak kodu serbestçe kullanılabilir, değiştirilebilir ve dağıtılabilir; garanti verilmez.
 
 ## Teknoloji
 

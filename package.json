@@ -1,8 +1,9 @@
 {
   "name": "tds-companion",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Desktop strategy companion for Roblox Tower Defense Simulator",
+  "license": "MIT",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -27,5 +28,6 @@
   },
   "engines": {
     "node": ">=22.12.0"
-  }
+  },
+  "license": "MIT"
 }
