@@ -1,0 +1,50 @@
+appId: dev.tds.companion
+productName: TDS Companion
+copyright: Copyright © 2026 TDS Companion
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+
+asar: true
+asarUnpack:
+  - '**/*.node'
+  - '**/node_modules/koffi/**'
+compression: maximum
+
+protocols:
+  - name: TDS Strategy Link
+    schemes:
+      - tdsapp
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  # Keep spaces out of the filename: electron-updater reads the URL from latest.yml, and the
+  # generated asset path must match the uploaded asset byte-for-byte.
+  artifactName: 'TDS-Companion-${version}-Setup.${ext}'
+  shortcutName: TDS Companion
+
+# GitHub Releases is the feed. electron-builder writes this into app-update.yml at build time and
+# electron-updater reads that file at runtime, which is why an unpackaged build reports
+# "unsupported" instead of pretending it checked. Builds stay unsigned: SmartScreen will warn, and
+# that is a certificate purchase, not a code problem.
+publish:
+  provider: github
+  owner: Efe113
+  repo: TDS-Platform
+  releaseType: release

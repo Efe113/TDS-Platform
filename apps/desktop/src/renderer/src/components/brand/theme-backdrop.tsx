@@ -1,0 +1,314 @@
+import type { ReactNode } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { storageUrl, type AmbientLayer, type ThemeSkin } from '@tds/shared'
+import { useMotion } from '../../motion/context'
+import { drift } from '../../motion/presets'
+import { ParticleField } from '../../motion/primitives/ParticleField'
+import { CursorGlow } from '../../motion/primitives/CursorGlow'
+import { SUPABASE_BASE_URL } from '../../lib/storage-base'
+
+/**
+ * The skin's backdrop, assembled from the layers the skin declares.
+ *
+ * Layer order matters and is chosen per skin: the first entry is the signature effect, so a machine
+ * that can only afford one layer still gets an ember window that visibly moves heat, not a generic
+ * glow. Everything here is composited (transform/opacity) or a static gradient - no per-frame React
+ * work except the canvas field, which owns its own loop.
+ */
+
+const NOISE =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")"
+
+/**
+ * Six tongues of different heights and speeds, anchored to the floor so the fire never drifts
+ * across the content. They are gradients rather than sprites: the blur is the only expensive part
+ * and the low tier drops it without losing the shape.
+ */
+const FLAME_TONGUES = [
+  { left: '-6%', width: '24%', height: '62%', duration: 7.8, delay: 0 },
+  { left: '12%', width: '20%', height: '46%', duration: 6.4, delay: 1.1 },
+  { left: '28%', width: '28%', height: '78%', duration: 9.2, delay: 0.4 },
+  { left: '48%', width: '22%', height: '52%', duration: 7.1, delay: 1.7 },
+  { left: '64%', width: '26%', height: '70%', duration: 8.6, delay: 0.8 },
+  { left: '84%', width: '24%', height: '48%', duration: 6.9, delay: 1.4 }
+] as const
+
+const EMBER_SMOKE = [
+  { left: '4%', size: 340, duration: 20, delay: 0 },
+  { left: '38%', size: 440, duration: 26, delay: 5 },
+  { left: '72%', size: 300, duration: 22, delay: 9 }
+] as const
+
+const TOXIC_BUBBLES = [
+  { left: '5%', size: 18, duration: 13, delay: 0 },
+  { left: '17%', size: 30, duration: 17, delay: 2.4 },
+  { left: '33%', size: 14, duration: 11, delay: 4.1 },
+  { left: '51%', size: 24, duration: 15, delay: 1.2 },
+  { left: '65%', size: 12, duration: 10, delay: 5.3 },
+  { left: '78%', size: 34, duration: 19, delay: 3.2 },
+  { left: '90%', size: 20, duration: 14, delay: 6.1 }
+] as const
+
+function Layer({ skin, name, still, compact }: { skin: ThemeSkin; name: AmbientLayer; still: boolean; compact: boolean }): ReactNode {
+  const { budget } = useMotion()
+  const animation = drift(budget, 60)
+
+  if (name === 'flames') {
+    return (
+      <span className="absolute inset-x-0 bottom-0 h-[55%]">
+        <span
+          className="absolute inset-x-0 bottom-0 h-3/5"
+          style={{
+            background: `radial-gradient(ellipse 62% 100% at 50% 100%, ${skin.glow[0]}, transparent 72%)`,
+            filter: budget.blur ? 'blur(38px)' : undefined
+          }}
+        />
+        {FLAME_TONGUES.map((tongue) => (
+          <motion.span
+            key={tongue.left}
+            className="absolute bottom-0"
+            style={{
+              left: tongue.left,
+              width: tongue.width,
+              height: tongue.height,
+              transformOrigin: '50% 100%',
+              background: `radial-gradient(ellipse 52% 58% at 50% 94%, ${skin.tokens.warn} 0%, ${skin.tokens.brand} 46%, transparent 78%)`,
+              borderRadius: '50% 50% 18% 18% / 72% 72% 28% 28%',
+              filter: budget.blur ? 'blur(30px)' : undefined,
+              mixBlendMode: 'screen',
+              opacity: 0.42
+            }}
+            animate={
+              still
+                ? undefined
+                : {
+                    scaleY: [0.9, 1.08, 0.95, 1.05, 0.9],
+                    scaleX: [1, 0.94, 1.04, 0.97, 1],
+                    opacity: [0.3, 0.55, 0.38, 0.5, 0.3],
+                    skewX: [-2, 2, -1, 1.5, -2]
+                  }
+            }
+            transition={{ duration: tongue.duration, delay: tongue.delay, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ))}
+        <span
+          className="absolute inset-x-0 bottom-0 h-px"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${skin.tokens.brand}, ${skin.tokens.warn}, ${skin.tokens.brand}, transparent)`,
+            opacity: 0.6
+          }}
+        />
+      </span>
+    )
+  }
+
+  if (name === 'mesh') {
+    return (
+      <>
+        <motion.span
+          className="absolute -left-40 -top-48 size-[38rem] rounded-full"
+          style={{
+            background: `radial-gradient(circle at 30% 30%, ${skin.glow[0]}, transparent 65%)`,
+            filter: budget.blur ? 'blur(96px)' : undefined
+          }}
+          animate={still || !animation ? undefined : animation.animate}
+          transition={animation?.transition}
+        />
+        <motion.span
+          className="absolute -right-40 top-1/3 size-[34rem] rounded-full"
+          style={{
+            background: `radial-gradient(circle at 70% 30%, ${skin.glow[1]}, transparent 65%)`,
+            filter: budget.blur ? 'blur(110px)' : undefined
+          }}
+          animate={still || !animation ? { x: [0, -20, 0] } : animation.animate}
+          transition={animation?.transition}
+        />
+      </>
+    )
+  }
+
+  if (name === 'grid') {
+    return (
+      <span
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, var(--color-line) 1px, transparent 1px), linear-gradient(to bottom, var(--color-line) 1px, transparent 1px)',
+          backgroundSize: '44px 44px',
+          maskImage: 'radial-gradient(ellipse 90% 70% at 50% 0%, #000 20%, transparent 72%)',
+          opacity: 0.18
+        }}
+      />
+    )
+  }
+
+  if (name === 'ribbons') {
+    return (
+      <>
+        {[0, 1, 2].map((index) => (
+          <motion.span
+            key={index}
+            className="absolute inset-x-[-20%] h-56"
+            style={{
+              top: `${String(12 + index * 26)}%`,
+              background: `linear-gradient(100deg, transparent, ${index % 2 === 0 ? skin.glow[0] : skin.glow[1]}, transparent)`,
+              filter: budget.blur ? 'blur(48px)' : undefined,
+              opacity: 0.5
+            }}
+            animate={still ? undefined : { x: ['-8%', '8%', '-8%'], rotate: [-2 - index, 2 + index, -2 - index] }}
+            transition={{ duration: skin.motion.cycleSeconds * (1 + index * 0.25), repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ))}
+      </>
+    )
+  }
+
+  if (name === 'grain') {
+    return <span className="absolute inset-0 opacity-[0.05] mix-blend-soft-light" style={{ backgroundImage: NOISE }} />
+  }
+
+  if (name === 'smoke') {
+    if (still) return null
+    return (
+      <span className="absolute inset-0">
+        {EMBER_SMOKE.map((plume, index) => {
+          const size = compact ? plume.size * 0.35 : plume.size
+          return (
+            <motion.span
+              key={plume.left}
+              className="absolute rounded-full"
+              style={{
+                left: plume.left,
+                bottom: '-12%',
+                width: size,
+                height: size,
+                background:
+                  'radial-gradient(circle at 50% 58%, rgba(82, 48, 34, 0.32), rgba(36, 22, 17, 0.16) 55%, transparent 74%)',
+                filter: budget.blur ? 'blur(28px)' : undefined
+              }}
+              animate={{
+                y: [0, -((compact ? 46 : 190) + index * 16)],
+                x: [0, index % 2 === 0 ? 26 : -22, 0],
+                scale: [0.95, 1.12, 1.04, 1.18],
+                opacity: [0, 0.55, 0.4, 0]
+              }}
+              transition={{
+                duration: compact ? plume.duration * 0.5 : plume.duration,
+                delay: compact ? plume.delay * 0.4 : plume.delay,
+                repeat: Infinity,
+                ease: 'easeInOut'
+              }}
+            />
+          )
+        })}
+      </span>
+    )
+  }
+
+  if (name === 'bubbles') {
+    // A still frame made of seven bubbles at the bottom would read as a bug, so reduced motion skips
+    // the layer entirely instead of freezing it mid-rise.
+    if (still) return null
+    return (
+      <span className="absolute inset-0">
+        {TOXIC_BUBBLES.map((bubble, index) => (
+          <motion.span
+            key={bubble.left}
+            className="absolute rounded-full"
+            style={{
+              left: bubble.left,
+              bottom: '-8%',
+              width: bubble.size,
+              height: bubble.size,
+              border: '1px solid rgba(190, 242, 100, 0.22)',
+              background:
+                'radial-gradient(circle at 34% 28%, rgba(217, 249, 157, 0.45), rgba(126, 217, 87, 0.14) 55%, transparent 72%)',
+              filter: budget.blur ? 'blur(0.5px)' : undefined
+            }}
+            animate={{
+              y: [0, -((compact ? 70 : 160) + bubble.size * 5)],
+              x: [0, index % 2 === 0 ? 14 : -14, 0],
+              opacity: [0, 0.5, 0.55, 0],
+              scale: [0.82, 1, 1.06, 1.1]
+            }}
+            transition={{
+              duration: compact ? bubble.duration * 0.55 : bubble.duration,
+              delay: compact ? bubble.delay * 0.4 : bubble.delay,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }}
+          />
+        ))}
+      </span>
+    )
+  }
+
+  if (name === 'hazard') {
+    return (
+      <span
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `repeating-linear-gradient(45deg, ${skin.tokens.brand} 0 2px, transparent 2px 34px)`,
+          maskImage: 'radial-gradient(ellipse 70% 60% at 100% 0%, #000, transparent 68%)',
+          opacity: 0.07
+        }}
+      />
+    )
+  }
+
+  if (name === 'scanline') {
+    return (
+      <motion.span
+        className="absolute inset-x-0 h-40"
+        style={{ background: `linear-gradient(to bottom, transparent, ${skin.glow[0]}, transparent)`, opacity: 0.3 }}
+        animate={still ? { top: '28%' } : { top: ['-12%', '112%'] }}
+        transition={{ duration: still ? 0.01 : skin.motion.cycleSeconds * 1.6, repeat: still ? 0 : Infinity, ease: 'linear' }}
+      />
+    )
+  }
+
+  return <span className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(0,0,0,0.55) 100%)' }} />
+}
+
+/**
+ * The skin's layers on their own, so a preview inside a card can show the same thing the window
+ * background does. The caller owns the positioned container.
+ */
+export function SkinLayers({ skin, cap }: { skin: ThemeSkin; cap?: number }): ReactNode {
+  const reduced = useReducedMotion()
+  const still = reduced === true
+  const { budget } = useMotion()
+  const layers = skin.layers.slice(0, Math.max(1, cap ?? budget.ambientLayers))
+
+  return (
+    <>
+      {layers.map((layer) => (
+        <Layer key={layer} skin={skin} name={layer} still={still} compact={cap !== undefined} />
+      ))}
+      <ParticleField scene={skin.scene} countCap={cap === undefined ? undefined : Math.max(6, cap * 4)} />
+    </>
+  )
+}
+
+export function ThemeBackdrop({ skin, backgroundPath }: { skin: ThemeSkin; backgroundPath?: string | null }): ReactNode {
+  const backgroundUrl =
+    backgroundPath && SUPABASE_BASE_URL.length > 0 ? storageUrl(SUPABASE_BASE_URL, backgroundPath) : null
+
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+      <span className="absolute inset-0 bg-base" />
+      {backgroundUrl ? (
+        <>
+          {/* CSS background rather than <img>: a failed or deleted object leaves no broken-image chrome. */}
+          <span
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url("${backgroundUrl}")` }}
+          />
+          <span className="absolute inset-0 bg-base/55" />
+        </>
+      ) : null}
+      <SkinLayers skin={skin} />
+      <CursorGlow color={skin.glow[0]} />
+    </div>
+  )
+}

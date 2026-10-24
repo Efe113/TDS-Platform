@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Icon master. Colors are literals here (not currentColor / var()) because the rasteriser that
+    produces the .png set for the Windows icon has no cascade to read. The geometry matches
+    src/renderer/src/components/brand/logo.tsx; strokes are heavier because this has to survive 16px.
+
+    Read order, bottom to top: plinth, tapering mast, deck, and a barrel that carries the brand
+    colour. The barrel is deliberately a stubby rounded rectangle - the first version used a circle
+    on a crossbar and rendered as a person rather than a tower.
+  -->
+  <rect x="28" y="28" width="456" height="456" rx="112" fill="#0b0e14" stroke="#253044" stroke-width="14" />
+  <rect x="228" y="96" width="56" height="64" rx="14" fill="#4c8dff" />
+  <path d="M152 168H360" stroke="#e6edf6" stroke-width="36" stroke-linecap="round" />
+  <path d="M212 186 188 392h136L300 186Z" stroke="#e6edf6" stroke-width="30" stroke-linejoin="round" />
+  <path d="M152 392h208" stroke="#e6edf6" stroke-width="36" stroke-linecap="round" />
+</svg>

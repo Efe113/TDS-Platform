@@ -1,0 +1,1705 @@
+@import "tailwindcss";
+
+/*
+ * The app is dark-only, but shadcn's generated files carry `dark:` variants for exactly the surfaces
+ * we want (input fills, destructive tints). Tailwind v4 matches `dark:` against the OS preference by
+ * default, which would leave those styles off on a light-themed machine - so the variant is pinned to
+ * a class and both HTML entries carry it.
+ */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-base: #060a12;
+  --color-panel: #0d1522;
+  --color-panel-soft: #141f31;
+  --color-line: #223049;
+  --color-ink: #e9f0fb;
+  --color-mute: #8fa2bf;
+  --color-brand: #4c8dff;
+  --color-brand-soft: #16294a;
+  --color-danger: #ff6b6b;
+  --color-warn: #ffb347;
+  --color-good: #3ecf8e;
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /*
+   * shadcn bridge. Every value below is an alias of a token above, never a new color, so the
+   * purchased-theme mechanism keeps working: applyBrandAccent() overrides --color-brand on <html>
+   * and --primary / --ring follow it because they reference it lazily.
+   *
+   * Note `accent` here is shadcn's word for a subtle hover/selected surface, not our brand color -
+   * that one moved to `brand` precisely so the two meanings stop colliding.
+   */
+  --color-background: var(--color-base);
+  --color-foreground: var(--color-ink);
+  /*
+   * Translucent on purpose: the ambient layer of a skin sits behind the content, and an opaque card
+   * would hide it completely. color-mix keeps the same token as the solid fallback.
+   */
+  --color-card: color-mix(in oklab, var(--color-panel) 80%, transparent);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-panel-soft);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: #06090f;
+  --color-secondary: var(--color-panel-soft);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-panel-soft);
+  --color-muted-foreground: var(--color-mute);
+  --color-accent: var(--color-panel-soft);
+  --color-accent-foreground: var(--color-ink);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: #06090f;
+  --color-border: var(--color-line);
+  --color-input: var(--color-line);
+  --color-ring: var(--color-brand);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-base);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-line);
+    border-radius: 8px;
+  }
+
+  input,
+  select,
+  button,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* Hidden title bar dragging: only chrome gets the drag region, controls opt out. */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* The overlay window is a transparent click-through surface: no scrollbars, no selection. */
+html.overlay-root,
+html.overlay-root body,
+html.overlay-root #overlay-root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+html.overlay-root * {
+  user-select: none;
+  cursor: default;
+}
+
+html.overlay-root ::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.overlay-card {
+  transition:
+    opacity 420ms ease,
+    filter 420ms ease,
+    transform 420ms ease;
+}
+
+.overlay-card[data-dimmed='true'] {
+  opacity: 0.42;
+  filter: saturate(0.6);
+}
+
+/*
+ * Skin details that are not colors. Every rule is keyed off data-theme, which applyTheme() sets, so
+ * a skin can carry its own surface treatment without a component knowing which theme is active.
+ */
+::selection {
+  background: color-mix(in oklab, var(--color-brand) 32%, transparent);
+  color: var(--color-ink);
+}
+
+[data-theme] [data-slot='card'] {
+  backdrop-filter: blur(16px) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklab, var(--color-ink) 8%, transparent),
+    0 20px 44px -28px rgb(0 0 0 / 0.75);
+}
+
+[data-theme='ember'] body {
+  background-image: radial-gradient(ellipse 100% 60% at 50% 110%, color-mix(in oklab, var(--color-brand) 12%, transparent), transparent 70%);
+}
+
+[data-theme='toxic'] [data-slot='card'] {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklab, var(--color-brand) 14%, transparent),
+    0 20px 44px -28px rgb(0 0 0 / 0.8);
+}
+
+[data-theme='toxic'] body {
+  background-image: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-brand) 3%, transparent) 0 1px,
+    transparent 1px 4px
+  );
+}
+
+/*
+ * Skin signatures. Components mark their structural parts with data-skin-part; each skin decides
+ * what those parts do. This is why the paid skins are not the free one with a different hue: the
+ * ember skin moves heat along the rails, the toxic skin runs a hazard band and pulses the active
+ * item, and the default skin deliberately does neither.
+ */
+@keyframes skin-ember-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: 200% 50%; }
+}
+
+/* A spark climbs the rail while the whole heat line slowly exhales. */
+@keyframes skin-ember-spark {
+  0% { transform: translateY(380%); opacity: 0; }
+  8% { opacity: 0.9; }
+  72% { opacity: 0.8; }
+  100% { transform: translateY(-40%); opacity: 0; }
+}
+
+@keyframes skin-ember-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.14); }
+}
+
+@keyframes skin-ember-edge {
+  0%, 100% { opacity: 0.28; transform: scaleX(0.84); }
+  50% { opacity: 0.85; transform: scaleX(1); }
+}
+
+@keyframes skin-ember-wash {
+  0%, 100% { transform: translateX(-16%); opacity: 0.28; }
+  50% { transform: translateX(16%); opacity: 0.62; }
+}
+
+@keyframes skin-toxic-tape {
+  from { background-position: 0 0; }
+  to { background-position: 40px 0; }
+}
+
+@keyframes skin-toxic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-brand) 45%, transparent); }
+  50% { box-shadow: 0 0 14px 2px color-mix(in oklab, var(--color-brand) 35%, transparent); }
+}
+
+@keyframes skin-toxic-wash {
+  0%, 100% { transform: translateX(-18%); opacity: 0.25; }
+  50% { transform: translateX(18%); opacity: 0.65; }
+}
+
+@keyframes skin-toxic-rail {
+  from { background-position: 0 0; }
+  to { background-position: 0 24px; }
+}
+
+@keyframes skin-toxic-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: 220% 50%; }
+}
+
+@keyframes skin-acid-edge {
+  0%, 100% { opacity: 0.22; transform: scaleX(0.86); }
+  50% { opacity: 0.75; transform: scaleX(1); }
+}
+
+[data-skin-part='nav'] {
+  position: relative;
+}
+
+[data-theme='ember'] [data-skin-part='progress'] {
+  background-image:
+    repeating-linear-gradient(115deg, color-mix(in oklab, var(--color-ink) 10%, transparent) 0 3px, transparent 3px 9px),
+    linear-gradient(90deg, var(--color-brand), color-mix(in oklab, var(--color-warn) 70%, var(--color-brand)), var(--color-brand));
+  background-size: 120% 100%, 200% 100%;
+  box-shadow: 0 0 12px -2px color-mix(in oklab, var(--color-brand) 70%, transparent);
+  animation: skin-ember-flow 2.2s linear infinite;
+}
+
+/* The rail itself gets a banked-fire wash, independent of the rising spark. */
+[data-theme='ember'] [data-skin-part='nav'] {
+  background-image: radial-gradient(ellipse 120% 34% at 50% 108%, color-mix(in oklab, var(--color-brand) 14%, transparent), transparent 68%);
+}
+
+/* The heat does not sit still: the active nav item breathes and the header carries a molten seam. */
+[data-theme='ember'] [data-skin-part='active-pill'] {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-brand) 22%, transparent),
+    0 0 22px -8px color-mix(in oklab, var(--color-brand) 75%, transparent);
+  animation: skin-ember-breathe 3.2s ease-in-out infinite;
+}
+
+[data-theme='ember'] [data-skin-part='header'] {
+  background-image: linear-gradient(180deg, color-mix(in oklab, var(--color-brand) 8%, transparent), transparent 68%);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, var(--color-brand) 24%, transparent),
+    0 14px 34px -26px color-mix(in oklab, var(--color-brand) 60%, transparent);
+}
+
+[data-theme='ember'] [data-skin-part='header']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-warn) 12%, transparent), transparent);
+  opacity: 0.55;
+  pointer-events: none;
+  animation: skin-ember-wash 7.4s ease-in-out infinite;
+}
+
+[data-theme='ember'] [data-skin-part='header']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-brand) 28%, var(--color-warn) 50%, var(--color-brand) 72%, transparent);
+  background-size: 200% 100%;
+  opacity: 0.7;
+  pointer-events: none;
+  animation: skin-ember-flow 6s linear infinite;
+}
+
+[data-theme='ember'] .hud-scan::after {
+  background: linear-gradient(90deg, transparent, var(--color-warn), var(--color-brand), transparent);
+  opacity: 0.8;
+  animation-duration: 4.2s;
+}
+
+[data-theme='ember'] [data-slot='dropdown-menu-content'],
+[data-theme='ember'] [data-slot='dropdown-menu-sub-content'] {
+  background-image: linear-gradient(180deg, color-mix(in oklab, var(--color-brand) 6%, transparent), transparent 34%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklab, var(--color-warn) 12%, transparent),
+    0 24px 60px -32px rgb(0 0 0 / 0.95),
+    0 16px 42px -28px color-mix(in oklab, var(--color-brand) 70%, transparent);
+}
+
+[data-theme='ember'] [data-slot='button'][data-variant='primary'] {
+  background-image: linear-gradient(115deg, color-mix(in oklab, var(--color-warn) 28%, transparent), transparent 44%, color-mix(in oklab, var(--color-warn) 20%, transparent));
+  box-shadow: 0 0 20px -8px color-mix(in oklab, var(--color-brand) 80%, transparent);
+}
+
+[data-theme='ember'] [data-slot='button'][data-variant='primary']:hover {
+  box-shadow: 0 0 28px -6px color-mix(in oklab, var(--color-brand) 85%, transparent);
+}
+
+[data-theme='toxic'] [data-skin-part='header'] {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(180deg, color-mix(in oklab, var(--color-brand) 8%, transparent), transparent 72%);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, var(--color-brand) 28%, transparent),
+    0 12px 30px -24px color-mix(in oklab, var(--color-brand) 55%, transparent);
+}
+
+[data-theme='toxic'] [data-skin-part='header']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-brand) 12%, transparent), transparent);
+  opacity: 0.65;
+  pointer-events: none;
+  animation: skin-toxic-wash 6.4s ease-in-out infinite;
+}
+
+[data-theme='toxic'] [data-skin-part='header']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-brand) 85%, transparent) 0 10px,
+    transparent 10px 20px
+  );
+  opacity: 0.55;
+  box-shadow: 0 0 10px -2px color-mix(in oklab, var(--color-brand) 70%, transparent);
+  animation: skin-toxic-tape 1.8s linear infinite;
+}
+
+[data-theme='toxic'] [data-skin-part='active-pill'] {
+  animation: skin-toxic-pulse 2.8s ease-in-out infinite;
+}
+
+[data-theme='toxic'] [data-skin-part='progress'] {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-brand),
+    color-mix(in oklab, var(--color-warn) 60%, var(--color-brand)),
+    var(--color-good),
+    var(--color-brand)
+  );
+  background-size: 220% 100%;
+  box-shadow: 0 0 10px -2px color-mix(in oklab, var(--color-brand) 70%, transparent);
+  animation: skin-toxic-flow 2.4s linear infinite;
+}
+
+[data-theme='toxic'] [data-slot='button'][data-variant='primary'] {
+  background-image: linear-gradient(
+    115deg,
+    color-mix(in oklab, var(--color-warn) 30%, transparent),
+    transparent 45%,
+    color-mix(in oklab, var(--color-good) 24%, transparent)
+  );
+  box-shadow: 0 0 20px -8px color-mix(in oklab, var(--color-brand) 78%, transparent);
+}
+
+[data-theme='toxic'] [data-slot='button'][data-variant='primary']:hover {
+  box-shadow: 0 0 26px -6px color-mix(in oklab, var(--color-brand) 85%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme='ember'] [data-skin-part='progress'],
+  [data-theme='ember'] [data-skin-part='active-pill'],
+  [data-theme='ember'] [data-skin-part='header']::before,
+  [data-theme='ember'] [data-skin-part='header']::after,
+  [data-signature='rise'] [data-skin-part='nav']::before,
+  [data-signature='rise'] [data-skin-part='nav']::after,
+  [data-edge='heat'] .hud-panel::after,
+  [data-theme='toxic'] [data-skin-part='progress'],
+  [data-theme='toxic'] [data-skin-part='header']::before,
+  [data-theme='toxic'] [data-skin-part='header']::after,
+  [data-theme='toxic'] [data-skin-part='active-pill'],
+  [data-signature='pulse'] [data-skin-part='nav']::after,
+  [data-edge='acid'] .hud-panel::after {
+    animation: none;
+  }
+}
+
+/*
+ * Card edges per skin. data-edge is written by applyTheme, so a card never asks which skin is on.
+ * Each one is a different physical idea: heat from below, acid etch, a slow conic sweep, star light.
+ */
+[data-edge='heat'] [data-slot='card'] {
+  border-color: color-mix(in oklab, var(--color-brand) 24%, var(--color-line));
+  background-image:
+    linear-gradient(to top, color-mix(in oklab, var(--color-brand) 11%, transparent), transparent 44%),
+    radial-gradient(ellipse 80% 60% at 50% -10%, color-mix(in oklab, var(--color-warn) 7%, transparent), transparent 62%);
+}
+
+/* The top-left tick becomes a glowing coal instead of a hairline. */
+[data-edge='heat'] .hud-panel::before {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  background: radial-gradient(circle at 0 0, color-mix(in oklab, var(--color-warn) 85%, transparent), transparent 68%);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  opacity: 0.65;
+}
+
+/* The bottom corner tick becomes a molten seam that swells and fades like a banked fire. */
+[data-edge='heat'] .hud-panel::after {
+  inset: auto 8px 0 8px;
+  width: auto;
+  height: 1px;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-brand) 60%, transparent) 22%,
+    color-mix(in oklab, var(--color-warn) 85%, var(--color-brand)) 50%,
+    color-mix(in oklab, var(--color-brand) 60%, transparent) 78%,
+    transparent
+  );
+  opacity: 0.4;
+  pointer-events: none;
+  animation: skin-ember-edge 5.2s ease-in-out infinite;
+}
+
+[data-edge='heat'] .hud-panel[data-lift]:hover::after {
+  animation-duration: 2.6s;
+}
+
+[data-edge='acid'] [data-slot='card'] {
+  border-color: color-mix(in oklab, var(--color-brand) 28%, var(--color-line));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--color-brand) 12%, transparent),
+    inset 0 -18px 28px -22px color-mix(in oklab, var(--color-brand) 45%, transparent),
+    0 20px 44px -28px rgb(0 0 0 / 0.8);
+}
+
+/* A hazard corner and a breathing acid seam replace the neutral ticks on every panel. */
+[data-edge='acid'] .hud-panel::before {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in oklab, var(--color-brand) 60%, transparent) 0 2px,
+    transparent 2px 5px
+  );
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  opacity: 0.5;
+}
+
+[data-edge='acid'] .hud-panel::after {
+  inset: auto 8px 0 8px;
+  width: auto;
+  height: 1px;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-brand) 70%, transparent) 24%,
+    color-mix(in oklab, var(--color-warn) 65%, var(--color-brand)) 52%,
+    color-mix(in oklab, var(--color-brand) 70%, transparent) 78%,
+    transparent
+  );
+  opacity: 0.35;
+  pointer-events: none;
+  animation: skin-acid-edge 5.4s ease-in-out infinite;
+}
+
+[data-edge='acid'] .hud-panel[data-lift]:hover::after {
+  animation-duration: 2.6s;
+}
+
+[data-edge='conic'] [data-slot='card'] {
+  position: relative;
+  border-color: color-mix(in oklab, var(--color-brand) 20%, var(--color-line));
+}
+
+[data-edge='conic'] [data-slot='card']::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--edge-angle, 0deg), transparent 0 55%, color-mix(in oklab, var(--color-brand) 55%, transparent) 72%, transparent 88%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.75;
+  animation: skin-edge-turn 12s linear infinite;
+  pointer-events: none;
+}
+
+@property --edge-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes skin-edge-turn {
+  to { --edge-angle: 360deg; }
+}
+
+[data-edge='star'] [data-slot='card'] {
+  border-color: color-mix(in oklab, var(--color-brand) 16%, var(--color-line));
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklab, var(--color-ink) 10%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--color-brand) 6%, transparent),
+    0 26px 60px -34px color-mix(in oklab, var(--color-brand) 40%, transparent);
+}
+
+/* Motion signatures: how a skin moves, not what colour it is. */
+[data-signature='pulse'] [data-skin-part='active-pill'] {
+  animation: skin-toxic-pulse 2.8s ease-in-out infinite;
+}
+
+[data-signature='pulse'] [data-skin-part='nav']::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: repeating-linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-brand) 65%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.35;
+  pointer-events: none;
+  box-shadow: 0 0 8px -1px color-mix(in oklab, var(--color-brand) 60%, transparent);
+  animation: skin-toxic-rail 1.8s linear infinite;
+}
+
+[data-signature='flow'] [data-skin-part='progress'],
+[data-signature='bloom'] [data-skin-part='progress'] {
+  background-image: linear-gradient(90deg, var(--color-brand), color-mix(in oklab, var(--color-ink) 45%, var(--color-brand)), var(--color-brand));
+  background-size: 200% 100%;
+  animation: skin-ember-flow 3.4s linear infinite;
+}
+
+[data-signature='rise'] [data-skin-part='nav']::before {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  width: 2px;
+  height: 22%;
+  background: linear-gradient(to top, transparent, var(--color-warn) 58%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: skin-ember-spark 5.4s ease-in infinite;
+}
+
+[data-signature='rise'] [data-skin-part='nav']::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in oklab, var(--color-brand) 55%, transparent) 30%,
+    var(--color-brand) 52%,
+    color-mix(in oklab, var(--color-warn) 75%, var(--color-brand)) 66%,
+    color-mix(in oklab, var(--color-brand) 40%, transparent) 82%,
+    transparent
+  );
+  opacity: 0.55;
+  pointer-events: none;
+  box-shadow: 0 0 12px -2px color-mix(in oklab, var(--color-brand) 65%, transparent);
+  animation: skin-ember-breathe 5.6s ease-in-out infinite;
+}
+
+[data-signature='flow'] [data-skin-part='header']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-brand), transparent);
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-edge='conic'] [data-slot='card']::before,
+  [data-signature] [data-skin-part='progress'] {
+    animation: none;
+  }
+}
+
+/* --- cosmetic frames -------------------------------------------------------
+   The base ring and glow come from the registry as an inline box-shadow. These rules add the part a
+   colour cannot express: `heat` is a banked ember ring, `rainbow` turns the full spectrum. The angle
+   is a registered custom property, so the ring rotates its colours instead of rotating its shape -
+   a squared profile avatar must never spin.
+*/
+@property --frame-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.frame-sample {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--color-line) 80%, transparent);
+  background: linear-gradient(160deg, var(--color-panel-soft), var(--color-base));
+  color: var(--color-mute);
+  isolation: isolate;
+}
+
+.frame-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.frame-ring-band,
+.frame-ring-haze,
+.frame-ring-glint,
+.frame-ring-inner,
+.frame-aurora-ribbon,
+.frame-void-arc,
+.frame-toxic-hazard {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* The gradient must be declared on the animated element itself: a custom property computed on the
+   parent would resolve `--frame-angle` once at 0deg and inherit a frozen image. */
+.frame-ring[data-frame-effect='heat'] .frame-ring-band,
+.frame-ring[data-frame-effect='heat'] .frame-ring-haze {
+  background: conic-gradient(
+    from var(--frame-angle),
+    #8f2a08,
+    #ff4d0f 14%,
+    #ff9a3c 28%,
+    #fff1cf 38%,
+    #ffc061 48%,
+    #ff5a1f 62%,
+    #a92f0c 80%,
+    #ff7a45 92%,
+    #8f2a08
+  );
+}
+
+.frame-ring[data-frame-effect='heat'] .frame-ring-band {
+  animation: frame-heat-turn 5.6s linear infinite, frame-ember-flicker 3.8s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='heat'] .frame-ring-haze {
+  inset: -4px;
+  padding: 5px;
+  opacity: 0.55;
+  filter: blur(7px);
+  animation: frame-heat-turn 8.4s linear infinite reverse, frame-haze-pulse 4.2s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='heat'] .frame-ring-glint {
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 70%,
+    rgba(255, 245, 214, 0.92) 82%,
+    rgba(255, 176, 71, 0.45) 87%,
+    transparent 93%
+  );
+  mix-blend-mode: screen;
+  animation: frame-heat-turn 4.4s linear infinite;
+}
+
+/* Embers drift off the hot spots instead of orbiting, so fire and rainbow never share a signature. */
+.frame-ember-sparks {
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+}
+
+.frame-ember-sparks > span {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: frame-ember-float 3.6s ease-in-out infinite;
+}
+
+.frame-ember-sparks > span:nth-child(1) {
+  bottom: 14%;
+  left: 6%;
+  background: #ffd166;
+  box-shadow: 0 0 7px 1px rgba(255, 209, 102, 0.9);
+}
+
+.frame-ember-sparks > span:nth-child(2) {
+  bottom: 36%;
+  right: 5%;
+  background: #ff7a45;
+  box-shadow: 0 0 7px 1px rgba(255, 122, 69, 0.9);
+  animation-delay: 1.3s;
+  animation-duration: 4.2s;
+}
+
+.frame-ember-sparks > span:nth-child(3) {
+  top: 16%;
+  left: 24%;
+  background: #fff1cf;
+  box-shadow: 0 0 7px 1px rgba(255, 241, 207, 0.9);
+  animation-delay: 2.4s;
+  animation-duration: 3.2s;
+}
+
+/* Aurora: a cold spectrum band under two counter-turning light ribbons, with fixed twinkling stars.
+   The stars do not orbit, so the polar frame does not borrow the rainbow's or the ember's motion. */
+.frame-ring[data-frame-effect='aurora'] .frame-ring-band,
+.frame-ring[data-frame-effect='aurora'] .frame-ring-haze {
+  background: conic-gradient(
+    from var(--frame-angle),
+    #0ea5e9,
+    #38bdf8 14%,
+    #67e8f9 28%,
+    #2dd4bf 42%,
+    #818cf8 58%,
+    #6366f1 72%,
+    #38bdf8 86%,
+    #0ea5e9
+  );
+}
+
+.frame-ring[data-frame-effect='aurora'] .frame-ring-band {
+  animation: frame-aurora-turn 8.6s linear infinite, frame-aurora-breathe 4.4s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='aurora'] .frame-ring-haze {
+  inset: -4px;
+  padding: 5px;
+  opacity: 0.5;
+  filter: blur(8px);
+  animation: frame-aurora-turn 11.5s linear infinite reverse, frame-haze-pulse 5.2s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='aurora'] .frame-ring-glint {
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 74%,
+    rgba(224, 250, 255, 0.9) 84%,
+    rgba(129, 140, 248, 0.35) 89%,
+    transparent 94%
+  );
+  mix-blend-mode: screen;
+  animation: frame-aurora-turn 5.4s linear infinite;
+}
+
+.frame-aurora-ribbon {
+  inset: -2px;
+  padding: 3px;
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 56%,
+    rgba(56, 189, 248, 0.9) 66%,
+    rgba(165, 243, 252, 0.95) 72%,
+    transparent 80%
+  );
+  filter: blur(2px);
+  mix-blend-mode: screen;
+  animation: frame-aurora-turn 6.8s linear infinite;
+}
+
+.frame-aurora-ribbon--counter {
+  inset: -5px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 26%,
+    rgba(129, 140, 248, 0.85) 36%,
+    rgba(45, 212, 191, 0.8) 44%,
+    transparent 54%
+  );
+  opacity: 0.75;
+  animation: frame-aurora-turn 9.6s linear infinite reverse;
+}
+
+.frame-aurora-stars {
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+}
+
+.frame-aurora-stars > span {
+  position: absolute;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  box-shadow: 0 0 6px 1px rgba(186, 230, 253, 0.9);
+  animation: frame-star-twinkle 3.2s ease-in-out infinite;
+}
+
+.frame-aurora-stars > span:nth-child(1) {
+  top: 8%;
+  right: 22%;
+}
+
+.frame-aurora-stars > span:nth-child(2) {
+  bottom: 18%;
+  left: 6%;
+  background: #a5f3fc;
+  animation-delay: 1.1s;
+}
+
+.frame-aurora-stars > span:nth-child(3) {
+  top: 40%;
+  left: 2%;
+  background: #c7d2fe;
+  animation-delay: 2.1s;
+}
+
+/* Void: a black accretion band, two lensing arcs turning against each other, and dust falling inward.
+   The well layer darkens the gap between the avatar and the rim, so the frame reads as a hole in the
+   surface rather than a purple circle. */
+.frame-ring[data-frame-effect='void'] .frame-ring-band,
+.frame-ring[data-frame-effect='void'] .frame-ring-haze {
+  background: conic-gradient(
+    from var(--frame-angle),
+    #03000a,
+    #120627 22%,
+    #2e1065 34%,
+    #7c3aed 42%,
+    #c4b5fd 46%,
+    #3b0764 52%,
+    #090214 62%,
+    #4c1d95 72%,
+    #a78bfa 76%,
+    #1e1b4b 82%,
+    #03000a 94%,
+    #03000a
+  );
+}
+
+.frame-ring[data-frame-effect='void'] .frame-ring-band {
+  animation: frame-void-turn 16s linear infinite, frame-void-pulse 5.6s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='void'] .frame-ring-haze {
+  inset: -4px;
+  padding: 5px;
+  opacity: 0.75;
+  filter: blur(9px);
+  animation: frame-void-turn 22s linear infinite reverse, frame-haze-pulse 6.4s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='void'] .frame-ring-glint {
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 66%,
+    rgba(233, 213, 255, 0.9) 78%,
+    rgba(124, 58, 237, 0.35) 84%,
+    transparent 90%
+  );
+  mix-blend-mode: screen;
+  animation: frame-void-turn 7.8s linear infinite;
+}
+
+.frame-void-well {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 12px 4px rgba(3, 0, 10, 0.92);
+}
+
+.frame-void-arc {
+  inset: -3px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 58%,
+    rgba(196, 181, 253, 0.8) 68%,
+    rgba(124, 58, 237, 0.7) 72%,
+    transparent 78%
+  );
+  filter: blur(1.5px);
+  mix-blend-mode: screen;
+  animation: frame-void-turn 9.8s linear infinite;
+}
+
+.frame-void-arc--counter {
+  inset: -7px;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 16%,
+    rgba(139, 92, 246, 0.65) 26%,
+    transparent 34%
+  );
+  opacity: 0.7;
+  animation: frame-void-turn 13.6s linear infinite reverse;
+}
+
+.frame-void-dust {
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
+}
+
+.frame-void-dust > span {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: frame-void-pull 4.4s ease-in infinite;
+}
+
+.frame-void-dust > span:nth-child(1) {
+  top: 5%;
+  left: 34%;
+  background: #e9d5ff;
+  box-shadow: 0 0 6px 1px rgba(233, 213, 255, 0.8);
+  --pull-x: 0px;
+  --pull-y: 9px;
+}
+
+.frame-void-dust > span:nth-child(2) {
+  top: 34%;
+  right: 4%;
+  background: #a78bfa;
+  box-shadow: 0 0 6px 1px rgba(167, 139, 250, 0.8);
+  --pull-x: -9px;
+  --pull-y: 0px;
+  animation-delay: 1.2s;
+}
+
+.frame-void-dust > span:nth-child(3) {
+  bottom: 6%;
+  right: 30%;
+  background: #c4b5fd;
+  box-shadow: 0 0 6px 1px rgba(196, 181, 253, 0.8);
+  --pull-x: 0px;
+  --pull-y: -9px;
+  animation-delay: 2.3s;
+}
+
+.frame-void-dust > span:nth-child(4) {
+  bottom: 30%;
+  left: 5%;
+  background: #7c3aed;
+  box-shadow: 0 0 6px 1px rgba(124, 58, 237, 0.9);
+  --pull-x: 9px;
+  --pull-y: 0px;
+  animation-delay: 3.4s;
+  animation-duration: 5.2s;
+}
+
+/* Toxic: a boiling acid band, a hazard-segmented ring, rising bubbles and two slow drips. The
+   bubbles are hollow and grow as they pop, which keeps the motion distinct from ember sparks. */
+.frame-ring[data-frame-effect='toxic'] .frame-ring-band,
+.frame-ring[data-frame-effect='toxic'] .frame-ring-haze {
+  background: conic-gradient(
+    from var(--frame-angle),
+    #0b1a04,
+    #1f3a06 18%,
+    #4d7c0f 32%,
+    #7ed957 44%,
+    #d9f99d 50%,
+    #65a30d 58%,
+    #14532d 70%,
+    #a3e635 80%,
+    #365314 92%,
+    #0b1a04
+  );
+}
+
+.frame-ring[data-frame-effect='toxic'] .frame-ring-band {
+  animation: frame-toxic-turn 9.2s linear infinite, frame-toxic-breathe 3.4s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='toxic'] .frame-ring-haze {
+  inset: -4px;
+  padding: 5px;
+  opacity: 0.55;
+  filter: blur(8px);
+  animation: frame-toxic-turn 13s linear infinite reverse, frame-haze-pulse 4.8s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='toxic'] .frame-ring-glint {
+  background: conic-gradient(
+    from var(--frame-angle),
+    transparent 0 68%,
+    rgba(236, 252, 203, 0.9) 80%,
+    rgba(163, 230, 53, 0.4) 86%,
+    transparent 92%
+  );
+  mix-blend-mode: screen;
+  animation: frame-toxic-turn 4.6s linear infinite;
+}
+
+.frame-toxic-hazard {
+  inset: -3px;
+  padding: 1px;
+  background: repeating-conic-gradient(
+    from var(--frame-angle),
+    rgba(190, 242, 100, 0.45) 0deg 3deg,
+    transparent 3deg 9deg
+  );
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  animation: frame-toxic-turn 14s linear infinite reverse;
+}
+
+.frame-toxic-spores {
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+}
+
+.frame-toxic-spores > span {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  border: 1px solid rgba(190, 242, 100, 0.85);
+  background: rgba(126, 217, 87, 0.25);
+  box-shadow:
+    0 0 6px 1px rgba(126, 217, 87, 0.55),
+    inset 0 0 2px rgba(217, 249, 157, 0.8);
+  opacity: 0;
+  animation: frame-toxic-bubble 4.6s ease-in infinite;
+}
+
+.frame-toxic-spores > span:nth-child(1) {
+  bottom: 10%;
+  left: 12%;
+}
+
+.frame-toxic-spores > span:nth-child(2) {
+  bottom: 26%;
+  right: 8%;
+  width: 3px;
+  height: 3px;
+  animation-delay: 1.5s;
+  animation-duration: 5.4s;
+}
+
+.frame-toxic-spores > span:nth-child(3) {
+  top: 12%;
+  right: 24%;
+  width: 3px;
+  height: 3px;
+  animation-delay: 2.8s;
+}
+
+.frame-toxic-spores > span:nth-child(4) {
+  bottom: 16%;
+  right: 34%;
+  animation-delay: 3.6s;
+  animation-duration: 4s;
+}
+
+.frame-toxic-drip {
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+}
+
+.frame-toxic-drip > span {
+  position: absolute;
+  top: 4%;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, rgba(190, 242, 100, 0.95), rgba(126, 217, 87, 0));
+  opacity: 0;
+  animation: frame-toxic-drip 5.6s ease-in infinite;
+}
+
+.frame-toxic-drip > span:nth-child(1) {
+  left: 26%;
+  height: 7px;
+  animation-delay: 0.4s;
+}
+
+.frame-toxic-drip > span:nth-child(2) {
+  right: 30%;
+  height: 10px;
+  animation-delay: 2.6s;
+  animation-duration: 6.4s;
+}
+
+/* Rainbow: one repainting spectrum band, while the aura, inner hairline, glint and orbits animate
+   only opacity or transform. The previous version rotated three conic gradients every frame; this
+   keeps the depth without the paint storm, so the ring stays smooth next to a running game. */
+.frame-ring[data-frame-effect='rainbow'] .frame-ring-band {
+  background: conic-gradient(
+    from var(--frame-angle),
+    #ff2d55,
+    #ff9f1c 12%,
+    #ffe66d 26%,
+    #6ee7b7 40%,
+    #38bdf8 54%,
+    #8b5cf6 68%,
+    #e879f9 82%,
+    #fb7185 92%,
+    #ff2d55
+  );
+  animation: frame-rainbow-turn 10s linear infinite;
+}
+
+.frame-ring[data-frame-effect='rainbow'] .frame-ring-haze {
+  inset: -5px;
+  padding: 5px;
+  background: conic-gradient(
+    from 210deg,
+    #ff2d55,
+    #ff9f1c 12%,
+    #ffe66d 26%,
+    #6ee7b7 40%,
+    #38bdf8 54%,
+    #8b5cf6 68%,
+    #e879f9 82%,
+    #fb7185 92%,
+    #ff2d55
+  );
+  opacity: 0.5;
+  filter: blur(7px) saturate(1.12);
+  animation: frame-aura-breathe 5.4s ease-in-out infinite;
+}
+
+.frame-ring-inner {
+  inset: 2px;
+  padding: 1px;
+  background: conic-gradient(
+    from 140deg,
+    #ff2d55,
+    #fb7185 12%,
+    #e879f9 26%,
+    #8b5cf6 40%,
+    #38bdf8 54%,
+    #6ee7b7 68%,
+    #ffe66d 82%,
+    #ff9f1c 92%,
+    #ff2d55
+  );
+  opacity: 0.65;
+  animation: frame-inner-breathe 6.8s ease-in-out infinite;
+}
+
+.frame-ring[data-frame-effect='rainbow'] .frame-ring-glint {
+  background: conic-gradient(
+    from 220deg,
+    transparent 0 70%,
+    rgba(255, 255, 255, 0.95) 82%,
+    rgba(255, 255, 255, 0.35) 88%,
+    transparent 94%
+  );
+  opacity: 0.6;
+  animation: frame-glint-breathe 4.2s ease-in-out infinite;
+}
+
+.frame-ring-orbit {
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
+  will-change: transform;
+  animation: frame-rainbow-orbit 7.6s linear infinite;
+}
+
+.frame-ring-orbit > span {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  animation: frame-spark-pulse 1.6s ease-in-out infinite alternate;
+}
+
+.frame-ring-orbit > span:nth-child(1) {
+  top: 1%;
+  left: calc(50% - 2px);
+  background: #ff8fab;
+  box-shadow: 0 0 7px 1px rgba(255, 143, 171, 0.9);
+}
+
+.frame-ring-orbit > span:nth-child(2) {
+  bottom: 1%;
+  left: calc(50% - 2px);
+  background: #4cc9f0;
+  box-shadow: 0 0 7px 1px rgba(76, 201, 240, 0.9);
+  animation-delay: 0.55s;
+}
+
+.frame-ring-orbit > span:nth-child(3) {
+  top: calc(50% - 2px);
+  right: 1%;
+  background: #ffd166;
+  box-shadow: 0 0 7px 1px rgba(255, 209, 102, 0.9);
+  animation-delay: 1.1s;
+}
+
+.frame-ring-orbit--counter {
+  inset: -11px;
+  opacity: 0.9;
+  animation: frame-rainbow-orbit 12.4s linear infinite reverse;
+}
+
+.frame-ring-orbit--counter > span {
+  width: 2.5px;
+  height: 2.5px;
+}
+
+.frame-ring-orbit--counter > span:nth-child(1) {
+  top: calc(50% - 1.25px);
+  left: 2%;
+  background: #c4b5fd;
+  box-shadow: 0 0 6px 1px rgba(196, 181, 253, 0.9);
+  animation-delay: 0.2s;
+}
+
+.frame-ring-orbit--counter > span:nth-child(2) {
+  top: auto;
+  bottom: 8%;
+  right: 20%;
+  left: auto;
+  background: #a5f3fc;
+  box-shadow: 0 0 6px 1px rgba(165, 243, 252, 0.9);
+  animation-delay: 0.9s;
+}
+
+@keyframes frame-heat-turn {
+  to { --frame-angle: 360deg; }
+}
+
+@keyframes frame-rainbow-turn {
+  to { --frame-angle: -360deg; }
+}
+
+@keyframes frame-rainbow-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes frame-aura-breathe {
+  0%, 100% { opacity: 0.34; }
+  50% { opacity: 0.62; }
+}
+
+@keyframes frame-inner-breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes frame-glint-breathe {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.95; }
+}
+
+@keyframes frame-spark-pulse {
+  from { opacity: 0.45; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes frame-ember-flicker {
+  0%, 100% { opacity: 0.85; }
+  45% { opacity: 1; }
+  70% { opacity: 0.72; }
+}
+
+@keyframes frame-haze-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+
+@keyframes frame-ember-float {
+  0% { transform: translateY(5px) scale(0.6); opacity: 0; }
+  28% { opacity: 0.95; }
+  70% { opacity: 0.55; }
+  100% { transform: translateY(-17px) scale(1.15); opacity: 0; }
+}
+
+@keyframes frame-aurora-turn {
+  to { --frame-angle: 360deg; }
+}
+
+@keyframes frame-aurora-breathe {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 1; }
+}
+
+@keyframes frame-star-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes frame-void-turn {
+  to { --frame-angle: 360deg; }
+}
+
+@keyframes frame-void-pulse {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 1; }
+}
+
+@keyframes frame-void-pull {
+  0% { transform: translate(0, 0) scale(1); opacity: 0; }
+  24% { opacity: 0.9; }
+  100% { transform: translate(var(--pull-x), var(--pull-y)) scale(0.2); opacity: 0; }
+}
+
+@keyframes frame-toxic-turn {
+  to { --frame-angle: 360deg; }
+}
+
+@keyframes frame-toxic-breathe {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+@keyframes frame-toxic-bubble {
+  0% { transform: translateY(4px) scale(0.4); opacity: 0; }
+  20% { opacity: 0.9; }
+  70% { opacity: 0.55; }
+  100% { transform: translateY(-16px) scale(1.5); opacity: 0; }
+}
+
+@keyframes frame-toxic-drip {
+  0% { transform: translateY(-4px) scaleY(0.4); opacity: 0; }
+  22% { opacity: 0.9; }
+  100% { transform: translateY(12px) scaleY(1.4); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame-ring-band,
+  .frame-ring-haze,
+  .frame-ring-glint,
+  .frame-ring-inner,
+  .frame-aurora-ribbon,
+  .frame-aurora-stars > span,
+  .frame-void-arc,
+  .frame-void-dust > span,
+  .frame-toxic-hazard,
+  .frame-toxic-spores > span,
+  .frame-toxic-drip > span,
+  .frame-ring-orbit,
+  .frame-ring-orbit > span,
+  .frame-ember-sparks,
+  .frame-ember-sparks > span {
+    animation: none;
+  }
+}
+
+/* --- theme preview ---------------------------------------------------------
+   The miniature is a functioning-looking HUD rather than a decorative gradient. Only two motions
+   live here: the status dot breathes and the toxic scan crosses the panel; everything else is static
+   so a grid of previews never competes with the app behind it.
+*/
+.theme-preview-dot {
+  box-shadow: 0 0 8px 0 color-mix(in oklab, var(--color-brand) 55%, transparent);
+  animation: theme-preview-dot 2.6s ease-in-out infinite;
+}
+
+.theme-preview-scan {
+  position: absolute;
+  inset-inline: 0;
+  top: -18%;
+  height: 22%;
+  background: linear-gradient(to bottom, transparent, color-mix(in oklab, var(--color-brand) 22%, transparent), transparent);
+  pointer-events: none;
+  animation: theme-preview-scan 5.2s ease-in-out infinite;
+}
+
+@keyframes theme-preview-dot {
+  0%, 100% { opacity: 0.72; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes theme-preview-scan {
+  0% { transform: translateY(-30%); opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { transform: translateY(520%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-preview-dot,
+  .theme-preview-scan {
+    animation: none;
+  }
+}
+
+/*
+ * Menu motion. Driven by Radix's own data-state, so it works without framer-motion's forceMount and
+ * the closing animation is not cut short when the element unmounts.
+ *
+ * Two rules keep a menu from ever being able to hide itself: the entrance is tied to
+ * data-state='open' (an element with no state simply shows), and the row cascade starts at 0.4
+ * opacity rather than 0 - if the animation stalls, the row is still readable.
+ *
+ * --stagger-ms is written by MotionProvider from the tier budget: on the low tier it is 0, which
+ * collapses the cascade instead of faking it with a faster one.
+ */
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes menu-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(4px) scale(0.98); }
+}
+
+@keyframes menu-item-in {
+  from { opacity: 0.4; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+[data-slot='dropdown-menu-content'][data-state='open'],
+[data-slot='dropdown-menu-sub-content'][data-state='open'] {
+  animation: menu-in 170ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-slot='dropdown-menu-content'][data-state='closed'],
+[data-slot='dropdown-menu-sub-content'][data-state='closed'] {
+  animation: menu-out 120ms ease-in forwards;
+}
+
+[data-menu-row] {
+  animation: menu-item-in var(--enter-ms, 240ms) cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger-ms, 26ms));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-menu-row] {
+    animation: none;
+  }
+}
+
+/* --- press and lift feedback ----------------------------------------------
+   Both buttons already carry a Tailwind transition that covers transform, so only the active
+   value is needed here. --press-scale comes from the tier budget: a weak machine gets scale(1),
+   which means the button stops moving rather than dropping frames. */
+[data-press]:active:not(:disabled),
+[data-slot='button']:active:not(:disabled) {
+  transform: scale(var(--press-scale, 1));
+}
+
+[data-lift] {
+  transition:
+    transform var(--enter-ms, 220ms) cubic-bezier(0.16, 1, 0.3, 1),
+    border-color var(--enter-ms, 220ms) linear,
+    box-shadow var(--enter-ms, 220ms) linear;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-lift]:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in oklab, var(--color-brand) 45%, var(--color-line));
+    box-shadow: 0 22px 48px -30px color-mix(in oklab, var(--color-brand) 60%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-press]:active:not(:disabled),
+  [data-slot='button']:active:not(:disabled),
+  [data-lift]:hover {
+    transform: none;
+  }
+}
+
+/* Long lists (import steps, queue rows) stagger with CSS only: a framer observer per row would cost
+   mount work on lists that can be hundreds of items long. :nth-child caps how many rows animate at
+   all, and --i is set inline by the caller, so the cascade never runs past the visible area. */
+@keyframes reveal-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+[data-stagger] > :nth-child(-n+14) {
+  animation: reveal-in var(--enter-ms, 240ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger-ms, 26ms));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-stagger] > :nth-child(-n+14) {
+    animation: none;
+  }
+}
+
+/* ============================================================ HUD language v3
+   The app is a field console for a tower-defense run, so surfaces are panels with cut corners and
+   instrument labels rather than rounded SaaS cards. Everything here is one of five utilities; screens
+   compose them and never invent their own chrome.
+*/
+
+@property --hud-glow {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+
+.hud-panel {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-panel) 92%, transparent), color-mix(in oklab, var(--color-panel) 80%, transparent)) padding-box,
+    linear-gradient(150deg, color-mix(in oklab, var(--color-line) 90%, transparent), color-mix(in oklab, var(--color-brand) 35%, var(--color-line))) border-box;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-ink) 7%, transparent),
+    0 26px 50px -34px rgb(0 0 0 / 0.9);
+}
+
+/* Top-left corner ticks: the cheapest way to read as an instrument panel instead of a card. */
+.hud-panel::before {
+  content: '';
+  position: absolute;
+  inset: 5px auto auto 5px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid color-mix(in oklab, var(--color-brand) 55%, transparent);
+  border-left: 1px solid color-mix(in oklab, var(--color-brand) 55%, transparent);
+  pointer-events: none;
+}
+
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  inset: auto 5px 5px auto;
+  width: 10px;
+  height: 10px;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-brand) 30%, transparent);
+  border-right: 1px solid color-mix(in oklab, var(--color-brand) 30%, transparent);
+  pointer-events: none;
+}
+
+.hud-panel[data-lift]:hover {
+  border-color: transparent;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-panel) 95%, transparent), color-mix(in oklab, var(--color-panel) 84%, transparent)) padding-box,
+    linear-gradient(150deg, color-mix(in oklab, var(--color-brand) 55%, var(--color-line)), color-mix(in oklab, var(--color-brand) 20%, var(--color-line))) border-box;
+}
+
+.hud-label {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-mute) 78%, transparent);
+}
+
+.hud-num {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* A thin animated line that travels across a panel or the title bar. Skin driven, never load bearing. */
+.hud-scan {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hud-scan::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--color-brand), transparent);
+  opacity: 0.65;
+  animation: hud-sweep 5.5s linear infinite;
+}
+
+@keyframes hud-sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
+
+/* Divider with a floating tick, used between instrument groups. */
+.hud-divider {
+  position: relative;
+  height: 1px;
+  background: color-mix(in oklab, var(--color-line) 85%, transparent);
+}
+
+.hud-divider::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 18%;
+  height: 3px;
+  background: var(--color-brand);
+  opacity: 0.55;
+}
+
+/* The right-hand run rail: a fixed instrument column, not a card in a sidebar. */
+.hud-rail {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-base) 92%, transparent), color-mix(in oklab, var(--color-panel) 88%, transparent));
+  border-left: 1px solid color-mix(in oklab, var(--color-line) 80%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-scan::after { animation: none; opacity: 0; }
+}
+
+/* A real price cut gets a golden, breathing edge. It is a box-shadow pulse rather than a border so it
+   can coexist with the panel's clipped gradient frame. */
+.market-discount {
+  animation: market-discount-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes market-discount-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, #ffc85a 28%, transparent),
+      0 0 18px -6px color-mix(in oklab, #ffc85a 45%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, #ffc85a 65%, transparent),
+      0 0 30px -4px color-mix(in oklab, #ffc85a 80%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-discount {
+    animation: none;
+    box-shadow: 0 0 0 1px color-mix(in oklab, #ffc85a 55%, transparent);
+  }
+}
+
+/* Overlay card styles are cosmetics: `classic` is the plain card, the other two are unlocked. */
+.overlay-card[data-style='glow'] {
+  border-color: color-mix(in oklab, var(--color-brand) 70%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-brand) 35%, transparent),
+    0 0 34px -8px color-mix(in oklab, var(--color-brand) 75%, transparent),
+    0 24px 48px -24px rgb(0 0 0 / 0.9);
+}
+
+.overlay-card[data-style='scan'] {
+  position: relative;
+  overflow: hidden;
+}
+
+.overlay-card[data-style='scan']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-brand) 8%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-card[data-style='scan']::after { opacity: 0.4; }
+}
+
+/* High-contrast accessibility mode, toggled from Settings. It only increases separation; the active
+   skin still owns every hue, so the mode works on all five themes. */
+[data-contrast='high'] .text-mute {
+  color: color-mix(in oklab, var(--color-ink) 82%, transparent);
+}
+
+[data-contrast='high'] .hud-label {
+  color: color-mix(in oklab, var(--color-ink) 76%, transparent);
+}
+
+[data-contrast='high'] .hud-panel,
+[data-contrast='high'] [data-slot='card'] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--color-ink) 24%, transparent),
+    0 18px 40px -30px rgb(0 0 0 / 0.9);
+}
+
+[data-contrast='high'] :focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
