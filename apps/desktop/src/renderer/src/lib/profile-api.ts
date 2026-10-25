@@ -43,12 +43,14 @@ export async function updateProfile(input: {
   displayName: string
   handle: string
   bio: string
+  pronouns?: string
 }): Promise<ProfileShowcase> {
   if (!supabase) throw new NotConfiguredError()
   const { data, error } = await supabase.rpc('update_profile', {
     p_display_name: input.displayName,
     p_handle: input.handle,
-    p_bio: input.bio
+    p_bio: input.bio,
+    p_pronouns: input.pronouns ?? ''
   })
   if (error) throw new Error(error.message)
   return profileShowcaseSchema.parse(data ?? {})
@@ -62,8 +64,11 @@ export async function setProfileMedia(kind: 'avatar' | 'banner' | 'background', 
   return profileShowcaseSchema.parse(data ?? {})
 }
 
-/** Equips an owned title or frame. Passing null removes it; ownership is checked server-side. */
-export async function equipCosmetic(kind: 'title' | 'frame', ref: string | null): Promise<{ kind: string; ref: string | null }> {
+/**
+ * Equips an owned title, frame or profile theme. Passing null removes it; ownership is checked
+ * server-side, and `profile` refs resolve against the cosmetic shelf (0043).
+ */
+export async function equipCosmetic(kind: 'title' | 'frame' | 'profile', ref: string | null): Promise<{ kind: string; ref: string | null }> {
   if (!supabase) throw new NotConfiguredError()
   const { data, error } = await supabase.rpc('equip_cosmetic', { p_kind: kind, p_ref: ref })
   if (error) throw new Error(error.message)

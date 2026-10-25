@@ -1,5 +1,5 @@
 import { app, BrowserWindow, powerSaveBlocker, screen, Tray } from 'electron'
-import { IPC_CHANNELS } from '@tds/shared'
+import { IPC_CHANNELS, routeFromDeepLink, type DeepLink } from '@tds/shared'
 import { authManager } from './auth/manager'
 import { looksLikeAuthCallback } from './auth/callback'
 import { createMainWindow } from './windows/main-window'
@@ -87,7 +87,14 @@ function handleDeepLink(link: string): void {
       .catch((error) => logger.error('auth callback threw', error))
     return
   }
-  logger.info(`deep link received: ${link.split('?')[0]}`)
+  // Anything else routable becomes a renderer navigation. `routeFromDeepLink` is the allow list:
+  // an unknown host or a non-uuid id returns null instead of reaching the router.
+  const route = routeFromDeepLink(link)
+  if (route !== null) {
+    ipcSender.send(IPC_CHANNELS.appDeepLink, { route } satisfies DeepLink)
+    return
+  }
+  logger.info(`deep link ignored: ${link.split('?')[0]}`)
 }
 
 function bootstrap(): void {

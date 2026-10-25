@@ -7,6 +7,7 @@ import {
   Check,
   Crown,
   ImagePlus,
+  Link2,
   Lock,
   Pencil,
   Save,
@@ -17,8 +18,8 @@ import {
 import {
   PROFILE_METRICS,
   metricValue,
+  profileLink,
   storageUrl,
-  themeSkin,
   toggleShowcaseCode,
   type BadgeTier,
   type ProfileBadge,
@@ -27,25 +28,23 @@ import {
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate, routeSegments, useRoutePath } from '../../lib/router'
-import { pickLocalized, useCatalogLanguage } from '../../lib/catalog-labels'
+import { useCatalogLanguage } from '../../lib/catalog-labels'
 import { fetchShowcase, setProfileMedia, setPublicBadges, updateProfile } from '../../lib/profile-api'
-import { showcaseQueryKey, useIdentity } from '../../lib/identity'
+import { showcaseQueryKey } from '../../lib/identity'
 import { removeProfileImage, uploadProfileImage } from '../../lib/media-upload'
 import { buySku, fetchWallet, newPurchaseKey, selectTheme } from '../../lib/wallet-api'
 import { skinRows, SKIN_NAME_KEYS } from '../../lib/skins'
 import { SUPABASE_BASE_URL } from '../../lib/storage-base'
 import { relativeTime } from '../../lib/text'
 import { selectUserId, useAuth } from '../../store/auth-store'
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Badge, Banner, Button, EmptyState, INPUT_CLASS, Row, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, PageHeader, Section } from '../../components/ui/system'
 import { StateEmpty, StateError } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
-import { TitleBadge } from '../../components/brand/title-badge'
-import { VerifiedBadge } from '../../components/brand/verified-badge'
 import { BadgeGlyph } from '../../components/brand/badge-glyph'
-import { FrameRing, frameStyle } from '../../components/brand/frame'
-import { ThemePreview, skinStyle } from '../../components/brand/theme-preview'
+import { ProfileCard } from '../../components/profile/profile-card'
+import { PersonalizePanel } from './PersonalizePanel'
+import { ThemePreview } from '../../components/brand/theme-preview'
 import { CountUp } from '../../motion/primitives/CountUp'
 import { RevealItem, RevealList } from '../../motion/primitives/Reveal'
 import { SkeletonCard } from '../../motion/primitives/Shimmer'
@@ -109,10 +108,8 @@ function BadgeTile({ badge, inShowcase, onToggle }: { badge: ProfileBadge; inSho
 
 export function ProfilePage(): ReactNode {
   const t = useT()
-  const language = useCatalogLanguage()
   const path = useRoutePath()
   const ownId = useAuth(selectUserId)
-  const identity = useIdentity()
   const queryClient = useQueryClient()
   const routeUserId = routeSegments(path)[1] ?? null
   const userId = routeUserId ?? ownId
@@ -123,6 +120,8 @@ export function ProfilePage(): ReactNode {
   const [displayName, setDisplayName] = useState('')
   const [handle, setHandle] = useState('')
   const [bio, setBio] = useState('')
+  const [pronouns, setPronouns] = useState('')
+  const [copied, setCopied] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const avatarInput = useRef<HTMLInputElement>(null)
   const bannerInput = useRef<HTMLInputElement>(null)
@@ -145,7 +144,8 @@ export function ProfilePage(): ReactNode {
     setDisplayName(profile.displayName ?? '')
     setHandle(profile.handle)
     setBio(profile.bio ?? '')
-  }, [profile?.displayName, profile?.handle, profile?.bio, profile])
+    setPronouns(profile.pronouns ?? '')
+  }, [profile?.displayName, profile?.handle, profile?.bio, profile?.pronouns, profile])
 
   const saveBadges = useMutation({
     mutationFn: () => setPublicBadges(showcase),
@@ -155,7 +155,13 @@ export function ProfilePage(): ReactNode {
   })
 
   const saveIdentity = useMutation({
-    mutationFn: () => updateProfile({ displayName: displayName.trim(), handle: handle.trim().toLocaleLowerCase(), bio: bio.trim() }),
+    mutationFn: () =>
+      updateProfile({
+        displayName: displayName.trim(),
+        handle: handle.trim().toLocaleLowerCase(),
+        bio: bio.trim(),
+        pronouns: pronouns.trim()
+      }),
     onSuccess: () => {
       setFailure(null)
       void queryClient.invalidateQueries({ queryKey: showcaseQueryKey(userId) })
@@ -230,9 +236,10 @@ export function ProfilePage(): ReactNode {
     return (
       displayName.trim() !== (profile.displayName ?? '') ||
       handle.trim().toLocaleLowerCase() !== profile.handle ||
-      bio.trim() !== (profile.bio ?? '')
+      bio.trim() !== (profile.bio ?? '') ||
+      pronouns.trim() !== (profile.pronouns ?? '')
     )
-  }, [profile, displayName, handle, bio])
+  }, [profile, displayName, handle, bio, pronouns])
 
   const dirtyBadges = useMemo(() => {
     const current = (profile?.showcase ?? []).map((entry) => entry.code).sort()
@@ -264,11 +271,7 @@ export function ProfilePage(): ReactNode {
     )
   }
 
-  const skin = themeSkin(profile.themeKey)
-  const avatar = mediaUrl(profile.avatarPath) ?? (isOwn ? identity.avatarUrl : null)
-  const banner = mediaUrl(profile.bannerPath)
   const backgroundPreview = mediaUrl(profile.customBackgroundPath)
-  const initials = (profile.displayName ?? profile.handle).slice(0, 2).toLocaleUpperCase()
   const failureMessage =
     failure === 'IMAGE_TOO_LARGE'
       ? t('profile.uploadTooLarge')
@@ -310,61 +313,34 @@ export function ProfilePage(): ReactNode {
         </Banner>
       ) : null}
 
-      {/* The profile carries its own skin: the banner, avatar ring and accents read from the owner's
-          theme, while the surrounding app keeps the visitor's own. */}
-      <div className="hud-panel overflow-hidden p-0" style={skinStyle(skin)}>
-        <div className="relative h-40 w-full overflow-hidden sm:h-48">
-          {banner ? (
-            <img src={banner} alt="" className="size-full object-cover" />
-          ) : (
-            <div className="size-full" style={{ background: `linear-gradient(120deg, ${skin.glow[0]}, ${skin.glow[1]})` }} />
-          )}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-base/90 via-base/10 to-transparent" />
-          {!profile.bannerUnlocked ? (
-            <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-line bg-base/80 px-2 py-1 text-[10px] text-warn">
-              <Lock size={11} />
-              {t('profile.bannerLockedHint')}
-            </span>
-          ) : null}
-        </div>
+      {/* One card, painted the same way every other surface paints it (0043): the theme ground, the
+          member's banner, the avatar in its frame, then the marks the account earned. */}
+      <ProfileCard
+        profile={profile}
+        actions={
+          <>
+            {isOwn ? (
+              <Button variant={editing ? 'primary' : 'ghost'} onClick={() => setEditing((current) => !current)}>
+                <Pencil size={14} />
+                {editing ? t('profile.closeEditor') : t('profile.edit')}
+              </Button>
+            ) : null}
+            <Button
+              variant="subtle"
+              onClick={() => {
+                void navigator.clipboard.writeText(profileLink(profile.userId))
+                setCopied(true)
+                window.setTimeout(() => setCopied(false), 2_000)
+              }}
+            >
+              <Link2 size={14} />
+              {copied ? t('profile.linkCopied') : t('profile.copyLink')}
+            </Button>
+          </>
+        }
+      />
 
-        <div className="relative px-4 pb-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="-mt-10">
-              <span className="relative inline-flex rounded-[21px]">
-                <FrameRing value={profile.frameKey} />
-                <Avatar
-                  size="lg"
-                  className={cn('size-[88px] rounded-2xl border-4 border-panel')}
-                  style={frameStyle(profile.frameKey)}
-                >
-                  {avatar ? <AvatarImage src={avatar} alt="" /> : null}
-                  <AvatarFallback className="rounded-2xl bg-brand/15 text-xl font-semibold text-brand">{initials}</AvatarFallback>
-                </Avatar>
-              </span>
-            </div>
-            <div className="min-w-0 flex-1 pb-1">
-              <p className="flex flex-wrap items-center gap-2 truncate text-lg leading-tight font-semibold text-ink">
-                {profile.displayName ?? `@${profile.handle}`}
-                <VerifiedBadge show={profile.verified} tier={profile.corporate ? 'corporate' : 'verified'} label={t(profile.corporate ? 'discover.corporate' : 'discover.verified')} />
-                {profile.titleName ? (
-                  <TitleBadge
-                    label={pickLocalized(profile.titleName, profile.titleNameEn, language) ?? profile.titleName}
-                    refCode={profile.titleKey}
-                    size="md"
-                  />
-                ) : null}
-              </p>
-              <p className="truncate text-[12px] text-mute">{`@${profile.handle}`}</p>
-            </div>
-          </div>
-
-          {profile.bio ? <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-mute">{profile.bio}</p> : null}
-          {isOwn && !profile.bio && !editing ? (
-            <p className="mt-3 text-[11px] text-mute">{t('profile.bioEmpty')}</p>
-          ) : null}
-        </div>
-      </div>
+      {isOwn ? <PersonalizePanel profile={profile} /> : null}
 
       <MetricGrid columns={4}>
         {PROFILE_METRICS.slice(0, 4).map((key, index) => (
@@ -402,6 +378,17 @@ export function ProfilePage(): ReactNode {
                 <span className="text-[10px] text-mute">{t('profile.handleHint')}</span>
               </label>
               <label className="block space-y-1">
+                <span className="hud-label">{t('profile.pronounsLabel')}</span>
+                <input
+                  className={cn(INPUT_CLASS, 'no-drag h-9 text-sm')}
+                  value={pronouns}
+                  maxLength={60}
+                  placeholder={t('profile.pronounsPlaceholder')}
+                  onChange={(event) => setPronouns(event.target.value)}
+                />
+                <span className="text-[10px] text-mute">{t('profile.pronounsHint')}</span>
+              </label>
+              <label className="block space-y-1">
                 <span className="hud-label">{t('profile.bioLabel')}</span>
                 <textarea
                   className={cn(INPUT_CLASS, 'no-drag text-sm')}
@@ -431,6 +418,7 @@ export function ProfilePage(): ReactNode {
                       setDisplayName(profile.displayName ?? '')
                       setHandle(profile.handle)
                       setBio(profile.bio ?? '')
+                      setPronouns(profile.pronouns ?? '')
                     }}
                   >
                     {t('common.cancel')}

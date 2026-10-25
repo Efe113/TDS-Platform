@@ -231,6 +231,8 @@ export const IPC_CHANNELS = {
   displayList: 'display:list',
   appQuit: 'app:quit',
   appMinimizeToTray: 'app:minimizeToTray',
+  /** A `tdsapp://…` link that arrived while the app was running, already turned into a route. */
+  appDeepLink: 'app:deepLink',
 
   /**
    * The main window draws its own title bar, so these are the only way the renderer can move it.
@@ -302,6 +304,10 @@ export const windowMaximizedSchema = z.object({ maximized: z.boolean() })
 
 export type WindowMaximized = z.infer<typeof windowMaximizedSchema>
 
+export const deepLinkSchema = z.object({ route: z.string().min(1).max(200) })
+
+export type DeepLink = z.infer<typeof deepLinkSchema>
+
 export const IPC_EVENT_CHANNELS: readonly string[] = [
   IPC_CHANNELS.overlayStateChanged,
   IPC_CHANNELS.overlayCss,
@@ -314,7 +320,8 @@ export const IPC_EVENT_CHANNELS: readonly string[] = [
   IPC_CHANNELS.importResult,
   IPC_CHANNELS.updateStatus,
   IPC_CHANNELS.authTokenChanged,
-  IPC_CHANNELS.windowMaximizedChanged
+  IPC_CHANNELS.windowMaximizedChanged,
+  IPC_CHANNELS.appDeepLink
 ]
 
 export const IPC_INVOCABLE_CHANNELS: readonly string[] = Object.values(IPC_CHANNELS).filter(

@@ -15,8 +15,8 @@ import { motion } from 'framer-motion'
 import { cn } from '../../lib/utils'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
-import { navigate } from '../../lib/router'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
+import { ProfileHoverCard } from '../../components/profile/profile-card'
 import { deleteComment, fetchDiscussion, fileReport, postComment, requestTakedown, rateStrategy, voteComment } from '../../lib/social-api'
 import { selectSignedIn, useAuth } from '../../store/auth-store'
 import { Badge, Banner, Button, Card, Field, INPUT_CLASS, Row } from '../../components/ui'
@@ -303,9 +303,10 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
             {ordered.map((comment) => (
               <RevealItem key={comment.id} className="space-y-2 rounded-lg border border-line bg-panel-soft px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
-                  <button type="button" className="no-drag text-left hover:text-brand" onClick={() => navigate(`/profile/${comment.authorId}`)}>
-                    {comment.authorDisplayName ?? comment.authorHandle}
-                  </button>
+                  {/* The same profile card the profile page paints, opened from anywhere a name appears. */}
+                  <ProfileHoverCard userId={comment.authorId}>
+                    <span className="text-left hover:text-brand">{comment.authorDisplayName ?? comment.authorHandle}</span>
+                  </ProfileHoverCard>
                   <span>{new Date(comment.createdAt).toLocaleString()}</span>
                   {comment.mine ? <Badge tone="accent">{t('social.mine')}</Badge> : null}
                 </div>

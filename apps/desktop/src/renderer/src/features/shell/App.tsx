@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import i18next from 'i18next'
-import { IPC_CHANNELS, hotKeyEventSchema, settingsSchema, type AppMeta, type Settings } from '@tds/shared'
+import { IPC_CHANNELS, deepLinkSchema, hotKeyEventSchema, settingsSchema, type AppMeta, type Settings } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { navigate, routeSegments, useRoutePath } from '../../lib/router'
 import { useIpcEvent } from '../../lib/events'
@@ -104,6 +104,11 @@ export function App(): ReactNode {
   // tier and the language would only update on a restart.
   useIpcEvent(IPC_CHANNELS.settingsChanged, settingsSchema, (next) => {
     queryClient.setQueryData(['settings'], next)
+  })
+
+  // A `tdsapp://…` link opened while the app is running arrives as an already-validated route.
+  useIpcEvent(IPC_CHANNELS.appDeepLink, deepLinkSchema, (link) => {
+    navigate(link.route)
   })
 
   useEffect(() => {

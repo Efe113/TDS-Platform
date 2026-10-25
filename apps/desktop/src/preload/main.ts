@@ -50,6 +50,7 @@ const INVOCABLE = new Set<string>([
 const SUBSCRIBABLE = new Set<string>([
   'overlay:stateChanged',
   'overlay:css',
+  'app:deepLink',
   'hotkeys:event',
   'hotkeys:degraded',
   'hotkeys:bindingsChanged',

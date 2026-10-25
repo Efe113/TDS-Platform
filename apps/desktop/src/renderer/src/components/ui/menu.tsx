@@ -27,8 +27,8 @@ import {
 
 const rowIndex = (index: number): CSSProperties => ({ ['--i' as string]: String(index) } as CSSProperties)
 
-export function Menu({ children }: { children: ReactNode }): ReactNode {
-  return <DropdownMenu>{children}</DropdownMenu>
+export function Menu({ children, onOpenChange }: { children: ReactNode; onOpenChange?: (open: boolean) => void }): ReactNode {
+  return <DropdownMenu onOpenChange={onOpenChange}>{children}</DropdownMenu>
 }
 
 export const MenuTrigger = DropdownMenuTrigger

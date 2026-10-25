@@ -36,6 +36,7 @@ import { navigate, routeSegments, useRoutePath } from '../../lib/router'
 import { call } from '../../lib/ipc'
 import { claimVerifiedBoost, fetchAuthorFlag } from '../../lib/account-api'
 import { VerifiedBadge } from '../../components/brand/verified-badge'
+import { ProfileHoverCard } from '../../components/profile/profile-card'
 import { supabase } from '../../lib/supabase'
 import { SUPABASE_BASE_URL } from '../../lib/storage-base'
 import {
@@ -417,13 +418,9 @@ function CreditSection({ detail, onOpenSource, openError }: { detail: StrategyDe
         <KeyValue label={t('detail.author')}>
           {author && detail.profiles ? (
             <span className="flex items-center gap-1.5">
-              <button
-                type="button"
-                className="no-drag text-left hover:text-brand"
-                onClick={() => navigate(`/profile/${detail.profiles?.id ?? ''}`)}
-              >
-                {author}
-              </button>
+              <ProfileHoverCard userId={detail.profiles?.id ?? null}>
+                <span className="hover:text-brand">{author}</span>
+              </ProfileHoverCard>
               <VerifiedBadge
                 show={authorFlag.data?.verified === true}
                 tier={authorFlag.data?.corporate ? 'corporate' : 'verified'}

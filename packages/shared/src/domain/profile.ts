@@ -76,6 +76,11 @@ export const profileShowcaseSchema = z.object({
   // 0040: the same title in the other language, so an English interface stops painting a Turkish name.
   titleNameEn: z.string().nullable().optional().default(null),
   frameKey: z.string().nullable().optional().default(null),
+  // 0043: pronouns under the name and the profile theme painting the card itself.
+  pronouns: z.string().nullable().optional().default(null),
+  profileTheme: z.string().nullable().optional().default(null),
+  profileThemeName: z.string().nullable().optional().default(null),
+  profileThemeNameEn: z.string().nullable().optional().default(null),
   isSelf: z.boolean().optional().default(false),
   // zod v4 types .default() against the output shape, so the empty-profile fallback is built by
   // parsing {} through the metric schema instead of writing every zero by hand.
@@ -114,4 +119,28 @@ export function toggleShowcaseCode(codes: string[], code: string, limit = PUBLIC
   if (codes.includes(code)) return { codes: codes.filter((entry) => entry !== code), rejected: false }
   if (codes.length >= limit) return { codes, rejected: true }
   return { codes: [...codes, code], rejected: false }
+}
+
+/** The scheme registered in electron-builder's `protocols` block. */
+export const DEEP_LINK_SCHEME = 'tdsapp'
+
+const DEEP_LINK_ROUTE = new RegExp(`^${DEEP_LINK_SCHEME}://(profile|strategy|discover|leaderboard|wallet|market|import)(?:/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?/?$`, 'i')
+
+/** The link a profile card offers for sharing. */
+export function profileLink(userId: string): string {
+  return `${DEEP_LINK_SCHEME}://profile/${userId}`
+}
+
+/**
+ * A registered deep link becomes an in-app route, and anything else stays null so the main process
+ * never forwards an arbitrary string to the renderer's router. Only the hosts above are routable,
+ * and an id is accepted only when it is a uuid.
+ */
+export function routeFromDeepLink(link: string | null | undefined): string | null {
+  const match = DEEP_LINK_ROUTE.exec((link ?? '').trim())
+  if (match === null) return null
+  const host = match[1]
+  const id = match[2]
+  if (typeof host !== 'string' || host.length === 0) return null
+  return typeof id === 'string' && id.length > 0 ? `/${host}/${id}` : `/${host}`
 }

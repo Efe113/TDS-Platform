@@ -2034,3 +2034,186 @@ html.overlay-root ::-webkit-scrollbar {
   .title-badge[data-effect='corporate'] .title-badge__text { background-position: 24% 50%; }
   .title-badge[data-effect='corporate']::after { opacity: 0.7; transform: none; }
 }
+
+/* ---------------------------------------------------------------- profile themes (0043) */
+
+/* A profile theme paints the card itself, never the app: ground wash, then per-theme layers.
+   The colours arrive as custom properties from the shared registry, so the database row and the
+   painter can never disagree about what a theme looks like. */
+.profile-theme {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 12% 0%, var(--pt-1) 0%, transparent 62%),
+    radial-gradient(100% 80% at 92% 8%, color-mix(in oklab, var(--pt-a) 22%, var(--pt-2)) 0%, transparent 58%),
+    linear-gradient(168deg, var(--pt-2) 0%, var(--pt-3) 74%);
+}
+
+.profile-theme__rays,
+.profile-theme__field,
+.profile-theme__rule,
+.profile-theme__cloud {
+  position: absolute;
+  pointer-events: none;
+}
+
+.profile-theme__rays {
+  inset: -40% -10% auto -10%;
+  height: 150%;
+  opacity: 0.16;
+  background: repeating-conic-gradient(from 200deg at 50% 120%, var(--pt-a) 0deg 1.4deg, transparent 1.4deg 9deg);
+  mask-image: linear-gradient(to top, #000 8%, transparent 72%);
+}
+
+.profile-theme__field {
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(1.5px 1.5px at 18% 62%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 42% 28%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1px 1px at 68% 74%, var(--pt-a) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 82% 38%, var(--pt-a) 50%, transparent 51%),
+    radial-gradient(1px 1px at 30% 84%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1px 1px at 56% 12%, var(--pt-a) 50%, transparent 51%);
+}
+
+.profile-theme__rule {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--pt-a), transparent);
+  opacity: 0.65;
+}
+
+/* Aurum: the flagship. Engraved rays, an upward spark drift and a specular sweep over everything. */
+.profile-theme[data-theme='aurum'] .profile-theme__rays {
+  opacity: 0.22;
+  animation: profile-theme-rays 46s linear infinite;
+}
+
+.profile-theme[data-theme='aurum'] .profile-theme__field {
+  opacity: 0.7;
+  animation: profile-theme-sparks 14s ease-in-out infinite alternate;
+}
+
+.profile-theme[data-theme='aurum']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(104deg, transparent 34%, rgb(255 236 190 / 0.18) 47%, transparent 58%) 0 0 / 260% 100%;
+  animation: profile-theme-sweep 9s ease-in-out infinite;
+}
+
+.profile-theme[data-theme='aurum'] .profile-theme__rule {
+  height: 3px;
+  box-shadow: 0 -8px 22px -8px rgb(242 193 78 / 0.8);
+}
+
+/* Slate: brushed metal, one slow sheen, no spark field. */
+.profile-theme[data-theme='slate'] .profile-theme__field { opacity: 0.22; }
+.profile-theme[data-theme='slate'] .profile-theme__rays { opacity: 0.1; }
+
+.profile-theme[data-theme='slate']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(96deg, transparent 40%, rgb(143 243 198 / 0.14) 52%, transparent 62%) 0 0 / 300% 100%;
+  animation: profile-theme-sweep 13s linear infinite;
+}
+
+/* Onyx: the corporate ground. Heavy gold edge, double rule, a wide low sweep. */
+.profile-theme[data-theme='onyx'] .profile-theme__rule {
+  height: 4px;
+  background: linear-gradient(90deg, transparent, var(--pt-a) 22%, #fff2cf 50%, var(--pt-a) 78%, transparent);
+  opacity: 0.85;
+}
+
+.profile-theme[data-theme='onyx']::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(232 182 76 / 0.9), transparent);
+}
+
+.profile-theme[data-theme='onyx'] .profile-theme__field { opacity: 0.16; }
+
+.profile-theme[data-theme='onyx']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 240 194 / 0.1) 50%, transparent 68%) 0 0 / 280% 100%;
+  animation: profile-theme-sweep 16s ease-in-out infinite;
+}
+
+/* Nebula: two clouds drifting at different speeds, which is what reads as depth. */
+.profile-theme[data-theme='nebula'] .profile-theme__cloud {
+  inset: -20% -10%;
+  background:
+    radial-gradient(38% 30% at 26% 40%, rgb(167 139 250 / 0.4), transparent 70%),
+    radial-gradient(30% 26% at 72% 62%, rgb(76 201 240 / 0.32), transparent 72%);
+  filter: blur(6px);
+  animation: profile-theme-drift 28s ease-in-out infinite alternate;
+}
+
+.profile-theme[data-theme='nebula'] .profile-theme__field {
+  opacity: 0.4;
+  animation: profile-theme-drift 44s ease-in-out infinite alternate-reverse;
+}
+
+/* Abyss: a cold starfield with a depth line under the horizon. */
+.profile-theme[data-theme='abyss'] .profile-theme__field {
+  opacity: 0.85;
+  animation: profile-theme-twinkle 5.5s ease-in-out infinite;
+}
+
+.profile-theme[data-theme='abyss'] .profile-theme__rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(123 216 143 / 0.8) 45%, var(--pt-a) 70%, transparent);
+  box-shadow: 0 6px 18px -10px rgb(76 201 240 / 0.7);
+}
+
+@keyframes profile-theme-rays {
+  from { transform: rotate(-3deg) translateY(0); }
+  to { transform: rotate(3deg) translateY(-6px); }
+}
+
+@keyframes profile-theme-sparks {
+  from { transform: translate3d(0, 6px, 0); opacity: 0.42; }
+  to { transform: translate3d(10px, -8px, 0); opacity: 0.78; }
+}
+
+@keyframes profile-theme-sweep {
+  from { background-position: -60% 0; }
+  to { background-position: 220% 0; }
+}
+
+@keyframes profile-theme-drift {
+  from { transform: translate3d(-4%, 0, 0) scale(1.02); }
+  to { transform: translate3d(5%, -2%, 0) scale(1.06); }
+}
+
+@keyframes profile-theme-twinkle {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.92; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-theme[data-theme='aurum'] .profile-theme__rays,
+  .profile-theme[data-theme='aurum'] .profile-theme__field,
+  .profile-theme[data-theme='aurum']::after,
+  .profile-theme[data-theme='slate']::after,
+  .profile-theme[data-theme='onyx']::after,
+  .profile-theme[data-theme='nebula'] .profile-theme__cloud,
+  .profile-theme[data-theme='nebula'] .profile-theme__field,
+  .profile-theme[data-theme='abyss'] .profile-theme__field {
+    animation: none;
+  }
+  .profile-theme[data-theme='aurum']::after,
+  .profile-theme[data-theme='slate']::after,
+  .profile-theme[data-theme='onyx']::after { background-position: 30% 0; }
+}

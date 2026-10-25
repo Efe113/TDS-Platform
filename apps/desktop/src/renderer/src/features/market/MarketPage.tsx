@@ -21,7 +21,7 @@ import {
   Tag,
   Wallet
 } from 'lucide-react'
-import { FRAME_SKINS, CORPORATE_BENEFITS, VERIFIED_BENEFITS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
+import { FRAME_SKINS, CORPORATE_BENEFITS, PROFILE_THEME_KEYS, profileThemeSkin, VERIFIED_BENEFITS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
@@ -34,6 +34,7 @@ import { selectSignedIn, selectUserId, useAuth } from '../../store/auth-store'
 import { CoinAmount, CoinIcon } from '../../components/brand/coin'
 import { FrameSample, frameHalo } from '../../components/brand/frame'
 import { TitleBadge } from '../../components/brand/title-badge'
+import { ProfileThemeSky } from '../../components/brand/profile-theme'
 import { Button, Banner, cn } from '../../components/ui'
 import { Chip, PageHeader, Section } from '../../components/ui/system'
 import { StateEmpty, StateError } from '../../components/ui/states'
@@ -226,6 +227,15 @@ function ProductCard({
       </div>
 
       {/* Kind-specific preview: this is what the buyer is actually looking at. */}
+      {item.kind === 'cosmetic' && PROFILE_THEME_KEYS.includes(item.refCode ?? '') ? (
+        <div className="relative h-20 overflow-hidden rounded-lg border border-line/70 bg-base/50">
+          <ProfileThemeSky skin={profileThemeSkin(item.refCode)} />
+          <span className="absolute bottom-1.5 left-2 text-[10px] uppercase tracking-widest text-mute">
+            {t('profile.themesTitle')}
+          </span>
+        </div>
+      ) : null}
+
       {item.kind === 'frame' ? (
         <div className="relative flex items-center justify-center overflow-hidden rounded-lg border border-line/70 bg-base/50 py-4">
           <span

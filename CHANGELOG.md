@@ -4,8 +4,36 @@ Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](ht
 
 ## [Yayınlanmamış]
 
+### Eklendi
+
+- **`tdsapp://` bağlantıları artık gerçekten geziniyor:** profil kartındaki kopyalama düğmesi
+  `tdsapp://profile/<uuid>` üretiyor; ana süreç gelen bağlantıyı `routeFromDeepLink` ile doğrulayıp
+  (`profile|strategy|discover|leaderboard|wallet|market|import` + uuid) yeni `app:deepLink` olayıyla
+  arayüze gönderiyor. Bilinmeyen konuk ya da uuid olmayan kimlik yönlendirilmiyor.
+- **Discord yapısında profil kartı (0043):** tek kart her yerde. Zeminde tema katmanı, üstünde üyenin
+  afişi, dışarı taşan çerçeveli avatar, sonra isim → zamirler → tik → ünvan → @handle → tür çipleri →
+  "Mart 2026'da katıldı" → hakkında → tek şeritte etkinlik sayıları → rozetler → stratejiler.
+  Yorum yazarı ve strateji künyesindeki isim de aynı kartı açar; kartta profil bağlantısı
+  (`tdsapp://profile/<uuid>`) kopyalama düğmesi var.
+- **Profil temaları ayrı bir ürün:** `profiles.profile_theme_key` + beş tema. `Aurum` VIP ile gelir ve
+  amiral gemisi: kazınmış altın ışınlar, yukarı sürüklenen kıvılcım alanı, specular süpürme, altın
+  ufuk çizgisi ve parlayan avatar halkası. `Arduvaz` doğrulanmışa, `Oniks` kurumsala, `Nebula`
+  (1400) ve `Abiss` (2200) coin ile satın alınır. Uygulama/HUD temasından bağımsızdır — ikisi ayrı
+  ürün olarak satılabilir.
+- **Kişiselleştir perdesi profilde:** çerçeve, ünvan ve profil teması artık profil sayfasından
+  kuşanılıyor (önizleme kartıyla birlikte, kuşanılmış olanda "Kuşanmayı bırak"). Market rafı da duruyor;
+  sahiplik hiçbir yerde istemcide hesaplanmıyor, `wallet_summary`'nin yetki cevabı kullanılıyor.
+- **Zamirler:** `profiles.pronouns` (en çok 60 karakter) + kimlik düzenleyicisinde alanı.
+- `frame_gold` katalog satırı eklendi — istemcideki altın çerçevenin arkasında hiç satır yoktu.
+
 ### Düzeltildi
 
+- **Kendi kozmetiğini basabilen açık kapandı:** 0026 `active_title` ve `frame_key`'i
+  `app.cosmetic_write` perdesine bağlamıştı, 0017 de `theme_key`'i `app.theme_write`'e. 0037 bu
+  fonksiyonu doğrulanmış kolonları eklemek için yeniden yazarken iki perde de düştü; 0040 aynı şekli
+  taşıdı. Sonuç: giriş yapmış bir üye kendi profil satırını PATCH edip VIP ünvanını, gökkuşağı
+  çerçevesini ya da herhangi bir HUD temasını kendine verebiliyordu. 0043 hepsini geri sarıyor ve
+  profil temasını aynı kurala bağlıyor.
 - **VIP satın alınamıyordu (0042):** canlı `vip_lifetime` satırı `tag='vip'` taşıyordu; kasadaki
   "avantaj etiketi satılmaz" kuralı üyelikin kendisini de vurduğu için "VIP ol" herkezde
   `BENEFIT_ONLY` ile dönüyordu ve kart fiyatı göstermiyordu. Artık `kind` gerçek, `tag` sadece çip:
@@ -15,7 +43,8 @@ Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](ht
 
 ### Gereken
 
-- `supabase/migrations/0042_vip_membership_is_a_product.sql` (0039 → 0040 → 0041 sırasının ardından).
+- `supabase/migrations/0042_vip_membership_is_a_product.sql` ve
+  `supabase/migrations/0043_profile_themes.sql` (0039 → 0040 → 0041 sırasının ardından).
 
 ## [0.2.0] — 2026-10-25
 
