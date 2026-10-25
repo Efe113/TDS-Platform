@@ -2,7 +2,7 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
-## [Yayınlanmamış]
+## [0.2.0] — 2026-10-25
 
 ### Eklendi
 
