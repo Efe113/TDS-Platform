@@ -138,7 +138,10 @@ function lintAssignments(file, sql, problems) {
         // put a clause keyword inside a call's parentheses legally, because the keyword itself starts
         // SQL's own aggregate/window syntax rather than a stray query clause.
         const afterClauseKeyword = CLAUSE_AFTER_WORD.has(previous)
-        if (stack.length > 0 && !(top && top.subquery) && !(top && top.clauseOk) && !afterClauseKeyword) {
+        // `x is distinct from y` (and its NOT form) is an operator expression, not a query clause, so
+        // it belongs inside a call's parentheses legitimately.
+        const operatorUse = lower === 'from' && previous === 'distinct'
+        if (stack.length > 0 && !(top && top.subquery) && !(top && top.clauseOk) && !afterClauseKeyword && !operatorUse) {
           // Always a syntax error, whoever the enclosing statement is: the clause is inside a
           // function call's parentheses, which cannot hold a query.
           if (!reportedB) {
@@ -250,6 +253,12 @@ function lintDollarBlocks(file, sql, problems) {
     }
     if (line === '$;') {
       problems.push(`${file}: line ${i + 1}: "$;" does not close anything - write "$$;"`)
+    }
+    // The same generator bug leaves `$1` where a capture group failed to substitute. Postgres reads
+    // that as a parameter placeholder, so the body is only rejected when the function is first called.
+    const stray = /\$\d+/.exec(text)
+    if (stray) {
+      problems.push(`${file}: line ${i + 1}: stray "${stray[0]}" - a substitution that never happened`)
     }
   })
 }

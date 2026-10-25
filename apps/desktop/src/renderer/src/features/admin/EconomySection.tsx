@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, Coins, Gauge, HandCoins, Pencil, Plus, Save, Search, Trash2 } from 'lucide-react'
+import { CalendarClock, Coins, Gauge, HandCoins, Pencil, Plus, Save, Search, Trash2, Wrench } from 'lucide-react'
 import {
   CURRENCY_RULE_KINDS,
   RULE_LEDGER_KINDS,
@@ -24,6 +24,7 @@ import {
   awardRule,
   deleteCurrencyRule,
   fetchCurrencyRules,
+  reconcileDrift,
   saveCurrencyRule,
   searchMembers,
   type CurrencyRuleRow
@@ -258,6 +259,7 @@ export function EconomySection(): ReactNode {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [awardFor, setAwardFor] = useState<string | null>(null)
+  const [repaired, setRepaired] = useState<number | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
   const rulesQuery = useQuery({ queryKey: ['admin', 'currency-rules'], queryFn: fetchCurrencyRules, retry: 1 })
@@ -314,6 +316,20 @@ export function EconomySection(): ReactNode {
     onError: (error: unknown) => setFailure(error instanceof Error ? error.message : String(error))
   })
 
+  // 0041: `verify_balance` could only report a drift between the cache and the ledger. This is the hand
+  // that repairs every account holding one, from the same screen that watches the economy.
+  const repair = useMutation({
+    mutationFn: () => reconcileDrift(),
+    onSuccess: (count) => {
+      setRepaired(count)
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'ledger'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] })
+    },
+    onError: (error: unknown) => setFailure(error instanceof Error ? error.message : String(error))
+  })
+
   const rules = rulesQuery.data ?? []
   const totals = useMemo(() => {
     const daily = rules.reduce((sum, rule) => sum + (rule.daily_cap ?? 0), 0)
@@ -351,6 +367,17 @@ export function EconomySection(): ReactNode {
       </MetricGrid>
 
       {failure ? <div className="rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[12px] text-danger">{failure}</div> : null}
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line/60 bg-base/40 px-3 py-2 text-[11px]">
+        <Wrench size={13} className="shrink-0 text-mute" />
+        <span className="min-w-0 flex-1 break-words text-mute">{t('admin.reconcileHint')}</span>
+        {repaired !== null ? (
+          <Chip tone={repaired > 0 ? 'good' : 'neutral'}>{t('admin.reconcileCount', { count: String(repaired) })}</Chip>
+        ) : null}
+        <Button size="sm" variant={repaired === 0 ? 'ghost' : 'subtle'} busy={repair.isPending} onClick={() => repair.mutate()}>
+          {t('admin.reconcileAll')}
+        </Button>
+      </div>
 
       <Section
         title={t('admin.currencyRules')}

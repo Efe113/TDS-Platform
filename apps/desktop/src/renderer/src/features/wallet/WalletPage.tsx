@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   Award,
   BadgeCheck,
+  Building2,
   CalendarClock,
   Check,
   Copy,
@@ -18,7 +19,18 @@ import {
   Store,
   Wallet as WalletIcon
 } from 'lucide-react'
-import { capRemaining, formatCoin, VERIFIED_PERK_KEYS, VERIFIED_TITLE_REF, type CurrencyRuleKind, type WalletRule } from '@tds/shared'
+import {
+  CORPORATE_BENEFITS,
+  CORPORATE_PERK_KEYS,
+  CORPORATE_TITLE_REF,
+  VERIFIED_BENEFITS,
+  VERIFIED_PERK_KEYS,
+  VERIFIED_TITLE_REF,
+  capRemaining,
+  formatCoin,
+  type CurrencyRuleKind,
+  type WalletRule
+} from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate } from '../../lib/router'
@@ -175,6 +187,12 @@ export function WalletPage(): ReactNode {
   const walletQuery = useQuery({ queryKey: ['wallet'], queryFn: fetchWallet, retry: 1 })
   const wallet = walletQuery.data
 
+  // 0040: corporate is the superset tier, so the card reads its own window and percentage when the
+  // account holds it; the credit counter already adds both pockets together in SQL.
+  const corporate = wallet?.corporate === true
+  const discountEndsAt = corporate ? (wallet?.corporateDiscountEndsAt ?? null) : (wallet?.verifiedDiscountEndsAt ?? null)
+  const discountPercent = corporate ? CORPORATE_BENEFITS.discountPercent : VERIFIED_BENEFITS.discountPercent
+
   // The economy in one sentence: what came in, what went out, this week and all time.
   const totals = useMemo(() => {
     const weekStart = Date.now() - 7 * 24 * 3_600_000
@@ -317,15 +335,24 @@ export function WalletPage(): ReactNode {
 
       {/* Tier status belongs next to the money: both answers are "what is this balance worth". */}
       <Section
-        title={t('verified.title')}
-        hint={wallet.verified ? t('verified.creditHint') : t('verified.intro')}
+        title={t(corporate ? 'corporate.title' : 'verified.title')}
+        hint={wallet.verified ? (corporate ? t('corporate.isVerifiedToo') : t('verified.creditHint')) : t('verified.intro')}
         aside={
           wallet.verified ? (
-            <Chip tone="good" icon={BadgeCheck}>{t('verified.youAre')}</Chip>
+            corporate ? (
+              <Chip tone="warn" icon={Building2}>{t('corporate.youAre')}</Chip>
+            ) : (
+              <Chip tone="good" icon={BadgeCheck}>{t('verified.youAre')}</Chip>
+            )
           ) : (
-            <Button size="sm" variant="ghost" onClick={() => navigate('/verified')}>
-              {t('verified.applyTitle')}
-            </Button>
+            <Row className="gap-1.5">
+              <Button size="sm" variant="ghost" onClick={() => navigate('/verified')}>
+                {t('verified.applyTitle')}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => navigate('/corporate')}>
+                {t('corporate.applyTitle')}
+              </Button>
+            </Row>
           )
         }
       >
@@ -334,9 +361,9 @@ export function WalletPage(): ReactNode {
             <div className="hud-panel flex flex-col gap-1 p-3">
               <span className="hud-label">{t('verified.discountTitle')}</span>
               <span className="text-[13px] font-semibold text-ink">
-                {wallet.verifiedDiscountEndsAt
-                  ? new Date(wallet.verifiedDiscountEndsAt).toLocaleDateString()
-                  : t('verified.discountEnded')}
+                {discountEndsAt
+                  ? `${new Date(discountEndsAt).toLocaleDateString()} · %${String(discountPercent)}`
+                  : t(corporate ? 'corporate.discountEnded' : 'verified.discountEnded')}
               </span>
             </div>
             <div className="hud-panel flex flex-col gap-1 p-3">
@@ -350,14 +377,18 @@ export function WalletPage(): ReactNode {
             </div>
             <div className="hud-panel flex flex-col gap-1 p-3">
               <span className="hud-label">{t('verified.perkTitle')}</span>
-              <TitleBadge label={t('verified.title')} refCode={VERIFIED_TITLE_REF} size="sm" />
+              <TitleBadge
+                label={t(corporate ? 'corporate.title' : 'verified.title')}
+                refCode={corporate ? CORPORATE_TITLE_REF : VERIFIED_TITLE_REF}
+                size="sm"
+              />
             </div>
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {VERIFIED_PERK_KEYS.map((key) => (
+            {(corporate ? CORPORATE_PERK_KEYS : VERIFIED_PERK_KEYS).map((key) => (
               <div key={key} className="hud-panel flex items-start gap-2 p-2.5 text-[11px] leading-relaxed text-mute">
-                <BadgeCheck size={13} className="mt-0.5 shrink-0 text-good" />
+                <BadgeCheck size={13} className={cn('mt-0.5 shrink-0', corporate ? 'text-warn' : 'text-good')} />
                 <span>{t(key)}</span>
               </div>
             ))}

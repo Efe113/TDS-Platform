@@ -1,6 +1,7 @@
 /**
- * `currency_rules.icon` is stored as one of these names (0038). The renderer owns the name to component
- * map, and the picker offers exactly this list, so a value written by the admin can always be drawn.
+ * `currency_rules.icon` and `badge_definitions.icon_path` both store one of these names when the mark is
+ * drawn rather than uploaded (0038, 0040). The renderer owns the name to component map, and the pickers
+ * offer exactly this list, so a value written by the admin can always be drawn.
  *
  * Names are kebab-case, matching how the icon library exports them, so a database row stays readable in
  * the SQL console without a component import in front of it.
@@ -10,6 +11,7 @@ export const RULE_ICON_NAMES = [
   'award',
   'badge-check',
   'bookmark',
+  'building',
   'calendar-clock',
   'clipboard-check',
   'coins',
@@ -22,6 +24,7 @@ export const RULE_ICON_NAMES = [
   'history',
   'image',
   'languages',
+  'landmark',
   'link',
   'megaphone',
   'message-square',

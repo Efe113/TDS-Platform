@@ -424,7 +424,11 @@ function CreditSection({ detail, onOpenSource, openError }: { detail: StrategyDe
               >
                 {author}
               </button>
-              <VerifiedBadge show={authorFlag.data?.verified === true} label={t('discover.verified')} />
+              <VerifiedBadge
+                show={authorFlag.data?.verified === true}
+                tier={authorFlag.data?.corporate ? 'corporate' : 'verified'}
+                label={t(authorFlag.data?.corporate ? 'discover.corporate' : 'discover.verified')}
+              />
             </span>
           ) : (
             author ?? t('common.none')
@@ -571,6 +575,9 @@ export function StrategyDetailPage(): ReactNode {
   const boostCost = (item: { price: number; finalPrice: number | null }): number => item.finalPrice ?? item.price
   const activeBoost = (walletQuery.data?.boosts ?? []).find((boost) => boost.strategyId === strategyId) ?? null
   const verifiedCredits = walletQuery.data?.verifiedBoostCredits ?? 0
+  // The server burns a corporate credit before a verified one, so the button quotes the window the
+  // member is actually about to get (0040).
+  const corporateTier = walletQuery.data?.corporate === true
   const boostKey = useRef<string | null>(null)
 
   // A verification credit is not a purchase: no coin moves, no idempotency key is needed.
@@ -732,7 +739,7 @@ export function StrategyDetailPage(): ReactNode {
             {published && detail?.is_author_own && verifiedCredits > 0 && !activeBoost ? (
               <Button variant="primary" size="sm" busy={claimMutation.isPending} onClick={() => claimMutation.mutate()}>
                 <BadgeCheck size={14} />
-                {t('verified.claim')}
+                {t(corporateTier ? 'verified.claimCorporate' : 'verified.claim')}
               </Button>
             ) : null}
             {published && boostItems.length > 0 ? (

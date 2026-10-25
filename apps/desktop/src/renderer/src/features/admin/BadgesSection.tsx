@@ -5,7 +5,7 @@ import { Award, Pencil, Plus, Save, Sparkles, Trash2, Upload, X } from 'lucide-r
 
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
-import { badgeIconSrc } from '../../lib/badge-icon'
+import { BadgeGlyph } from '../../components/brand/badge-glyph'
 import { Badge, Button, INPUT_CLASS, Row, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, Section } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
@@ -244,11 +244,7 @@ export function BadgesSection(): ReactNode {
               return (
                 <li key={badge.code} className="hud-panel flex flex-wrap items-center gap-3 px-3 py-2.5">
                   <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-line/70 bg-base/60">
-                    {badgeIconSrc(badge.icon_path) ? (
-                      <img src={badgeIconSrc(badge.icon_path) as string} alt="" className="size-full object-cover" loading="lazy" />
-                    ) : (
-                      <Award size={14} className="text-mute" />
-                    )}
+                    <BadgeGlyph path={badge.icon_path} size={26} fallback={<Award size={14} className="text-mute" />} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -528,11 +524,7 @@ export function BadgesSection(): ReactNode {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-line/70 bg-base/60">
-                    {badgeIconSrc(draft.iconPath.trim().length > 0 ? draft.iconPath.trim() : null) ? (
-                      <img src={badgeIconSrc(draft.iconPath.trim()) as string} alt="" className="size-full object-cover" loading="lazy" />
-                    ) : (
-                      <Award size={16} className="text-mute" />
-                    )}
+                    <BadgeGlyph path={draft.iconPath.trim().length > 0 ? draft.iconPath.trim() : null} size={32} fallback={<Award size={16} className="text-mute" />} />
                   </span>
                   <p className="text-[10px] leading-relaxed text-mute">
                     {upload.isError ? (upload.error instanceof Error ? upload.error.message : String(upload.error)) : t('admin.badgeIconHelp')}

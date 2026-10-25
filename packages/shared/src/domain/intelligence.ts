@@ -80,6 +80,10 @@ export const facetBucketSchema = z.object({
 
 export const discoverFacetsSchema = z.object({
   total: z.number().int().nonnegative().default(0),
+  // 0040: the tier buckets count the population the filter itself produces, so the chip's number and
+  // the list under it can never disagree. Optional so an un-migrated database still parses.
+  verified: z.number().int().nonnegative().optional().default(0),
+  corporate: z.number().int().nonnegative().optional().default(0),
   maps: z.array(facetBucketSchema).default([]),
   difficulties: z.array(facetBucketSchema).default([]),
   modes: z.array(facetBucketSchema).default([])

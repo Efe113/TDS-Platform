@@ -565,7 +565,11 @@ export function DiscoverPage(): ReactNode {
                 {/* Server-side, because verified authors are ranked above everyone else in the same query. */}
                 <Button size="sm" variant={filters.verified ? 'primary' : 'ghost'} onClick={() => patch({ verified: !filters.verified })}>
                   <BadgeCheck size={13} />
-                  {t('discover.verifiedOnly')}
+                  {/* The count comes from the facet query and counts corporate authors too, so the
+                      number on the button is the population the button would produce (0040). */}
+                  {filters.verified || facets === null || facets.verified <= 0
+                    ? t('discover.verifiedOnly')
+                    : t('discover.verifiedWithCount', { count: String(facets.verified) })}
                 </Button>
               </div>
 

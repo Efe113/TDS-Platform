@@ -2,16 +2,17 @@ import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { Check, Pencil, Plus, Search, Store, TrendingUp, Wallet } from 'lucide-react'
-import { FRAME_SKINS, THEME_KEYS, cosmeticSlug, formatCoin, titleIsValid } from '@tds/shared'
+import { Check, Pencil, Plus, RotateCcw, Search, Store, TrendingUp, Wallet } from 'lucide-react'
+import { FRAME_SKINS, THEME_KEYS, cosmeticSlug, economyErrorKey, formatCoin, titleIsValid } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { supabase } from '../../lib/supabase'
-import { Button, INPUT_CLASS, Row, cn } from '../../components/ui'
+import { Button, INPUT_CLASS, Row, Toggle, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, Section, Segmented } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
 import { FrameSample } from '../../components/brand/frame'
-import { fetchBadgeDefinitions } from './admin-api'
+import { fetchBadgeDefinitions, fetchSpendOrders, refundOrder, type AdminOrderRow } from './admin-api'
+import { formatDateTime } from './admin-ui'
 
 /**
  * The shop, editable end to end.
@@ -35,7 +36,7 @@ const adminCatalogRowSchema = z.object({
   descTr: z.string().nullable().default(null),
   descEn: z.string().nullable().default(null),
   perks: z.array(z.string()).default([]),
-  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified']).catch('none'),
+  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified', 'corporate']).catch('none'),
   discountPercent: z.number().int().default(0),
   discountEndsAt: z.string().nullable().default(null),
   finalPrice: z.number().int().nullable().default(null),
@@ -60,7 +61,7 @@ interface Draft {
   descTr: string
   descEn: string
   perks: string
-  tag: 'none' | 'new' | 'soon' | 'vip' | 'verified'
+  tag: 'none' | 'new' | 'soon' | 'vip' | 'verified' | 'corporate'
   discount: string
   discountEnds: string
 }
@@ -111,6 +112,148 @@ const KIND_TONE: Record<Kind, 'brand' | 'warn' | 'good' | 'neutral'> = {
   title: 'good',
   frame: 'brand',
   vip: 'warn'
+}
+
+const ORDER_STATUSES = ['filled', 'reversed', 'failed'] as const
+type OrderFilter = (typeof ORDER_STATUSES)[number] | 'all'
+
+const ORDER_TONE: Record<AdminOrderRow['status'], 'good' | 'warn' | 'danger'> = {
+  filled: 'good',
+  reversed: 'warn',
+  failed: 'danger'
+}
+
+/**
+ * Receipts, because `spend_orders` is where a mistaken sale is undone (0041). A refund is two things at
+ * once: the coins return through the ledger — never by editing a balance — and the entitlement the
+ * receipt was granting is taken back, which is why the reclaim switch is on by default.
+ */
+function OrderToolsSection(): ReactNode {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const [status, setStatus] = useState<OrderFilter>('filled')
+  const [sku, setSku] = useState('')
+  const [note, setNote] = useState('')
+  const [reclaim, setReclaim] = useState(true)
+  const [refundFor, setRefundFor] = useState<string | null>(null)
+
+  const ordersQuery = useQuery({
+    queryKey: ['admin', 'orders', status, sku],
+    queryFn: () => fetchSpendOrders(sku.trim(), status === 'all' ? null : status),
+    retry: false
+  })
+
+  const refund = useMutation({
+    mutationFn: (orderId: string) => refundOrder({ orderId, note, reclaim }),
+    onSuccess: () => {
+      setRefundFor(null)
+      setNote('')
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'ledger'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] })
+    }
+  })
+
+  const rows = ordersQuery.data ?? []
+  const noteValid = note.trim().length >= 3
+
+  return (
+    <Section
+      title={t('admin.orders')}
+      hint={t('admin.ordersHint')}
+      aside={
+        <Row className="flex-wrap gap-1.5">
+          <div className="relative">
+            <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-mute" />
+            <input
+              className={cn(INPUT_CLASS, 'no-drag h-8 w-44 py-1 pl-7 text-xs')}
+              placeholder={t('admin.orderSkuSearch')}
+              value={sku}
+              onChange={(event) => setSku(event.target.value)}
+            />
+          </div>
+          <Segmented
+            value={status}
+            onChange={(next) => setStatus(next as OrderFilter)}
+            options={[
+              { value: 'filled', label: t('admin.orderFilled') },
+              { value: 'reversed', label: t('admin.orderReversed') },
+              { value: 'failed', label: t('admin.orderFailed') },
+              { value: 'all', label: t('discover.eventAny') }
+            ]}
+          />
+        </Row>
+      }
+    >
+      {ordersQuery.isPending ? <StateLoading /> : null}
+      {ordersQuery.isError ? (
+        <StateError detail={ordersQuery.error instanceof Error ? ordersQuery.error.message : String(ordersQuery.error)} onRetry={() => void ordersQuery.refetch()} busy={ordersQuery.isFetching} />
+      ) : null}
+      {refund.isError ? (
+        <div className="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] text-danger">
+          {t(economyErrorKey(refund.error instanceof Error ? refund.error.message : String(refund.error)))}
+        </div>
+      ) : null}
+
+      {!ordersQuery.isPending && !ordersQuery.isError && rows.length === 0 ? <StateEmpty icon={Wallet} title={t('admin.ordersEmpty')} /> : null}
+
+      <ul className="space-y-1.5">
+        {rows.map((row) => (
+          <li key={row.id} className="hud-panel flex flex-wrap items-center gap-3 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-ink">
+                {row.sku}
+                <Chip tone={ORDER_TONE[row.status]}>{row.status === 'reversed' ? t('admin.orderReversed') : row.status === 'failed' ? t('admin.orderFailed') : t('admin.orderFilled')}</Chip>
+              </p>
+              <p className="truncate font-mono text-[10px] text-mute">{`@${row.profiles?.handle ?? row.user_id.slice(0, 8)} · ${formatDateTime(row.created_at)}`}</p>
+              {row.grant_note ? <p className="truncate text-[10px] text-mute/80">{row.grant_note}</p> : null}
+            </div>
+            <CoinAmount value={row.price_paid} size="sm" tone="mute" />
+            {row.status === 'filled' ? (
+              <Button
+                size="sm"
+                variant={refundFor === row.id ? 'primary' : 'ghost'}
+                onClick={() => setRefundFor((current) => (current === row.id ? null : row.id))}
+              >
+                <RotateCcw size={12} />
+                {t('admin.refund')}
+              </Button>
+            ) : null}
+            {refundFor === row.id ? (
+              <div className="w-full space-y-2 rounded-lg border border-line/60 bg-base/40 p-2.5">
+                <input
+                  className={cn(INPUT_CLASS, 'no-drag h-7 w-full py-0 text-[11px]')}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder={t('admin.moveNoteHint')}
+                  maxLength={300}
+                  aria-label={t('admin.moveNote')}
+                />
+                <Row className="flex-wrap items-center gap-2">
+                  <Toggle checked={reclaim} onChange={setReclaim} label={<span className="text-[11px] text-mute">{t('admin.refundReclaim')}</span>} />
+                  <span className="min-w-0 flex-1 break-words text-[10px] text-mute">{t('admin.refundHint')}</span>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={!noteValid || refund.isPending}
+                    busy={refund.isPending && refund.variables === row.id}
+                    onClick={() => refund.mutate(row.id)}
+                  >
+                    {t('admin.refund')}
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={refund.isPending} onClick={() => setRefundFor(null)}>
+                    {t('admin.cancel')}
+                  </Button>
+                </Row>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </Section>
+  )
 }
 
 export function MarketAdminSection(): ReactNode {
@@ -311,16 +454,30 @@ export function MarketAdminSection(): ReactNode {
                             {row.nameTr ?? row.sku}
                           </span>
                           {row.tag !== 'none' ? (
-                            <Chip tone={row.tag === 'new' ? 'brand' : row.tag === 'vip' ? 'warn' : row.tag === 'verified' ? 'good' : 'neutral'}>
+                            <Chip
+                              tone={
+                                row.tag === 'new'
+                                  ? 'brand'
+                                  : row.tag === 'vip'
+                                    ? 'warn'
+                                    : row.tag === 'verified'
+                                      ? 'good'
+                                      : row.tag === 'corporate'
+                                        ? 'warn'
+                                        : 'neutral'
+                              }
+                            >
                               {row.tag === 'new'
                                 ? t('market.tagNew')
                                 : row.tag === 'vip'
                                   ? t('market.tagVip')
                                   : row.tag === 'verified'
                                     ? t('discover.verified')
-                                    : row.tag === 'soon'
-                                      ? t('market.tagSoon')
-                                      : t('admin.tagNone')}
+                                    : row.tag === 'corporate'
+                                      ? t('discover.corporate')
+                                      : row.tag === 'soon'
+                                        ? t('market.tagSoon')
+                                        : t('admin.tagNone')}
                             </Chip>
                           ) : null}
                           {row.discountPercent > 0 ? <Chip tone="warn">{`−%${String(row.discountPercent)}`}</Chip> : null}
@@ -605,6 +762,7 @@ export function MarketAdminSection(): ReactNode {
                   <option value="vip">{t('market.tagVip')}</option>
                   {/* A benefit tag is the till's deny list: it can never be bought off the shelf. */}
                   <option value="verified">{t('discover.verified')}</option>
+                  <option value="corporate">{t('discover.corporate')}</option>
                 </select>
                 <span className="text-[10px] text-mute">{t('admin.fieldTagHint')}</span>
               </label>
@@ -654,6 +812,8 @@ export function MarketAdminSection(): ReactNode {
           </div>
         </Section>
       ) : null}
+
+      <OrderToolsSection />
     </div>
   )
 }

@@ -27,7 +27,7 @@ import {
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate, routeSegments, useRoutePath } from '../../lib/router'
-import { useCatalogLanguage } from '../../lib/catalog-labels'
+import { pickLocalized, useCatalogLanguage } from '../../lib/catalog-labels'
 import { fetchShowcase, setProfileMedia, setPublicBadges, updateProfile } from '../../lib/profile-api'
 import { showcaseQueryKey, useIdentity } from '../../lib/identity'
 import { removeProfileImage, uploadProfileImage } from '../../lib/media-upload'
@@ -43,7 +43,7 @@ import { StateEmpty, StateError } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
 import { TitleBadge } from '../../components/brand/title-badge'
 import { VerifiedBadge } from '../../components/brand/verified-badge'
-import { badgeIconSrc } from '../../lib/badge-icon'
+import { BadgeGlyph } from '../../components/brand/badge-glyph'
 import { FrameRing, frameStyle } from '../../components/brand/frame'
 import { ThemePreview, skinStyle } from '../../components/brand/theme-preview'
 import { CountUp } from '../../motion/primitives/CountUp'
@@ -96,14 +96,7 @@ function BadgeTile({ badge, inShowcase, onToggle }: { badge: ProfileBadge; inSho
       )}
     >
       <Row className="gap-2">
-        {badgeIconSrc(badge.iconPath) ? (
-          <img
-            src={badgeIconSrc(badge.iconPath) as string}
-            alt=""
-            loading="lazy"
-            className="size-7 rounded-lg border border-line/70 bg-base/60 object-cover"
-          />
-        ) : null}
+        <BadgeGlyph path={badge.iconPath} size={26} fallback={<span className="hud-num text-[11px] text-mute">{name.slice(0, 1).toLocaleUpperCase()}</span>} />
         <Badge tone={TIER_TONE[badge.tier]}>{t(TIER_LABEL[badge.tier])}</Badge>
         {inShowcase ? <span className="text-[11px] text-brand">{t('profile.inShowcase')}</span> : null}
       </Row>
@@ -116,6 +109,7 @@ function BadgeTile({ badge, inShowcase, onToggle }: { badge: ProfileBadge; inSho
 
 export function ProfilePage(): ReactNode {
   const t = useT()
+  const language = useCatalogLanguage()
   const path = useRoutePath()
   const ownId = useAuth(selectUserId)
   const identity = useIdentity()
@@ -352,8 +346,14 @@ export function ProfilePage(): ReactNode {
             <div className="min-w-0 flex-1 pb-1">
               <p className="flex flex-wrap items-center gap-2 truncate text-lg leading-tight font-semibold text-ink">
                 {profile.displayName ?? `@${profile.handle}`}
-                <VerifiedBadge show={profile.verified} label={t('discover.verified')} />
-                {profile.titleName ? <TitleBadge label={profile.titleName} refCode={profile.titleKey} size="md" /> : null}
+                <VerifiedBadge show={profile.verified} tier={profile.corporate ? 'corporate' : 'verified'} label={t(profile.corporate ? 'discover.corporate' : 'discover.verified')} />
+                {profile.titleName ? (
+                  <TitleBadge
+                    label={pickLocalized(profile.titleName, profile.titleNameEn, language) ?? profile.titleName}
+                    refCode={profile.titleKey}
+                    size="md"
+                  />
+                ) : null}
               </p>
               <p className="truncate text-[12px] text-mute">{`@${profile.handle}`}</p>
             </div>

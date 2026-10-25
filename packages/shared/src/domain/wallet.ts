@@ -69,7 +69,7 @@ export const walletItemSchema = z.object({
    * older installed client. A rejected array here blanks the entire Market page, which is what happened
    * when 0037 introduced `verified` for clients built before it existed.
    */
-  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified']).catch('none'),
+  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified', 'corporate']).catch('none'),
   owned: z.boolean().default(false)
 })
 
@@ -98,7 +98,11 @@ export const walletSummarySchema = z.object({
   // 0037: the verified tier — staff-granted, with an expiring discount and promotable credits.
   verified: z.boolean().optional().default(false),
   verifiedDiscountEndsAt: z.string().nullable().optional().default(null),
-  verifiedBoostCredits: z.number().int().nonnegative().optional().default(0)
+  verifiedBoostCredits: z.number().int().nonnegative().optional().default(0),
+  // 0040: corporate is a superset of verified, so `verified` is true for both and `corporate` is the
+  // difference. All credits live in `verifiedBoostCredits`; the SQL adds both pockets together.
+  corporate: z.boolean().optional().default(false),
+  corporateDiscountEndsAt: z.string().nullable().optional().default(null)
 })
 
 export type WalletSummary = z.infer<typeof walletSummarySchema>

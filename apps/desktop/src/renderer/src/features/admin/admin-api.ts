@@ -473,6 +473,88 @@ export async function revokeBadge(userId: string, code: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+export const adminOrderRowSchema = z.object({
+  id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  sku: z.string(),
+  price_paid: z.number().int(),
+  status: z.enum(['filled', 'reversed', 'failed']),
+  grant_note: z.string().nullable().default(null),
+  created_at: z.string(),
+  profiles: z.object({ handle: z.string().nullable().default(null) }).nullable().default(null)
+})
+export type AdminOrderRow = z.infer<typeof adminOrderRowSchema>
+
+/**
+ * Recent receipts. The console reads the table directly because `orders_read` already lets an admin see
+ * every row; only the refund itself is an RPC, since it moves coins and takes an entitlement back.
+ */
+export async function fetchSpendOrders(query: string | null, status: string | null): Promise<AdminOrderRow[]> {
+  const db = requireDb()
+  let request = db
+    .from('spend_orders')
+    .select('id,user_id,sku,price_paid,status,grant_note,created_at,profiles!user_id(handle)')
+    .order('id', { ascending: false })
+    .limit(60)
+  if (status !== null && status !== '') request = request.eq('status', status)
+  if (query !== null && query !== '') request = request.ilike('sku', `%${query}%`)
+  const { data, error } = await request
+  if (error) throw new Error(error.message)
+  return adminOrderRowSchema.array().parse(data ?? [])
+}
+
+export interface OrderRefund {
+  orderId: string
+  note: string
+  reclaim: boolean
+}
+
+export async function refundOrder(input: OrderRefund): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_refund_order', {
+    p_order: input.orderId,
+    p_note: input.note.trim(),
+    p_reclaim: input.reclaim
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Cached balance repaired from the ledger (0041). Returns what the cache holds now. */
+export async function reconcileBalance(userId: string, note: string | null): Promise<number> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_reconcile_balance', { p_user: userId, p_note: note })
+  if (error) throw new Error(error.message)
+  const record = (data ?? {}) as Record<string, unknown>
+  return typeof record.balance === 'number' ? record.balance : 0
+}
+
+export async function reconcileDrift(): Promise<number> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_reconcile_drift', { p_limit: 200 })
+  if (error) throw new Error(error.message)
+  const record = (data ?? {}) as Record<string, unknown>
+  return typeof record.repaired === 'number' ? record.repaired : 0
+}
+
+/** Membership granted or withdrawn by hand; withdrawal also takes the bundled frame and title off. */
+export async function setVip(userId: string, on: boolean, note: string | null): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_set_vip', { p_user: userId, p_on: on, p_note: note })
+  if (error) throw new Error(error.message)
+}
+
+export async function bulkReviewQueue(ids: string[], decision: 'approve' | 'reject', note: string | null): Promise<number> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_queue_bulk', {
+    p_ids: ids,
+    p_decision: decision,
+    p_note: note && note.trim().length > 0 ? note.trim().slice(0, 500) : null
+  })
+  if (error) throw new Error(error.message)
+  const record = (data ?? {}) as Record<string, unknown>
+  return typeof record.processed === 'number' ? record.processed : ids.length
+}
+
 /** Badge art lives in the same public bucket as everything else; the column stores the path. */
 export async function uploadBadgeImage(code: string, file: File): Promise<string> {
   const db = requireDb()

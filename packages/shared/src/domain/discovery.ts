@@ -51,7 +51,10 @@ export const searchRowSchema = z.object({
   trend_7d: z.coerce.number().int().nonnegative().optional().default(0),
   rows_total: z.coerce.number().int().nonnegative().optional().default(0),
   // 0037: the author carries the verified tier, so every one of their strategies gets the mark.
-  author_verified: z.boolean().optional().default(false)
+  author_verified: z.boolean().optional().default(false),
+  // 0040: corporate authors are also verified; the extra flag only decides the colour of the tick and
+  // the rank order, so an un-migrated database still renders.
+  author_corporate: z.boolean().optional().default(false)
 })
 
 export type SearchRow = z.infer<typeof searchRowSchema>

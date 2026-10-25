@@ -85,3 +85,18 @@ export function catalogName(entity: LocalizedName | null | undefined, language: 
   const value = language === 'en' ? entity.name_en : entity.name_tr
   return value.trim().length > 0 ? value : null
 }
+
+/**
+ * Server-owned text that exists in both languages (0040: titles, badge names). Falls back to the other
+ * column when a row was written with only one, so an English interface never shows an empty mark.
+ */
+export function pickLocalized(
+  turkish: string | null | undefined,
+  english: string | null | undefined,
+  language: CatalogLanguage
+): string | null {
+  const preferred = language === 'en' ? english : turkish
+  const fallback = language === 'en' ? turkish : english
+  const value = (preferred ?? '').trim().length > 0 ? preferred : fallback
+  return value && value.trim().length > 0 ? value : null
+}

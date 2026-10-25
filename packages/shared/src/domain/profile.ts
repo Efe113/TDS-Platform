@@ -69,8 +69,12 @@ export const profileShowcaseSchema = z.object({
   // 0037: the verified tier; credits stay private to the owner and admins.
   verified: z.boolean().optional().default(false),
   verifiedBoostCredits: z.number().int().nonnegative().nullable().optional().default(null),
+  // 0040: corporate is the superset, so a corporate profile reads verified as well.
+  corporate: z.boolean().optional().default(false),
   titleKey: z.string().nullable().optional().default(null),
   titleName: z.string().nullable().optional().default(null),
+  // 0040: the same title in the other language, so an English interface stops painting a Turkish name.
+  titleNameEn: z.string().nullable().optional().default(null),
   frameKey: z.string().nullable().optional().default(null),
   isSelf: z.boolean().optional().default(false),
   // zod v4 types .default() against the output shape, so the empty-profile fallback is built by

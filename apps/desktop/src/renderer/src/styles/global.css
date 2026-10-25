@@ -1935,6 +1935,87 @@ html.overlay-root ::-webkit-scrollbar {
   50% { filter: drop-shadow(0 0 11px color-mix(in oklab, var(--color-good) 92%, transparent)); }
 }
 
+/* ---------------------------------------------------------------- corporate tier */
+
+/* An organisation reads as minted, not painted: a gold plate, a hallmark stripe that travels under the
+   text, and a slower sweep than the verified flow so the two tiers never look like one treatment. */
+.verified-badge--corporate {
+  color: #f2c14e;
+}
+
+.verified-badge--corporate::before {
+  background: radial-gradient(circle at 50% 50%, rgb(242 193 78 / 0.3), transparent 68%);
+}
+
+.verified-badge--corporate .verified-badge__icon {
+  filter: drop-shadow(0 0 6px rgb(242 193 78 / 0.58));
+  animation: corporate-badge-pulse 4.4s ease-in-out infinite;
+}
+
+.title-badge[data-effect='corporate'] {
+  border-color: transparent;
+  background: #140e03;
+  box-shadow:
+    0 0 22px -8px rgb(242 193 78 / 0.72),
+    inset 0 0 14px rgb(242 193 78 / 0.07);
+}
+
+.title-badge[data-effect='corporate']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(110deg, #8a5a12, #f2c14e, #fff0c2, #d9a13c, #8a5a12) 0 0 / 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: title-badge-rainbow 5.2s linear infinite;
+}
+
+.title-badge[data-effect='corporate']::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 2px;
+  height: 1px;
+  z-index: 2;
+  background: linear-gradient(90deg, transparent, rgb(255 240 194 / 0.85), transparent);
+  animation: corporate-hallmark 5.2s ease-in-out infinite;
+}
+
+.title-badge[data-effect='corporate'] .title-badge__text {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(110deg, #fff0c2, #f2c14e, #ffe9a8, #d9a13c, #fff0c2) 0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: title-badge-rainbow 5.2s linear infinite;
+}
+
+.title-badge[data-effect='corporate'] .title-badge__icon {
+  color: #f2c14e;
+  animation: corporate-badge-pulse 4s ease-in-out infinite;
+}
+
+.title-badge[data-effect='corporate'] .title-badge__flare {
+  background: linear-gradient(100deg, transparent 30%, rgb(255 240 194 / 0.22) 48%, transparent 62%);
+  animation-duration: 6.4s;
+}
+
+@keyframes corporate-badge-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgb(242 193 78 / 0.4)); }
+  50% { filter: drop-shadow(0 0 12px rgb(242 193 78 / 0.9)); }
+}
+
+@keyframes corporate-hallmark {
+  0%, 100% { opacity: 0.3; transform: translateX(-3px); }
+  50% { opacity: 1; transform: translateX(3px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .verified-badge__icon,
   .title-badge[data-effect='verified-green']::before,
@@ -1943,4 +2024,13 @@ html.overlay-root ::-webkit-scrollbar {
     animation: none;
   }
   .title-badge[data-effect='verified-green'] .title-badge__text { background-position: 24% 50%; }
+  .verified-badge--corporate .verified-badge__icon,
+  .title-badge[data-effect='corporate']::before,
+  .title-badge[data-effect='corporate']::after,
+  .title-badge[data-effect='corporate'] .title-badge__text,
+  .title-badge[data-effect='corporate'] .title-badge__icon {
+    animation: none;
+  }
+  .title-badge[data-effect='corporate'] .title-badge__text { background-position: 24% 50%; }
+  .title-badge[data-effect='corporate']::after { opacity: 0.7; transform: none; }
 }

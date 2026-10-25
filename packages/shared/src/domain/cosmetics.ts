@@ -40,11 +40,15 @@ export const VIP_TITLE_REF = 'vip_rainbow'
 /** Staff-granted tier: the green title arrives with verification, never with a purchase. */
 export const VERIFIED_TITLE_REF = 'verified_green'
 
-export type TitleEffect = 'vip-rainbow' | 'verified-green'
+/** 0040: the organisation title. It replaces the green one on the same account, never beside it. */
+export const CORPORATE_TITLE_REF = 'corporate'
+
+export type TitleEffect = 'vip-rainbow' | 'verified-green' | 'corporate'
 
 export function titleEffect(ref: string | null | undefined): TitleEffect | null {
   if (ref === VIP_TITLE_REF) return 'vip-rainbow'
   if (ref === VERIFIED_TITLE_REF) return 'verified-green'
+  if (ref === CORPORATE_TITLE_REF) return 'corporate'
   return null
 }
 

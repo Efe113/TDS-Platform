@@ -27,23 +27,30 @@ function db(): NonNullable<typeof supabase> {
 
 export interface AuthorFlag {
   verified: boolean
+  corporate: boolean
   titleKey: string | null
 }
 
-const NOT_VERIFIED: AuthorFlag = { verified: false, titleKey: null }
+const NOT_VERIFIED: AuthorFlag = { verified: false, corporate: false, titleKey: null }
 
 /** Verification of the authors a page already shows, in one round-trip over public profile reads. */
 export async function fetchVerificationFlags(userIds: string[]): Promise<Record<string, AuthorFlag>> {
   const ids = [...new Set(userIds.filter((id) => id.length > 0))]
   if (ids.length === 0 || !supabase) return {}
-  const { data, error } = await supabase.from('profiles').select('id, is_verified, active_title').in('id', ids)
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, is_verified, is_corporate, active_title')
+    .in('id', ids)
   // A missing column means an unmigrated database, not a network problem: answer "nothing verified".
   if (error) return {}
   const flags: Record<string, AuthorFlag> = {}
   for (const row of (data ?? []) as Array<Record<string, unknown>>) {
     if (typeof row.id !== 'string') continue
+    const corporate = row.is_corporate === true
     flags[row.id] = {
-      verified: row.is_verified === true,
+      // 0040: a corporate account is a verified one, so the tick answers yes for both flags.
+      verified: row.is_verified === true || corporate,
+      corporate,
       titleKey: typeof row.active_title === 'string' ? row.active_title : null
     }
   }
@@ -113,6 +120,18 @@ export async function setVerified(userId: string, verified: boolean, credits: nu
   const { error } = await db().rpc('admin_set_verified', {
     p_user: userId,
     p_verified: verified,
+    p_credits: credits,
+    p_note: note?.trim().length ? note.trim() : null
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** 0040: corporate implies verification, so revoking it never touches the verified flag. */
+export async function setCorporate(userId: string, corporate: boolean, credits: number | null, note: string | null): Promise<void> {
+  await whenSessionReady()
+  const { error } = await db().rpc('admin_set_corporate', {
+    p_user: userId,
+    p_corporate: corporate,
     p_credits: credits,
     p_note: note?.trim().length ? note.trim() : null
   })

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight,
   BadgeCheck,
+  Building2,
   Compass,
   Eye,
   EyeOff,
@@ -90,7 +91,8 @@ const GROUPS: NavGroup[] = [
     items: [
       { path: '/leaderboard', labelKey: 'nav.leaderboard', icon: Trophy },
       { path: '/market', labelKey: 'market.title', icon: Store },
-      { path: '/verified', labelKey: 'verified.nav', icon: BadgeCheck }
+      { path: '/verified', labelKey: 'verified.nav', icon: BadgeCheck },
+      { path: '/corporate', labelKey: 'corporate.nav', icon: Building2 }
     ]
   },
   {

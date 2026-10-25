@@ -931,7 +931,7 @@ begin
                      'code', b.code,
                      'name', coalesce(b.name_tr, b.name_en, b.code),
                      'tier', b.tier,
-                   'iconPath', b.icon_path$1) order by ub.awarded_at desc
+                   'iconPath', b.icon_path) order by ub.awarded_at desc
                  ) as badges,
                  count(*) as badge_count
             from public.user_badges ub
@@ -1056,7 +1056,7 @@ begin
                    'code', b.code,
                    'name', coalesce(b.name_tr, b.name_en, b.code),
                    'tier', b.tier,
-                 'iconPath', b.icon_path$1) order by ub.awarded_at desc
+                 'iconPath', b.icon_path) order by ub.awarded_at desc
                ) as badges,
                count(*) as badge_count
           from public.user_badges ub

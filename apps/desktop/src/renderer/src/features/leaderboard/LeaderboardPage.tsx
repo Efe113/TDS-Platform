@@ -30,7 +30,6 @@ import {
   formatMetricValue,
   leagueForRank,
   storageUrl,
-  VIP_TITLE_REF,
   type LeaderboardBoard,
   type LeaderboardHubMe,
   type LeaderboardHubRow,
@@ -43,7 +42,7 @@ import type { MessageKey } from '../../i18n/resources'
 import { navigate } from '../../lib/router'
 import { fetchLeaderboardHub } from '../../lib/leaderboard-api'
 import { fetchCatalogOptions, type CatalogOption } from '../../lib/discovery-api'
-import { catalogName, useCatalogLanguage } from '../../lib/catalog-labels'
+import { catalogName, pickLocalized, useCatalogLanguage } from '../../lib/catalog-labels'
 import { SUPABASE_BASE_URL } from '../../lib/storage-base'
 import { selectSignedIn, useAuth } from '../../store/auth-store'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
@@ -53,8 +52,7 @@ import { StateEmpty, StateError, StateLoading } from '../../components/ui/states
 import { FrameRing, frameStyle } from '../../components/brand/frame'
 import { TitleBadge } from '../../components/brand/title-badge'
 import { VerifiedBadge } from '../../components/brand/verified-badge'
-import { fetchVerificationFlags } from '../../lib/account-api'
-import { badgeIconSrc } from '../../lib/badge-icon'
+import { BadgeGlyph } from '../../components/brand/badge-glyph'
 import { RevealItem, RevealList } from '../../motion/primitives/Reveal'
 
 /**
@@ -156,6 +154,29 @@ function playerName(row: LeaderboardHubRow): string {
 
 /* ---------------------------------------------------------------- identity */
 
+/**
+ * The member's own marks. 0040 moved the tick, the tier and both title names into the hub RPC, so these
+ * read the row instead of firing another profile query for every author on screen.
+ */
+function RowTitle({ row, size = 'sm' }: { row: LeaderboardHubRow; size?: 'sm' | 'md' }): ReactNode {
+  const language = useCatalogLanguage()
+  const label = pickLocalized(row.titleName, row.titleNameEn, language)
+  if (label === null) return null
+  return <TitleBadge label={label} refCode={row.titleKey ?? undefined} size={size} />
+}
+
+function RowTick({ row }: { row: LeaderboardHubRow }): ReactNode {
+  const t = useT()
+  return (
+    <VerifiedBadge
+      show={row.verified}
+      tier={row.corporate ? 'corporate' : 'verified'}
+      size="sm"
+      label={t(row.corporate ? 'discover.corporate' : 'discover.verified')}
+    />
+  )
+}
+
 function RowAvatar({ row, size = 'md' }: { row: LeaderboardHubRow; size?: 'sm' | 'md' | 'lg' }): ReactNode {
   const src = row.avatarPath && SUPABASE_BASE_URL.length > 0 ? storageUrl(SUPABASE_BASE_URL, row.avatarPath) : null
   const initials = playerName(row).slice(0, 2).toLocaleUpperCase()
@@ -223,9 +244,7 @@ function BadgeShelf({ row }: { row: LeaderboardHubRow }): ReactNode {
   const shown = row.badges.slice(0, 3)
   return (
     <span className="flex flex-wrap items-center gap-1">
-      {shown.map((badge) => {
-        const icon = badgeIconSrc(badge.iconPath)
-        return (
+      {shown.map((badge) => (
           <span
             key={badge.code}
             title={badge.name}
@@ -234,10 +253,10 @@ function BadgeShelf({ row }: { row: LeaderboardHubRow }): ReactNode {
               BADGE_TONE[badge.tier] ?? BADGE_TONE.bronze
             )}
           >
-            {icon ? <img src={icon} alt="" loading="lazy" className="size-full object-cover" /> : badge.name.slice(0, 1).toLocaleUpperCase()}
+            {/* A stored name draws the mark; only a badge with neither art nor name falls back to a letter. */}
+            <BadgeGlyph path={badge.iconPath} size={14} fallback={badge.name.slice(0, 1).toLocaleUpperCase()} />
           </span>
-        )
-      })}
+      ))}
       {row.badgeCount > shown.length ? (
         <span className="text-[10px] text-mute">{t('leaderboard.badgeMore', { count: row.badgeCount - shown.length })}</span>
       ) : null}
@@ -510,14 +529,8 @@ function PodiumCard({
           {board === 'strategies' ? (row.handle ? `@${row.handle}` : t('leaderboard.owner')) : row.handle ? `@${row.handle}` : ''}
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-1">
-          {row.titleName ? (
-            <TitleBadge
-              label={row.titleName}
-              refCode={row.titleKey ?? (row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined)}
-              size="sm"
-            />
-          ) : null}
-          <VerifiedBadge show={row.verified} size="sm" label={t('discover.verified')} />
+          <RowTitle row={row} />
+          <RowTick row={row} />
           {row.vip ? <Chip tone="warn" icon={Crown}>VIP</Chip> : null}
         </div>
       </div>
@@ -615,14 +628,8 @@ function RankRow({
               >
                 {row.name}
               </button>
-              {row.titleName ? (
-                <TitleBadge
-                  label={row.titleName}
-                  refCode={row.titleKey ?? (row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined)}
-                  size="sm"
-                />
-              ) : null}
-              <VerifiedBadge show={row.verified} size="sm" label={t('discover.verified')} />
+              <RowTitle row={row} />
+              <RowTick row={row} />
               {row.vip ? <Chip tone="warn" icon={Crown}>VIP</Chip> : null}
               {isMe ? <Chip tone="good">{t('leaderboard.you')}</Chip> : null}
             </div>
@@ -764,7 +771,7 @@ function MiniRow({
       <button type="button" className="no-drag min-w-0 flex-1 break-words text-left text-[11px] font-medium text-ink hover:text-brand" onClick={() => openEntity(row)}>
         {row.name}
       </button>
-      <VerifiedBadge show={row.verified} size="sm" label={t('discover.verified')} />
+      <RowTick row={row} />
       <span className="hud-num shrink-0 text-[11px] text-ink">{scoreText(board, metric, row.score)}</span>
       <span className="shrink-0">
         <MovementBadge row={row} previousWindow={previousWindow} />
@@ -916,37 +923,10 @@ export function LeaderboardPage(): ReactNode {
   })
   const hub = hubQuery.data
 
-  // The tick and the green title come from public profile reads rather than the hub RPC, so an
-  // un-migrated database leaves the board intact with no marks instead of failing the query.
-  const flagIds = useMemo(() => {
-    if (!hub) return []
-    return [
-      ...hub.rows,
-      ...hub.nearMe,
-      ...hub.movers.climbers,
-      ...hub.movers.fallers,
-      ...(hub.me ? [hub.me] : [])
-    ]
-      .flatMap((row) => (row.playerId ? [row.playerId] : []))
-      .filter((id, index, list) => list.indexOf(id) === index)
-  }, [hub])
-  const flagsQuery = useQuery({
-    queryKey: ['verified-flags', flagIds.join(',')],
-    queryFn: () => fetchVerificationFlags(flagIds),
-    enabled: flagIds.length > 0,
-    staleTime: 300_000,
-    retry: false
-  })
-  const flags = flagsQuery.data
-  const decorate = useCallback(
-    <T extends LeaderboardHubRow>(row: T): T => {
-      const flag = row.playerId && flags ? flags[row.playerId] : undefined
-      return flag ? { ...row, verified: flag.verified, titleKey: flag.titleKey ?? row.titleKey } : row
-    },
-    [flags]
-  )
-  const me = hub?.me ? decorate(hub.me) : null
-  const rows = useMemo(() => (hub?.rows ?? []).map(decorate), [hub, decorate])
+  // 0040: the hub carries the tick, the tier and both title names, so the board is one query instead of
+  // a second profile read for every distinct author on screen.
+  const me = hub?.me ?? null
+  const rows = hub?.rows ?? []
 
   const mapsQuery = useQuery({
     queryKey: ['catalog', 'maps'],
@@ -1078,12 +1058,12 @@ export function LeaderboardPage(): ReactNode {
       for (const row of list) map.set(row.entityId, row)
     }
     add(rows)
-    add((hub?.nearMe ?? []).map(decorate))
-    add((hub?.movers.climbers ?? []).map(decorate))
-    add((hub?.movers.fallers ?? []).map(decorate))
-    if (hub?.me) map.set(hub.me.entityId, decorate(hub.me))
+    add(hub?.nearMe ?? [])
+    add(hub?.movers.climbers ?? [])
+    add(hub?.movers.fallers ?? [])
+    if (hub?.me) map.set(hub.me.entityId, hub.me)
     return map
-  }, [rows, hub, decorate])
+  }, [rows, hub])
 
   const comparedRows = compare
     .map((id) => knownRows.get(id))

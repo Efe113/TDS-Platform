@@ -7,19 +7,22 @@ import {
   Award,
   BadgeCheck,
   Ban,
+  Building2,
   CircleDollarSign,
   Coins,
+  Crown,
   Flag,
   Search,
   ShieldCheck,
   Store,
-  Users
+  Users,
+  Wrench
 } from 'lucide-react'
-import { economyErrorKey } from '@tds/shared'
+import { CORPORATE_BENEFITS, economyErrorKey } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { supabase } from '../../lib/supabase'
-import { setVerified } from '../../lib/account-api'
-import { badgeIconSrc } from '../../lib/badge-icon'
+import { setCorporate, setVerified } from '../../lib/account-api'
+import { BadgeGlyph } from '../../components/brand/badge-glyph'
 import { showcaseQueryKey } from '../../lib/identity'
 import { Button, INPUT_CLASS, Row, Toggle, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, Section, Segmented } from '../../components/ui/system'
@@ -30,8 +33,10 @@ import {
   awardBadge,
   fetchMaintenanceFlag,
   fetchMemberBadges,
+  reconcileBalance,
   revokeBadge,
-  setMaintenance
+  setMaintenance,
+  setVip
 } from './admin-api'
 import { relativeTime } from '../../lib/text'
 
@@ -68,6 +73,12 @@ const userRowSchema = z.object({
   verified: z.boolean().default(false),
   discountEndsAt: z.string().nullable().default(null),
   credits: z.number().int().nonnegative().default(0),
+  // 0040/0041: the organisation tier, the membership, and whether the cached number still matches the
+  // ledger — the row is where an operator acts on all three.
+  corporate: z.boolean().default(false),
+  corporateDiscountEndsAt: z.string().nullable().default(null),
+  vip: z.boolean().default(false),
+  drift: z.boolean().default(false),
   balance: z.number().int().default(0),
   published: z.number().int().default(0),
   runs: z.number().int().default(0)
@@ -276,11 +287,11 @@ export function HealthSection(): ReactNode {
 const ROLE_LABEL: Record<string, string> = { user: 'Üye', moderator: 'Moderatör', admin: 'Yönetici' }
 
 /**
- * The drawer an operator actually wants on a member row: hand out a badge, or move coins with a
- * reason. Both go through definer RPCs so the ledger and the audit log stay the only truths — the
- * console never edits `user_badges` or the cached balance directly.
+ * The drawer an operator actually wants on a member row: hand out a badge, move coins with a reason,
+ * or repair the cached balance from the ledger. All three go through definer RPCs so the ledger and the
+ * audit log stay the only truths — the console never edits `user_badges` or the cached balance directly.
  */
-function MemberTools({ userId, displayName }: { userId: string; displayName: string }): ReactNode {
+function MemberTools({ userId, displayName, drift }: { userId: string; displayName: string; drift: boolean }): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
   const [amount, setAmount] = useState('500')
@@ -316,13 +327,20 @@ function MemberTools({ userId, displayName }: { userId: string; displayName: str
       refresh()
     }
   })
+  const repair = useMutation({
+    mutationFn: () => reconcileBalance(userId, note.trim().length > 0 ? note.trim() : null),
+    onSuccess: () => {
+      setNote('')
+      refresh()
+    }
+  })
 
   const badges = badgesQuery.data ?? []
   const earned = badges.filter((badge) => badge.awarded).length
   const parsedAmount = Number.parseInt(amount, 10)
   const amountValid = Number.isFinite(parsedAmount) && Math.abs(parsedAmount) > 0
   const noteValid = note.trim().length >= 3
-  const failure = award.error ?? revoke.error ?? adjust.error
+  const failure = award.error ?? revoke.error ?? adjust.error ?? repair.error
 
   return (
     <div className="w-full space-y-2 rounded-lg border border-line/60 bg-base/40 p-2.5">
@@ -377,6 +395,17 @@ function MemberTools({ userId, displayName }: { userId: string; displayName: str
             <Ban size={12} />
             {t('admin.takeCoins')}
           </Button>
+          {/* The row says whether the cache still matches the ledger; only then is there anything to fix. */}
+          <Button
+            size="sm"
+            variant={drift ? 'primary' : 'ghost'}
+            busy={repair.isPending}
+            title={drift ? t('admin.reconcileDone') : t('admin.reconcileClean')}
+            onClick={() => repair.mutate()}
+          >
+            <Wrench size={12} />
+            {t('admin.reconcile')}
+          </Button>
         </div>
       </div>
 
@@ -384,9 +413,7 @@ function MemberTools({ userId, displayName }: { userId: string; displayName: str
         <p className="text-[11px] text-mute">{t('common.loading')}</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
-          {badges.map((badge) => {
-            const icon = badgeIconSrc(badge.iconPath)
-            return (
+          {badges.map((badge) => (
               <button
                 key={badge.code}
                 type="button"
@@ -405,19 +432,14 @@ function MemberTools({ userId, displayName }: { userId: string; displayName: str
                     : 'border-line bg-panel-soft text-mute hover:border-brand/50 hover:text-ink'
                 )}
               >
-                {icon ? (
-                  <img src={icon} alt="" className="size-4 rounded-sm object-cover" loading="lazy" />
-                ) : (
-                  <Award size={13} className={badge.awarded ? 'text-good' : undefined} />
-                )}
+                <BadgeGlyph path={badge.iconPath} size={16} className={badge.awarded ? 'text-good' : undefined} />
                 <span className="max-w-32 truncate">{badge.name ?? badge.code}</span>
                 {badge.reward > 0 ? <CoinAmount value={badge.reward} size="sm" tone="mute" /> : null}
                 <span className="hud-label text-[9px] text-mute">
                   {badge.awarded ? t('admin.revokeBadge') : t('admin.awardBadge')}
                 </span>
               </button>
-            )
-          })}
+          ))}
         </div>
       )}
     </div>
@@ -476,8 +498,31 @@ export function UsersSection(): ReactNode {
     onError: () => undefined
   })
 
+  const corporate = useMutation({
+    mutationFn: async (input: { userId: string; on: boolean }) => {
+      await setCorporate(input.userId, input.on, input.on ? CORPORATE_BENEFITS.boostCredits : null, null)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] })
+    },
+    onError: () => undefined
+  })
+
+  const vip = useMutation({
+    mutationFn: async (input: { userId: string; on: boolean }) => {
+      await setVip(input.userId, input.on, null)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+    },
+    onError: () => undefined
+  })
+
   const rows = usersQuery.data ?? []
-  const failure = ban.error ?? role.error ?? verify.error
+  const failure = ban.error ?? role.error ?? verify.error ?? corporate.error ?? vip.error
 
   return (
     <div className="space-y-4">
@@ -521,6 +566,10 @@ export function UsersSection(): ReactNode {
                         {row.credits > 0 ? `${t('admin.verifiedTag')} · ${t('admin.accountCredits')} ${String(row.credits)}` : t('admin.verifiedTag')}
                       </Chip>
                     ) : null}
+                    {row.corporate ? (
+                      <Chip tone="warn" icon={Building2}>{t('corporate.title')}</Chip>
+                    ) : null}
+                    {row.vip ? <Chip tone="brand" icon={Crown}>VIP</Chip> : null}
                   </p>
                   <p className="truncate font-mono text-[10px] text-mute">{`@${row.handle}`}</p>
                 </div>
@@ -564,6 +613,28 @@ export function UsersSection(): ReactNode {
                   </Button>
                   <Button
                     size="sm"
+                    variant={row.corporate ? 'ghost' : 'primary'}
+                    busy={corporate.isPending && corporate.variables?.userId === row.userId}
+                    title={row.corporate && row.corporateDiscountEndsAt
+                      ? `${t('corporate.perkDiscount')}: ${new Date(row.corporateDiscountEndsAt).toLocaleDateString()}`
+                      : t('corporate.subtitle')}
+                    onClick={() => corporate.mutate({ userId: row.userId, on: !row.corporate })}
+                  >
+                    <Building2 size={12} />
+                    {row.corporate ? t('admin.revokeCorporate') : t('admin.grantCorporate')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={row.vip ? 'danger' : 'subtle'}
+                    busy={vip.isPending && vip.variables?.userId === row.userId}
+                    title={row.vip ? t('admin.vipRevoked') : t('admin.vipGranted')}
+                    onClick={() => vip.mutate({ userId: row.userId, on: !row.vip })}
+                  >
+                    <Crown size={12} />
+                    {row.vip ? t('admin.revokeVip') : t('admin.grantVip')}
+                  </Button>
+                  <Button
+                    size="sm"
                     variant={toolsFor === row.userId ? 'primary' : 'ghost'}
                     onClick={() => setToolsFor((current) => (current === row.userId ? null : row.userId))}
                   >
@@ -572,7 +643,7 @@ export function UsersSection(): ReactNode {
                   </Button>
                 </Row>
                 {toolsFor === row.userId ? (
-                  <MemberTools userId={row.userId} displayName={row.displayName ?? row.handle} />
+                  <MemberTools userId={row.userId} displayName={row.displayName ?? row.handle} drift={row.drift} />
                 ) : null}
               </li>
             ))}

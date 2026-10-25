@@ -40,6 +40,35 @@ export const VERIFIED_PERK_KEYS = [
   'verified.perkDiscount'
 ] as const
 
+/**
+ * 0040: the corporate numbers, kept beside the SQL defaults they mirror. A corporate account is also a
+ * verified one, so it inherits every verified perk except the discount window and the credit pocket,
+ * which the corporate values replace rather than add to.
+ */
+export const CORPORATE_BENEFITS = {
+  discountPercent: 20,
+  discountDays: 60,
+  boostHours: 168,
+  boostCredits: 3,
+  boostSku: 'boost_corporate_168h'
+} as const
+
+/** The perks an organisation gets, listed on its application page in the order they matter to it. */
+export const CORPORATE_PERK_KEYS = [
+  'corporate.perkTitle',
+  'corporate.perkTick',
+  'corporate.perkBrand',
+  'corporate.perkFrame',
+  'corporate.perkCredits',
+  'corporate.perkDiscount',
+  'corporate.perkSort'
+] as const
+
+/** Which pocket a promotion credit came from, so the UI can say how long it will pin for. */
+export function boostCreditHours(sku: string | null | undefined): number {
+  return sku === CORPORATE_BENEFITS.boostSku ? CORPORATE_BENEFITS.boostHours : VERIFIED_BENEFITS.boostHours
+}
+
 export const accountRequestSchema = z.object({
   id: z.string().uuid(),
   kind: z.enum(ACCOUNT_REQUEST_KINDS),
@@ -67,6 +96,9 @@ export const accountQueueRowSchema = accountRequestSchema.omit({ createdAt: true
   displayName: z.string().nullable().default(null),
   createdAt: z.string(),
   alreadyVerified: z.boolean().default(false),
+  // 0040: the reviewer needs to know what approving will actually do to this account.
+  alreadyCorporate: z.boolean().default(false),
+  credits: z.coerce.number().int().nonnegative().default(0),
   published: z.coerce.number().int().nonnegative().default(0)
 })
 
@@ -76,6 +108,9 @@ export const claimBoostResultSchema = z.object({
   boostId: z.string().uuid().nullable().default(null),
   strategyId: z.string().uuid(),
   endsAt: z.string(),
+  // 0040: the same RPC now spends from either pocket, so the receipt says which one and for how long.
+  sku: z.string().nullable().optional().default(null),
+  hours: z.coerce.number().int().positive().optional().default(VERIFIED_BENEFITS.boostHours),
   creditsLeft: z.coerce.number().int().nonnegative().default(0)
 })
 

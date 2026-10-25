@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Award,
   BadgeCheck,
+  Building2,
   Camera,
   Check,
   Clock3,
@@ -20,7 +21,7 @@ import {
   Tag,
   Wallet
 } from 'lucide-react'
-import { FRAME_SKINS, VERIFIED_BENEFITS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
+import { FRAME_SKINS, CORPORATE_BENEFITS, VERIFIED_BENEFITS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
@@ -161,6 +162,14 @@ function TagChip({ tag }: { tag: WalletItem['tag'] }): ReactNode {
       </span>
     )
   }
+  if (tag === 'corporate') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-[#f2c14e]/55 bg-[#f2c14e]/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-[#f2c14e]">
+        <Building2 size={9} />
+        {t('discover.corporate')}
+      </span>
+    )
+  }
   return null
 }
 
@@ -194,8 +203,9 @@ function ProductCard({
   const sale = item.discountPercent > 0 && info.cut
   const soon = item.tag === 'soon'
   const vipOnly = item.tag === 'vip'
-  // A benefit-tagged row never reaches the till, whether it belongs to VIP or to verification.
-  const benefitOnly = vipOnly || item.tag === 'verified'
+  // A benefit-tagged row never reaches the till, whether it belongs to VIP, verification or an
+  // organisation (0040 keeps the list in one place with the SQL CHECK).
+  const benefitOnly = vipOnly || item.tag === 'verified' || item.tag === 'corporate'
 
   return (
     <div
@@ -626,8 +636,8 @@ export function MarketPage(): ReactNode {
             <Chip tone="brand" icon={Store}>{t('market.catalogCount', { count: items.length })}</Chip>
             {vipOwned ? <Chip tone="warn" icon={Crown}>{t('market.vipDiscount', { percent: 25 })}</Chip> : null}
             {wallet.verified ? (
-              <Chip tone="good" icon={BadgeCheck}>
-                {t('verified.discountTitle')} %{String(VERIFIED_BENEFITS.discountPercent)}
+              <Chip tone={wallet.corporate ? 'warn' : 'good'} icon={wallet.corporate ? Building2 : BadgeCheck}>
+                {t('verified.discountTitle')} %{String(wallet.corporate ? CORPORATE_BENEFITS.discountPercent : VERIFIED_BENEFITS.discountPercent)}
               </Chip>
             ) : null}
             {discountedCount > 0 ? <Chip tone="warn" icon={Tag}>{t('market.discountCount', { count: discountedCount })}</Chip> : null}
@@ -654,7 +664,26 @@ export function MarketPage(): ReactNode {
 
       {/* The tier strip answers "why is this price what it is" before the shelves start. */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line/60 bg-base/40 px-3 py-2 text-[11px]">
-        {wallet.verified ? (
+        {wallet.corporate ? (
+          <>
+            {/* Corporate is the superset tier, so it wins the strip and prices at 20% instead of 10%. */}
+            <Chip tone="warn" icon={Building2}>{t('corporate.youAre')}</Chip>
+            <span className="min-w-0 flex-1 break-words text-mute">
+              {wallet.corporateDiscountEndsAt
+                ? t('verified.discountActive', {
+                    percent: String(CORPORATE_BENEFITS.discountPercent),
+                    date: new Date(wallet.corporateDiscountEndsAt).toLocaleDateString()
+                  })
+                : t('corporate.discountEnded')}
+            </span>
+            <span className="flex items-center gap-1 text-ink/80">
+              <Flame size={12} className="text-warn" />
+              {wallet.verifiedBoostCredits > 0
+                ? t('verified.creditCount', { count: String(wallet.verifiedBoostCredits) })
+                : t('verified.creditNone')}
+            </span>
+          </>
+        ) : wallet.verified ? (
           <>
             <Chip tone="good" icon={BadgeCheck}>{t('verified.youAre')}</Chip>
             <span className="min-w-0 flex-1 break-words text-mute">

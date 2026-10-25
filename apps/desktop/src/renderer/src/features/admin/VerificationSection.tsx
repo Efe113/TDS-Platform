@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BadgeCheck, X } from 'lucide-react'
-import type { AccountQueueRow } from '@tds/shared'
+import { BadgeCheck, Building2, X } from 'lucide-react'
+import { CORPORATE_BENEFITS, type AccountQueueRow } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate } from '../../lib/router'
@@ -17,7 +17,7 @@ function message(error: unknown): string {
 
 const KIND_LABEL: Record<string, MessageKey> = {
   verified: 'verified.title',
-  corporate: 'admin.accountKind'
+  corporate: 'corporate.title'
 }
 
 function QueueItem({
@@ -33,12 +33,14 @@ function QueueItem({
   const [note, setNote] = useState('')
   const [credits, setCredits] = useState('')
   const [open, setOpen] = useState(false)
+  const corporate = row.kind === 'corporate'
 
   return (
     <article className="hud-panel space-y-2 p-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <Chip tone={row.kind === 'verified' ? 'brand' : 'neutral'}>{t(KIND_LABEL[row.kind] ?? 'admin.accountKind')}</Chip>
+        <Chip tone={corporate ? 'warn' : 'brand'}>{t(KIND_LABEL[row.kind] ?? 'admin.accountKind')}</Chip>
         {row.alreadyVerified ? <Chip tone="good" icon={BadgeCheck}>{t('admin.verifiedTag')}</Chip> : null}
+        {row.alreadyCorporate ? <Chip tone="warn" icon={Building2}>{t('corporate.title')}</Chip> : null}
         <span className="hud-num text-[10px] text-mute">{formatDateTime(row.createdAt)}</span>
         <span className="ml-auto text-[11px] text-mute">{t('admin.accountPublished', { count: String(row.published) })}</span>
       </div>
@@ -97,7 +99,7 @@ function QueueItem({
               value={credits}
               onChange={(event) => setCredits(event.target.value)}
               className={cnInput()}
-              placeholder="1"
+              placeholder={row.kind === 'corporate' ? String(CORPORATE_BENEFITS.boostCredits) : '1'}
             />
           </Field>
         </div>
@@ -159,7 +161,7 @@ export function VerificationSection(): ReactNode {
             options={[
               { value: '', label: t('discover.eventAny') },
               { value: 'verified', label: t('verified.title') },
-              { value: 'corporate', label: t('admin.accountKind') }
+              { value: 'corporate', label: t('corporate.title') }
             ]}
           />
         </Row>

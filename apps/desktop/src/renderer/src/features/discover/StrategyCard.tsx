@@ -135,7 +135,12 @@ export function StrategyCard({
       {/* The tier belongs to the author, so the mark sits with the name, not in the badge rail. */}
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="truncate text-sm font-semibold leading-snug">{row.name}</span>
-        <VerifiedBadge show={row.author_verified} size="sm" label={t('discover.verified')} />
+        <VerifiedBadge
+          show={row.author_verified}
+          tier={row.author_corporate ? 'corporate' : 'verified'}
+          size="sm"
+          label={t(row.author_corporate ? 'discover.corporate' : 'discover.verified')}
+        />
       </span>
       {row.subtitle ? <span className="mt-0.5 block truncate text-xs text-mute">{row.subtitle}</span> : null}
     </button>

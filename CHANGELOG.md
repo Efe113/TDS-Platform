@@ -4,7 +4,49 @@ Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](ht
 
 ## [Yayınlanmamış]
 
+### Eklendi
+
+- **Kurumsal hesap (0040):** doğrulanmışın üstü, satın alınmayan ikinci hesap türü. Stüdyo/ekip/
+  topluluklar için; `profiles.is_corporate` admin-pinned kolon, `app.corporate_write` kaçış anahtarı.
+  Kurumsal hesap otomatik olarak doğrulanmışın da üstüdür: `app.verified_active()` artık
+  `is_verified or is_corporate` döner, böylece 0037 ile kurulmuş her tik yüzeyi kurumları da kapsar.
+- **Avantajlar:** altın animasyonlu `Kurumsal` ünvanı (yeşil ünvanın yerini alır, geri alınınca
+  doğrulanmışsa ona döner), gökkuşağı çerçevesi ve özel profil arka planı + afiş (VIP'in görsel zemini,
+  satın alma olmadan), 60 gün boyunca tüm ürünlerde %20 indirim (doğrulamanın %10'unun üstüne binmez,
+  yerini alır; VIP %25 ile çarpımsal) ve üç adet 7 günlük öne çıkarma kredisi.
+- **Öne çıkarma kredisi tek kapıdan iki cep:** `claim_verified_boost` kurumsal krediyi önce harcar ve
+  168 saat veriyor; doğrulanmış kredi 72 saatte kaldı. Sonuç artık hangi SKU'dan harcandığını da söylüyor.
+- **Keşfet sırası ve sayacı:** kurumsal yazarlar doğrulanmışın da üstünde; `search_strategies`
+  `author_corporate` kolonunu döndürüyor, `discover_facets` artık `verified` ve `corporate` kovası
+  sayıyor ve "Yalnızca doğrulanmış" düğmesi kaç strateji üreteceğini gösteriyor.
+- **/kurumsal başvuru sayfası:** doğrulama sayfasıyla tek ortak başvuru bileşeni (avantaj vitrini,
+  form, durum takibi), sidebar'da ayrı giriş; Admin → Doğrulama kuyruğunda tür filtresi ve kurumsal
+  onayının ne verdiği görünüyor. Onay artık sadece karar kaydı yazmıyor, yetkiyi de tanıyor.
+- **Admin ekonomi kolları (0041):** `admin_reconcile_balance` ve `admin_reconcile_drift` önbellek
+  bakiyesini defter toplamından yeniden hesaplıyor (`verify_balance` yalnız karşılaştırıyordu);
+  `admin_refund_order` siparişi `reversed` yapıp coin'i defter satırıyla geri veriyor ve ürünü
+  (tema/çerçeve/ünvan/rozet/boost/membership) geri alıyor; `admin_set_vip` ile VIP verme ve geri alma
+  (geri alınca gökkuşağı çerçevesi ve `vip_rainbow` ünvanı çıkıyor, paket siparişi de reversed oluyor).
+- **Toplu kuyruk kararı:** `admin_queue_bulk` 0026'dan beri vardı ama hiçbir arayüzden çağrılmıyordu;
+  strateji kuyruğunda çoklu seçim + onayla/red çubuğu geldi.
+- **Satış kayıtları ekranı:** Admin → Market altında sipariş listesi (durum ve SKU filtresi) ve iade
+  akışı; iade edilen satır `İade edilmiş` rozetiyle görünüyor.
+- **Rozet simgesi artık gerçekten çiziliyor:** `badge_definitions.icon_path` bir simge ADI
+  (`badge-check`, `building`) içerdiğinde rafta kırık resim yerine o simge çiziliyor; simge sözlüğüne
+  `building` ve `landmark` eklendi.
+- **Liderlik tek sorgu:** `leaderboard_hub` tik, kurumsal işareti, ünvan anahtarını ve ünvanın İngilizce
+  adını sunucudan döndürüyor; satır başına ikinci bir profil sorgusu kaldırıldı.
+- **Dil duyarlı ünvan:** `profile_showcase` artık `titleNameEn` de veriyor; İngilizce arayüzde ünvan
+  Türkçe kalmıyor.
+
 ### Düzeltildi
+
+- **Market yönetimi avantaj etiketini kaydedemiyordu:** `admin_upsert_catalog_item` kendi liste
+  doğrulamasını taşıyordu (`none/new/soon/vip`), bu yüzden arayüzden `verified` ya da `corporate`
+  seçmek `TAG_INVALID` ile dönüyordu. Liste artık 0040'taki CHECK ile aynı.
+- **0038'deki liderlik gövdesi bozuktu:** iki yerde `b.icon_path$1` yazılmıştı — migration üreten  betiğin `String.replace` yakalama grubu substitute edilememişti. plpgsql gövdesi CREATE sırasında
+  geçerli sayıldığı için migration hatasız çalışmış, `leaderboard_hub` ilk çağrıda patlıyordu.
+  İki satır düzeltildi ve `check-sql` artık migration metninde başıboş `$1` bırakmıyor.
 
 - **"Bu stratejide zaten etkin bir öne çıkarman var" her yerde çıkıyordu:** `ALREADY_OWNED`,
   `BENEFIT_ONLY`, `NOT_VERIFIED`, `NO_CREDIT`, `COMING_SOON`, `NOT_OWNED`, `NOT_OWNER` ve `NOT_FOUND`
@@ -23,7 +65,11 @@ Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](ht
 
 ### Gereken
 
-- `supabase/migrations/0039_wallet_owned_by_tier.sql` Supabase dashboard'unda çalıştırılmalı.
+- `supabase/migrations/0039_wallet_owned_by_tier.sql`, `0040_corporate_accounts.sql` ve
+  `0041_admin_money_hands.sql` sırayla Supabase dashboard'unda çalıştırılmalı. 0040, 0039'un
+  `wallet_summary` gövdesini de içeriyor; 0039 çalıştırılmışsa tekrar çalıştırmak zararsız.
+  0041, 0038'de bozuk çıkan `leaderboard_hub` gövdesini yeniden yazıyor — 0038 çalışan kurulumlarda
+  Sıralama sekmesi 0041 olmadan bozuk kalır.
 
 ## [0.1.3] — 2026-10-25
 

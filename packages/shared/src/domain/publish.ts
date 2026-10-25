@@ -237,7 +237,7 @@ export type MemberBadgeRow = z.infer<typeof memberBadgeRowSchema>
 /** Manual admin money moves: the error prefixes the console can translate. */
 export function economyErrorKey(
   message: string
-): 'admin.errNote' | 'admin.errDelta' | 'admin.errSelf' | 'admin.errRule' | 'admin.errFunds' | 'admin.errGeneric' {
+): 'admin.errNote' | 'admin.errDelta' | 'admin.errSelf' | 'admin.errRule' | 'admin.errFunds' | 'admin.errOrder' | 'admin.errVip' | 'admin.errGeneric' {
   if (message.startsWith('NOTE_REQUIRED') || message.startsWith('NOTE_LONG')) return 'admin.errNote'
   if (message.startsWith('DELTA_INVALID') || message.startsWith('USER_REQUIRED')) return 'admin.errDelta'
   if (message.startsWith('SELF_FORBIDDEN')) return 'admin.errSelf'
@@ -245,6 +245,9 @@ export function economyErrorKey(
     return 'admin.errRule'
   }
   if (message.startsWith('INSUFFICIENT_FUNDS')) return 'admin.errFunds'
+  // 0041: a refund is the one money action that can be attempted twice on the same receipt.
+  if (message.startsWith('ORDER_REQUIRED') || message.startsWith('ALREADY_REVERSED')) return 'admin.errOrder'
+  if (message.startsWith('NO_VIP_SKU') || message.startsWith('ALREADY_OWNED')) return 'admin.errVip'
   return 'admin.errGeneric'
 }
 

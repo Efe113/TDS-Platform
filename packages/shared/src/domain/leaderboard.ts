@@ -56,10 +56,12 @@ export const leaderboardHubRowSchema = z.object({
   avatarPath: z.string().nullable().default(null),
   frameKey: z.string().nullable().default(null),
   titleName: z.string().nullable().default(null),
-  // 0037: titleKey and verified are merged in from public profile reads after the hub is parsed, so a
-  // row that has not been enriched yet still renders instead of failing the board.
+  // 0040: the hub now answers the tier questions itself, so a board no longer needs an extra profile
+  // read per row to paint a tick. Defaults keep an un-migrated database rendering.
+  titleNameEn: z.string().nullable().default(null),
   titleKey: z.string().nullable().default(null),
   verified: z.boolean().default(false),
+  corporate: z.boolean().default(false),
   vip: z.boolean().default(false),
   badges: z.array(leaderboardBadgeSchema).default([]),
   badgeCount: z.number().int().default(0),

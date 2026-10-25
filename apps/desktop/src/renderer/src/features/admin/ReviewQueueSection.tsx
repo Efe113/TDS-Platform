@@ -2,13 +2,14 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatWaveRange, type QueueRow, type ReviewDecision } from '@tds/shared'
+import { Check, X } from 'lucide-react'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate } from '../../lib/router'
 import { supabase } from '../../lib/supabase'
 import { difficultyEntry, playerCountKey } from '../../lib/catalog-labels'
 import { Badge, Banner, Button, Card, EmptyState, INPUT_CLASS, Row, cn } from '../../components/ui'
-import { fetchQueue, reviewStrategy } from './admin-api'
+import { bulkReviewQueue, fetchQueue, reviewStrategy } from './admin-api'
 import { ErrorBanner, LoadingBanner, formatDate } from './admin-ui'
 import { useAdminAccess } from './admin-access'
 import { VersionDiffCard } from './VersionDiffCard'
@@ -70,13 +71,15 @@ interface QueueItemProps {
   pending: DecisionRequest | null
   mutating: DecisionRequest | null
   note: string
+  selected: boolean
   onNoteChange: (next: string) => void
   onRequest: (request: DecisionRequest) => void
   onCancel: () => void
   onConfirm: () => void
+  onToggleSelect: (strategyId: string) => void
 }
 
-function QueueItem({ row, pending, mutating, note, onNoteChange, onRequest, onCancel, onConfirm }: QueueItemProps): ReactNode {
+function QueueItem({ row, pending, mutating, note, selected, onNoteChange, onRequest, onCancel, onConfirm, onToggleSelect }: QueueItemProps): ReactNode {
   const t = useT()
   const status = statusKey(row.status)
   const difficulty = difficultyEntry(row.difficulty)
@@ -90,7 +93,23 @@ function QueueItem({ row, pending, mutating, note, onNoteChange, onRequest, onCa
       <div className="space-y-3">
         <Row className="justify-between">
           <div className="min-w-0 space-y-1">
-            <p className="truncate text-sm font-semibold">{row.name}</p>
+            <p className="flex items-center gap-2 truncate text-sm font-semibold">
+              {/* Selection is only meaningful for the bulk decision, so it lives next to the title. */}
+              <button
+                type="button"
+                data-press
+                aria-pressed={selected}
+                title={t('admin.bulkSelect')}
+                onClick={() => onToggleSelect(row.id)}
+                className={cn(
+                  'no-drag grid size-4 shrink-0 place-items-center rounded border transition-colors',
+                  selected ? 'border-brand bg-brand/20 text-brand' : 'border-line bg-panel-soft text-transparent hover:border-brand/60'
+                )}
+              >
+                <Check size={11} />
+              </button>
+              {row.name}
+            </p>
             <p className="truncate text-xs text-mute">{row.slug}</p>
           </div>
           <Row className="gap-1.5">
@@ -189,6 +208,9 @@ export function ReviewQueueSection(): ReactNode {
   const queryClient = useQueryClient()
   const [pending, setPending] = useState<DecisionRequest | null>(null)
   const [note, setNote] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+  const [bulkNote, setBulkNote] = useState('')
+  const [bulkDone, setBulkDone] = useState<number | null>(null)
 
   const queueQuery = useQuery({
     queryKey: ['admin', 'queue'],
@@ -208,7 +230,32 @@ export function ReviewQueueSection(): ReactNode {
     onError: () => setPending(null)
   })
 
+  // 0026 shipped this RPC and no screen ever called it, so a queue of twenty identical submissions
+  // took twenty clicks.
+  const bulkMutation = useMutation({
+    mutationFn: (input: { decision: 'approve' | 'reject'; ids: string[] }) =>
+      bulkReviewQueue(input.ids, input.decision, bulkNote),
+    onSuccess: (processed) => {
+      setBulkNote('')
+      setSelected([])
+      setBulkDone(processed)
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+    }
+  })
+
   const rows = queueQuery.data ?? []
+
+  const toggleSelect = (strategyId: string): void => {
+    setBulkDone(null)
+    setSelected((current) => (current.includes(strategyId) ? current.filter((id) => id !== strategyId) : [...current, strategyId]))
+  }
+
+  // Only the two decisions the RPC understands are offered in bulk; featuring and archiving stay
+  // per-row judgement calls.
+  const bulkAsk = (decision: 'approve' | 'reject'): void => {
+    bulkMutation.mutate({ decision, ids: selected })
+  }
 
   // Only the destructive decisions ask for a confirmation; the rest fire on click without a note.
   const handleRequest = (request: DecisionRequest): void => {
@@ -225,11 +272,41 @@ export function ReviewQueueSection(): ReactNode {
     <div className="space-y-3">
       {decideMutation.isSuccess ? <Banner tone="good">{t('admin.decided')}</Banner> : null}
       {decideMutation.isError ? <ErrorBanner error={decideMutation.error} /> : null}
+      {bulkMutation.isError ? <ErrorBanner error={bulkMutation.error} /> : null}
+      {bulkDone !== null && !bulkMutation.isPending ? (
+        <Banner tone="good" title={t('admin.bulkDone', { count: String(bulkDone) })}>
+          {t('admin.decided')}
+        </Banner>
+      ) : null}
 
       {queueQuery.isPending ? <LoadingBanner /> : null}
       {queueQuery.isError ? <ErrorBanner error={queueQuery.error} /> : null}
 
       {!queueQuery.isPending && !queueQuery.isError && rows.length === 0 ? <EmptyState title={t('admin.queueEmpty')} /> : null}
+
+      {selected.length > 0 ? (
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-brand/40 bg-panel/95 px-3 py-2 backdrop-blur">
+          <span className="hud-label text-brand">{t('admin.bulkSelected', { count: String(selected.length) })}</span>
+          <input
+            className={cn(INPUT_CLASS, 'no-drag h-7 min-w-40 flex-1 py-0 text-[11px]')}
+            value={bulkNote}
+            onChange={(event) => setBulkNote(event.target.value.slice(0, 500))}
+            placeholder={t('admin.bulkNoteHint')}
+            aria-label={t('admin.note')}
+          />
+          <Button size="sm" variant="primary" busy={bulkMutation.isPending && bulkMutation.variables?.decision === 'approve'} onClick={() => bulkAsk('approve')}>
+            <Check size={12} />
+            {t('admin.bulkApprove')}
+          </Button>
+          <Button size="sm" variant="danger" busy={bulkMutation.isPending && bulkMutation.variables?.decision === 'reject'} onClick={() => bulkAsk('reject')}>
+            <X size={12} />
+            {t('admin.bulkReject')}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={bulkMutation.isPending} onClick={() => setSelected([])}>
+            {t('admin.bulkClear')}
+          </Button>
+        </div>
+      ) : null}
 
       {rows.map((row) => (
         <QueueItem
@@ -238,9 +315,11 @@ export function ReviewQueueSection(): ReactNode {
           pending={pending}
           mutating={decideMutation.variables ?? null}
           note={note}
+          selected={selected.includes(row.id)}
           onNoteChange={setNote}
           onRequest={handleRequest}
           onCancel={() => setPending(null)}
+          onToggleSelect={toggleSelect}
           onConfirm={() => {
             if (pending) decideMutation.mutate({ ...pending, note })
           }}
