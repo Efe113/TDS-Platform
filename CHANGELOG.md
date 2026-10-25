@@ -2,7 +2,7 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
-## [Yayınlanmamış]
+## [0.1.3] — 2026-10-25
 
 ### Eklendi
 
@@ -54,6 +54,12 @@ Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](ht
 
 - `supabase/migrations/0037_verified_accounts.sql` ve `supabase/migrations/0038_admin_economy_and_badges.sql`
   Supabase dashboard'unda çalıştırılmalı (0035 ve 0036 bekliyorsa onlar önce).
+
+### Bilinen sınırlar
+
+- Bu sürüm de **imzasız**; SignPath Foundation onayı bekleniyor, SmartScreen uyarısı normaldir.
+- Kurumsal hesap başvuru sayfası bu sürümde yok; `account_requests.kind = 'corporate'` zemini hazır.
+- Yeni yüzeyler gerçek bir Windows oturumunda gezilerek doğrulanmadı (kod + sözleşme testleri geçti).
 
 ## [0.1.2] — 2026-10-25
 
