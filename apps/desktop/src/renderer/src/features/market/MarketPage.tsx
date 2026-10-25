@@ -202,10 +202,13 @@ function ProductCard({
   const short = balance < info.final
   const sale = item.discountPercent > 0 && info.cut
   const soon = item.tag === 'soon'
-  const vipOnly = item.tag === 'vip'
+  // 0042: `kind` is the truth and `tag` is only a chip. The membership is a product, so it must never
+  // be painted as something a tier hands out — that is exactly how its price and buy button vanished.
+  const isMembership = item.kind === 'vip'
+  const vipOnly = item.tag === 'vip' && !isMembership
   // A benefit-tagged row never reaches the till, whether it belongs to VIP, verification or an
   // organisation (0040 keeps the list in one place with the SQL CHECK).
-  const benefitOnly = vipOnly || item.tag === 'verified' || item.tag === 'corporate'
+  const benefitOnly = !isMembership && (item.tag === 'vip' || item.tag === 'verified' || item.tag === 'corporate')
 
   return (
     <div

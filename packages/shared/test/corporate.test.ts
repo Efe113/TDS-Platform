@@ -23,6 +23,7 @@ import {
 const here = dirname(fileURLToPath(import.meta.url))
 const corporateMigration = readFileSync(join(here, '../../../supabase/migrations/0040_corporate_accounts.sql'), 'utf8')
 const handsMigration = readFileSync(join(here, '../../../supabase/migrations/0041_admin_money_hands.sql'), 'utf8')
+const productMigration = readFileSync(join(here, '../../../supabase/migrations/0042_vip_membership_is_a_product.sql'), 'utf8')
 
 const uuid = 'b3f0f6a4-3e2a-4f79-9a1c-6f2f9f0f1a2b'
 
@@ -128,8 +129,27 @@ describe('corporate account contract (0040)', () => {
   })
 })
 
-describe('admin money hands (0041)', () => {
-  it('declares each RPC with the signature the client calls', () => {
+describe('VIP membership is a product (0042)', () => {
+  it('keeps the benefit refusal away from the sellable membership row', () => {
+    expect(productMigration).toContain("v_item.kind <> 'vip' and v_item.tag in ('vip', 'verified', 'corporate')")
+  })
+
+  it('repairs a live row that was labelled as a benefit', () => {
+    expect(productMigration).toContain('where kind = \'vip\' and tag in (\'vip\', \'verified\', \'corporate\')')
+  })
+
+  it('stops the console from re-arming the same trap', () => {
+    expect(productMigration).toContain("when p_kind = 'vip' and coalesce(p_tag, 'none') in ('vip', 'verified', 'corporate') then 'none'")
+    // The normalised value is what actually gets written, not the raw input.
+    expect(productMigration).toContain('v_discount, p_discount_ends_at, v_tag')
+  })
+
+  it('still refuses to sell a real benefit row', () => {
+    expect(productMigration).toContain("raise exception 'BENEFIT_ONLY: % is a % benefit', p_sku, v_item.tag")
+  })
+})
+
+describe('admin money hands (0041)', () => {  it('declares each RPC with the signature the client calls', () => {
     for (const signature of [
       'public.admin_reconcile_balance(uuid, text)',
       'public.admin_reconcile_drift(integer)',

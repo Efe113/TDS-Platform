@@ -2,6 +2,21 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [Yayınlanmamış]
+
+### Düzeltildi
+
+- **VIP satın alınamıyordu (0042):** canlı `vip_lifetime` satırı `tag='vip'` taşıyordu; kasadaki
+  "avantaj etiketi satılmaz" kuralı üyelikin kendisini de vurduğu için "VIP ol" herkezde
+  `BENEFIT_ONLY` ile dönüyordu ve kart fiyatı göstermiyordu. Artık `kind` gerçek, `tag` sadece çip:
+  `spend_currency` `kind='vip'` satırını avantaj red listesinden muaf tutuyor, canlı satırın çipi
+  temizleniyor ve Market editörü aynı etiketi üyelik satırına yeniden yapıştıramıyor. Migration
+  tek başına yeterli — kurulu 0.2.0 istemcisi VIP'i satmaya devam eder.
+
+### Gereken
+
+- `supabase/migrations/0042_vip_membership_is_a_product.sql` (0039 → 0040 → 0041 sırasının ardından).
+
 ## [0.2.0] — 2026-10-25
 
 ### Eklendi
