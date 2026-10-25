@@ -35,7 +35,7 @@ const adminCatalogRowSchema = z.object({
   descTr: z.string().nullable().default(null),
   descEn: z.string().nullable().default(null),
   perks: z.array(z.string()).default([]),
-  tag: z.enum(['none', 'new', 'soon', 'vip']).default('none'),
+  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified']).catch('none'),
   discountPercent: z.number().int().default(0),
   discountEndsAt: z.string().nullable().default(null),
   finalPrice: z.number().int().nullable().default(null),
@@ -60,7 +60,7 @@ interface Draft {
   descTr: string
   descEn: string
   perks: string
-  tag: 'none' | 'new' | 'soon' | 'vip'
+  tag: 'none' | 'new' | 'soon' | 'vip' | 'verified'
   discount: string
   discountEnds: string
 }
@@ -311,8 +311,16 @@ export function MarketAdminSection(): ReactNode {
                             {row.nameTr ?? row.sku}
                           </span>
                           {row.tag !== 'none' ? (
-                            <Chip tone={row.tag === 'new' ? 'brand' : row.tag === 'vip' ? 'warn' : 'neutral'}>
-                              {t(row.tag === 'new' ? 'market.tagNew' : row.tag === 'vip' ? 'market.tagVip' : 'market.tagSoon')}
+                            <Chip tone={row.tag === 'new' ? 'brand' : row.tag === 'vip' ? 'warn' : row.tag === 'verified' ? 'good' : 'neutral'}>
+                              {row.tag === 'new'
+                                ? t('market.tagNew')
+                                : row.tag === 'vip'
+                                  ? t('market.tagVip')
+                                  : row.tag === 'verified'
+                                    ? t('discover.verified')
+                                    : row.tag === 'soon'
+                                      ? t('market.tagSoon')
+                                      : t('admin.tagNone')}
                             </Chip>
                           ) : null}
                           {row.discountPercent > 0 ? <Chip tone="warn">{`−%${String(row.discountPercent)}`}</Chip> : null}
@@ -595,6 +603,8 @@ export function MarketAdminSection(): ReactNode {
                   <option value="new">{t('market.tagNew')}</option>
                   <option value="soon">{t('market.tagSoon')}</option>
                   <option value="vip">{t('market.tagVip')}</option>
+                  {/* A benefit tag is the till's deny list: it can never be bought off the shelf. */}
+                  <option value="verified">{t('discover.verified')}</option>
                 </select>
                 <span className="text-[10px] text-mute">{t('admin.fieldTagHint')}</span>
               </label>

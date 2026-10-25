@@ -4,6 +4,7 @@ import {
   capRemaining,
   formatCoin,
   spendErrorKey,
+  walletItemSchema,
   walletSummarySchema
 } from '../src/domain/wallet'
 
@@ -74,5 +75,27 @@ describe('wallet contract', () => {
   it('formats coin amounts without decimals', () => {
     expect(formatCoin(1234)).toBe(new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(1234))
     expect(formatCoin(-500)).toContain('500')
+  })
+
+  it('degrades an unknown tag or kind instead of blanking the shelf', () => {
+    // 0037 introduced the `verified` tag while installed 0.1.2 clients knew four values, and the whole
+    // Market page failed to parse. A newer database must never be able to take an older client down.
+    const item = walletItemSchema.parse({
+      sku: 'title_future',
+      kind: 'hologram',
+      price: 0,
+      refCode: 'future',
+      durationHours: null,
+      tag: 'seasonal'
+    })
+    expect(item.kind).toBe('cosmetic')
+    expect(item.tag).toBe('none')
+  })
+
+  it('keeps the benefit tags the till refuses', () => {
+    for (const tag of ['vip', 'verified'] as const) {
+      const item = walletItemSchema.parse({ sku: `x_${tag}`, kind: 'title', price: 0, refCode: null, durationHours: null, tag })
+      expect(item.tag).toBe(tag)
+    }
   })
 })

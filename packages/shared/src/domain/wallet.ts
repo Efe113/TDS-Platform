@@ -46,7 +46,8 @@ export const walletEntrySchema = z.object({
 
 export const walletItemSchema = z.object({
   sku: z.string(),
-  kind: z.enum(SPEND_KINDS),
+  // Same reasoning as `tag` below: an unknown kind lands on the generic shelf instead of killing the page.
+  kind: z.enum(SPEND_KINDS).catch('cosmetic'),
   price: z.number().int().nonnegative(),
   refCode: z.string().nullable(),
   durationHours: z.number().int().nullable(),
@@ -63,7 +64,12 @@ export const walletItemSchema = z.object({
   finalPrice: z.number().int().nullable().default(null),
   discountPercent: z.number().int().min(0).max(90).default(0),
   discountEndsAt: z.string().nullable().default(null),
-  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified']).default('none'),
+  /**
+   * `catch` instead of a strict enum: a tag added by a later migration must degrade to "no chip" on an
+   * older installed client. A rejected array here blanks the entire Market page, which is what happened
+   * when 0037 introduced `verified` for clients built before it existed.
+   */
+  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified']).catch('none'),
   owned: z.boolean().default(false)
 })
 
