@@ -566,7 +566,7 @@ returns table (order_id uuid, balance integer)
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_item public.spend_catalog%rowtype;
   v_user uuid := auth.uid();
@@ -671,7 +671,7 @@ begin
 
   return query select v_order, v_balance;
 end;
-$;
+$$;
 
 -- ------------------------------------------------------------ 10. buying a boost now actually pins the strategy
 
@@ -684,7 +684,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_item public.spend_catalog%rowtype;
@@ -783,7 +783,7 @@ begin
     'balance', v_balance
   );
 end;
-$;
+$$;
 
 -- ------------------------------------------------------------ 11. equipping accepts the verified title
 
@@ -792,7 +792,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_uid uuid := auth.uid();
   v_ref text := nullif(btrim(coalesce(p_ref, '')), '');
@@ -828,7 +828,7 @@ begin
 
   return jsonb_build_object('kind', p_kind, 'ref', v_ref);
 end;
-$;
+$$;
 
 -- ------------------------------------------------------------ 12. wallet and showcase expose the tier
 
@@ -838,7 +838,7 @@ language plpgsql
 stable
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_vip boolean;
@@ -941,7 +941,7 @@ begin
     'maintenance', app.maintenance_on()
   );
 end;
-$;
+$$;
 
 create or replace function public.profile_showcase(p_user uuid)
 returns jsonb
@@ -949,7 +949,7 @@ language plpgsql
 volatile
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_caller uuid := auth.uid();
   v_profile public.profiles%rowtype;
@@ -1026,7 +1026,7 @@ begin
     'strategies', v_strategies
   );
 end;
-$;
+$$;
 
 
 -- ------------------------------------------------------------ 13. the admin's member list carries the tier

@@ -236,6 +236,24 @@ function lintDeclaredNames(file, sql, problems) {
   }
 }
 
+/**
+ * A generated migration once shipped `as $` / `$;` instead of `as $$` / `$$;`. Postgres reads the whole
+ * body as one unterminated string and reports a syntax error many lines later ("at or near \"with\""),
+ * which is a miserable thing to debug in a dashboard. The quote walker cannot see it because a lone `$`
+ * is not a tag, so the two corruption signatures are checked directly.
+ */
+function lintDollarBlocks(file, sql, problems) {
+  sql.split(/\r?\n/).forEach((text, i) => {
+    const line = text.trim()
+    if (line === 'as $' || line === 'do $' || line.endsWith(' as $') || line.endsWith(' do $')) {
+      problems.push(`${file}: line ${i + 1}: collapsed dollar quote "${line}" - an opener needs two $ on each side`)
+    }
+    if (line === '$;') {
+      problems.push(`${file}: line ${i + 1}: "$;" does not close anything - write "$$;"`)
+    }
+  })
+}
+
 const files = DIRS.filter((dir) => existsSync(dir)).flatMap((dir) =>
   readdirSync(dir)
     .filter((name) => name.endsWith('.sql'))
@@ -311,6 +329,7 @@ for (const file of files) {
   if (swallowed.length > 0) problems.push(`${file}: SQL text inside a string literal\n    ${swallowed.join('\n    ')}`)
   lintAssignments(file, sql, problems)
   lintDeclaredNames(file, sql, problems)
+  lintDollarBlocks(file, sql, problems)
 }
 
 console.log(`checked ${files.length} sql files`)

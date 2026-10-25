@@ -493,7 +493,7 @@ language plpgsql
 stable
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_vip boolean;
@@ -597,7 +597,7 @@ begin
     'maintenance', app.maintenance_on()
   );
 end;
-$;
+$$;
 
 create or replace function public.profile_showcase(p_user uuid)
 returns jsonb
@@ -605,7 +605,7 @@ language plpgsql
 volatile
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_caller uuid := auth.uid();
   v_profile public.profiles%rowtype;
@@ -682,7 +682,7 @@ begin
     'strategies', v_strategies
   );
 end;
-$;
+$$;
 
 
 -- ------------------------------------------------------------ 13. the admin's member list carries the tier
@@ -751,7 +751,7 @@ language plpgsql
 volatile
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_caller uuid := auth.uid();
   v_profile public.profiles%rowtype;
@@ -829,7 +829,7 @@ begin
     'strategies', v_strategies
   );
 end;
-$;
+$$;
 
 
 -- ------------------------------------------------------------ 13. the admin's member list carries the tier
