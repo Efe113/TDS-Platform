@@ -2052,6 +2052,25 @@ html.overlay-root ::-webkit-scrollbar {
     linear-gradient(168deg, var(--pt-2) 0%, var(--pt-3) 74%);
 }
 
+/* Above a banner the theme must add light, not cover the picture: screen blending drops the dark
+   stops and keeps the rays, sparks and horizon. */
+.profile-theme--over {
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+.profile-card--themed {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--pt-2) 55%, var(--color-panel)) 0%, var(--color-panel) 34%),
+    var(--color-panel);
+  border-color: color-mix(in oklab, var(--pt-a) 34%, var(--color-line));
+}
+
+/* The theme ring sits outside whatever frame the member wears, so the two never fight. */
+.profile-card--themed .profile-card__avatar {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--pt-r) 70%, transparent), 0 0 26px -6px var(--pt-r);
+}
+
 .profile-theme__rays,
 .profile-theme__field,
 .profile-theme__rule,

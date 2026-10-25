@@ -13,6 +13,8 @@ import { Chip, Section } from '../../components/ui/system'
 import { StateLoading } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
 import { TitleBadge } from '../../components/brand/title-badge'
+import { VerifiedBadge } from '../../components/brand/verified-badge'
+import { FrameRing, frameStyle } from '../../components/brand/frame'
 import { ProfileThemeSky } from '../../components/brand/profile-theme'
 import { ProfileCard } from '../../components/profile/profile-card'
 import { useCatalogLanguage, pickLocalized } from '../../lib/catalog-labels'
@@ -27,6 +29,25 @@ import { useCatalogLanguage, pickLocalized } from '../../lib/catalog-labels'
  */
 
 type EquipKind = 'frame' | 'title' | 'profile'
+
+/**
+ * A tile that shows the mark on an actual avatar. The first version of this panel printed the ref text
+ * in a box, which told you nothing about what you were about to wear — and the frame's real look is
+ * the static ring plus the animated band, so both have to be in the preview.
+ */
+function MiniAvatar({ frame, initials, className }: { frame: string | null; initials: string; className?: string }): ReactNode {
+  return (
+    <span className={cn('relative inline-flex rounded-xl', className)}>
+      <FrameRing value={frame} />
+      <span
+        className="grid size-9 place-items-center rounded-xl border-2 border-panel bg-brand/15 text-[11px] font-semibold text-brand"
+        style={frameStyle(frame)}
+      >
+        {initials}
+      </span>
+    </span>
+  )
+}
 
 interface RowProps {
   item: WalletItem
@@ -104,6 +125,7 @@ export function PersonalizePanel({ profile }: { profile: ProfileShowcase }): Rea
   const frames = items.filter((item) => item.kind === 'frame')
   const titles = items.filter((item) => item.kind === 'title')
   const themes = items.filter((item) => item.kind === 'cosmetic' && PROFILE_THEME_KEYS.includes(item.refCode ?? ''))
+  const initials = (profile.displayName ?? profile.handle).slice(0, 2).toLocaleUpperCase()
 
   const nameOf = (item: WalletItem): string => pickLocalized(item.name, item.nameEn, language) ?? item.sku
   const busyRef = equip.variables?.ref ?? null
@@ -129,9 +151,43 @@ export function PersonalizePanel({ profile }: { profile: ProfileShowcase }): Rea
     >
       {walletQuery.isPending ? <StateLoading /> : null}
 
+      {/* The reason has to sit where the click happened: a refusal under the last row reads as
+          "nothing happened", which is how a working panel gets reported as a broken one. */}
+      {equip.isError ? (
+        <p className="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] text-danger">
+          {equip.error instanceof Error ? equip.error.message : String(equip.error)}
+        </p>
+      ) : null}
+      {equip.isSuccess ? (
+        <p className="mb-2 rounded-lg border border-good/40 bg-good/10 px-2 py-1 text-[11px] text-good">
+          {t('profile.equippedNow')}
+        </p>
+      ) : null}
+
       {/* A live preview of the member's own card, painted by whatever is currently equipped. */}
       <div id="profile-preview" className="relative scroll-mt-24">
         <ProfileCard profile={profile} compact className="mb-3" />
+
+        {/* There is no second account to log into, so the surfaces a mark actually appears on are
+            mocked here: a comment line and a discovery card author row. */}
+        <div className="space-y-2 rounded-xl border border-line/60 bg-base/40 p-3">
+          <span className="hud-label">{t('profile.seenByOthers')}</span>
+          <div className="flex items-start gap-2 rounded-lg border border-line/70 bg-panel px-3 py-2">
+            <MiniAvatar frame={profile.frameKey} initials={initials} />
+            <div className="min-w-0">
+              <p className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold text-ink">
+                {profile.displayName ?? `@${profile.handle}`}
+                <VerifiedBadge show={profile.verified} tier={profile.corporate ? 'corporate' : 'verified'} size="sm" />
+                {profile.titleName ? <TitleBadge label={profile.titleName} refCode={profile.titleKey} size="sm" /> : null}
+              </p>
+              <p className="text-[11px] leading-relaxed text-mute">{t('profile.previewComment')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-lg border border-line/70 bg-panel px-3 py-2 text-[12px]">
+            <span className="truncate font-semibold text-ink">{t('profile.previewStrategy')}</span>
+            <VerifiedBadge show={profile.verified} tier={profile.corporate ? 'corporate' : 'verified'} size="sm" label={t(profile.corporate ? 'discover.corporate' : 'discover.verified')} />
+          </div>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -159,7 +215,12 @@ export function PersonalizePanel({ profile }: { profile: ProfileShowcase }): Rea
                       ? t('profile.themePurchasedNote', { price: formatCoin(item.price) })
                       : t('profile.themeTierNote', { tier: skin.source === 'vip' ? 'VIP' : skin.source === 'corporate' ? t('corporate.title') : t('verified.title') })
                 }
-                preview={<ProfileThemeSky skin={skin} />}
+                preview={
+                  <span className="relative grid size-full place-items-center">
+                    <ProfileThemeSky skin={skin} over />
+                    <MiniAvatar frame={profile.frameKey} initials={initials} />
+                  </span>
+                }
               />
             )
           })}
@@ -181,11 +242,7 @@ export function PersonalizePanel({ profile }: { profile: ProfileShowcase }): Rea
               onEquip={(ref) => equip.mutate({ kind: 'frame', ref })}
               label={nameOf(item)}
               note={item.tag === 'vip' ? t('market.vipOnly') : undefined}
-              preview={
-                <span className="relative grid size-9 place-items-center rounded-xl border-2" style={{ borderColor: 'var(--color-brand)' }}>
-                  {item.refCode}
-                </span>
-              }
+              preview={<MiniAvatar frame={item.refCode} initials={initials} />}
             />
           ))}
         </div>
@@ -211,12 +268,6 @@ export function PersonalizePanel({ profile }: { profile: ProfileShowcase }): Rea
           ))}
         </div>
       </div>
-
-      {equip.isError ? (
-        <p className="mt-2 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] text-danger">
-          {equip.error instanceof Error ? equip.error.message : String(equip.error)}
-        </p>
-      ) : null}
     </Section>
   )
 }

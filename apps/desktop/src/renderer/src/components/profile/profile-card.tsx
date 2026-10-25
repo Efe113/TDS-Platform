@@ -16,7 +16,7 @@ import { Button, cn } from '../ui'
 import { Chip } from '../ui/system'
 import { VerifiedBadge } from '../brand/verified-badge'
 import { TitleBadge } from '../brand/title-badge'
-import { FrameRing } from '../brand/frame'
+import { FrameRing, frameStyle } from '../brand/frame'
 import { BadgeGlyph } from '../brand/badge-glyph'
 import { ProfileThemeSky } from '../brand/profile-theme'
 import { Menu, MenuContent, MenuTrigger } from '../ui/menu'
@@ -73,22 +73,38 @@ export function ProfileCard({ profile, compact = false, actions, className }: Pr
         skin !== null && 'profile-card--themed',
         className
       )}
-      style={skin === null ? undefined : ({ ['--pt-r']: skin.ring } as CSSProperties)}
+      style={
+        skin === null
+          ? undefined
+          : ({
+              ['--pt-a']: skin.accent,
+              ['--pt-r']: skin.ring,
+              ['--pt-1']: skin.stops[0],
+              ['--pt-2']: skin.stops[1],
+              ['--pt-3']: skin.stops[2]
+            } as CSSProperties)
+      }
     >
-      {/* Ground first: theme layers, then the member's own banner on top of them. */}
+      {/* The member's banner first, the theme ON TOP of it: screen blending lets the gold rays, sparks
+          and horizon add light instead of hiding the picture underneath. Painting the theme below the
+          banner made it invisible for everyone who had a banner — which is the whole point of one. */}
       <div className={cn('relative', compact ? 'h-20' : 'h-28 sm:h-36')}>
-        <ProfileThemeSky skin={skin} />
         {banner !== null ? (
           <img src={banner} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
         ) : null}
+        <ProfileThemeSky skin={skin} over={banner !== null} />
         <span className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-panel to-transparent" />
       </div>
 
       <div className={cn('relative px-4', compact ? 'pb-3' : 'pb-4')}>
         <div className={cn('relative -mt-9 mb-2 flex items-end gap-3', compact && '-mt-7')}>
-          <span className="relative inline-flex rounded-2xl">
+          <span className="profile-card__avatar relative inline-flex rounded-2xl">
             <FrameRing value={profile.frameKey} />
-            <Avatar size={compact ? 'sm' : 'lg'} className={cn('rounded-2xl border-4 border-panel', compact ? 'size-14' : 'size-[88px]')}>
+            <Avatar
+              size={compact ? 'sm' : 'lg'}
+              className={cn('rounded-2xl border-4 border-panel', compact ? 'size-14' : 'size-[88px]')}
+              style={frameStyle(profile.frameKey)}
+            >
               {avatar !== null ? <AvatarImage src={avatar} alt="" /> : null}
               <AvatarFallback className="rounded-2xl bg-brand/15 text-lg font-semibold text-brand">{initials}</AvatarFallback>
             </Avatar>
