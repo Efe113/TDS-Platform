@@ -2,7 +2,7 @@
 
 Roblox **Tower Defense Simulator** için masaüstü strateji yardımcısı. Topluluk belgelerini içe aktarır, adımlara böler, oyunun üstünde takip eder ve keşfet/liderlik/profil tarafını tek uygulamada toplar.
 
-**Son sürüm:** [0.1.1](https://github.com/Efe113/TDS-Platform/releases/latest) · Windows 10/11 x64
+**Son sürüm:** [0.1.2](https://github.com/Efe113/TDS-Platform/releases/latest) · Windows 10/11 x64
 
 > Kurulum dosyası imzasızdır. Windows SmartScreen “tanınmayan yayıncı” uyarısı gösterebilir; bu bir sertifika eksikliğidir, otomatik güncellemeyi engellemez. SignPath Foundation başvurusu bu sürümden sonra ele alınacak.
 
@@ -24,7 +24,7 @@ Kurulu uygulama açılıştan 15 saniye sonra GitHub Releases’i denetler ve ye
 
 ## Kurulum
 
-1. [Releases](https://github.com/Efe113/TDS-Platform/releases/latest) sayfasından `TDS-Companion-0.1.1-Setup.exe` dosyasını indir.
+1. [Releases](https://github.com/Efe113/TDS-Platform/releases/latest) sayfasından `TDS-Companion-0.1.2-Setup.exe` dosyasını indir.
 2. Kurulumu çalıştır; kurulum dizinini seçebilirsin.
 3. Uygulama verileri Windows kullanıcı klasöründe tutulur; kaldırma sırasında hesap/ayar verisi silinmez.
 
@@ -41,7 +41,7 @@ npm run dev
 Doğrulama ve derleme:
 
 ```bash
-npm run verify     # IPC + SQL + typecheck + 97 test
+npm run verify     # IPC + SQL + typecheck + 99 test
 npm run build
 npm run installer:art  # SVG → 24-bit BMP installer art
 npm run dist           # imzasız NSIS installer + latest.yml + blockmap

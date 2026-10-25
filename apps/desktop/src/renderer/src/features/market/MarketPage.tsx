@@ -12,13 +12,14 @@ import {
   Frame as FrameIcon,
   Lock,
   MonitorPlay as MonitorIcon,
+  Percent,
   ScanLine,
   Sparkles,
   Store,
   Tag,
   Wallet
 } from 'lucide-react'
-import { FRAME_SKINS, VIP_SKU, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
+import { FRAME_SKINS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
@@ -30,6 +31,7 @@ import { showcaseQueryKey } from '../../lib/identity'
 import { selectSignedIn, selectUserId, useAuth } from '../../store/auth-store'
 import { CoinAmount, CoinIcon } from '../../components/brand/coin'
 import { FrameSample, frameHalo } from '../../components/brand/frame'
+import { TitleBadge } from '../../components/brand/title-badge'
 import { Button, Banner, cn } from '../../components/ui'
 import { Chip, PageHeader, Section } from '../../components/ui/system'
 import { StateEmpty, StateError } from '../../components/ui/states'
@@ -67,18 +69,56 @@ function descOf(item: WalletItem, language: string): string | null {
   return (language === 'en' ? item.descEn : item.desc) ?? item.desc ?? null
 }
 
+interface DiscountInfo {
+  final: number
+  cut: boolean
+  percent: number
+}
+
+/** `finalPrice` already includes the product cut and the VIP tier cut, so derive from the pair. */
+function discountInfo(item: WalletItem): DiscountInfo {
+  const final = item.finalPrice ?? item.price
+  const cut = final < item.price
+  const percent = cut && item.price > 0 ? Math.max(1, Math.round((1 - final / item.price) * 100)) : 0
+  return { final, cut, percent }
+}
+
+function DiscountBadge({ percent, className }: { percent: number; className?: string }): ReactNode {
+  const t = useT()
+  if (percent <= 0) return null
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-md border border-warn/45 bg-warn/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-warn',
+        className
+      )}
+    >
+      <Percent size={9} />
+      {t('market.discountTag')}
+      <span className="hud-num text-ink/80">{`%${String(percent)}`}</span>
+    </span>
+  )
+}
+
 function PriceBlock({ item, large }: { item: WalletItem; large?: boolean }): ReactNode {
   const t = useT()
-  const final = item.finalPrice ?? item.price
-  // `finalPrice` already includes both the product cut and the VIP tier cut. Deriving the percentage
-  // from the pair keeps the strike-through truthful when the two discounts stack.
-  const cut = final < item.price
-  const percent = cut && item.price > 0 ? Math.round((1 - final / item.price) * 100) : 0
+  const info = discountInfo(item)
   return (
-    <div className="flex flex-wrap items-baseline gap-2">
-      <CoinAmount value={final} size={large ? 'md' : 'sm'} tone={cut ? 'good' : 'brand'} className={cn(large && 'text-base')} />
-      {cut ? <span className="hud-num text-[11px] text-mute line-through">{formatCoin(item.price)}</span> : null}
-      {cut ? <span className="hud-num text-[11px] font-semibold text-warn">{`−%${String(percent)}`}</span> : null}
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      {info.cut ? (
+        <CoinAmount
+          value={item.price}
+          size="sm"
+          tone="mute"
+          className="line-through decoration-warn/70 decoration-2"
+        />
+      ) : null}
+      <CoinAmount
+        value={info.final}
+        size={large ? 'md' : 'sm'}
+        tone={info.cut ? 'good' : 'brand'}
+        className={cn('font-semibold', large && 'text-base')}
+      />
       {item.discountPercent > 0 && item.discountEndsAt ? (
         <span className="hud-label text-warn/80">{t('market.discountUntil', { date: new Date(item.discountEndsAt).toLocaleDateString() })}</span>
       ) : null}
@@ -140,9 +180,9 @@ function ProductCard({
   onVip?: () => void
 }): ReactNode {
   const t = useT()
-  const price = item.finalPrice ?? item.price
-  const short = balance < price
-  const discounted = item.discountPercent > 0 && (item.finalPrice ?? item.price) < item.price
+  const info = discountInfo(item)
+  const short = balance < info.final
+  const sale = item.discountPercent > 0 && info.cut
   const soon = item.tag === 'soon'
   const vipOnly = item.tag === 'vip'
 
@@ -150,14 +190,13 @@ function ProductCard({
     <div
       className={cn(
         'hud-panel relative flex h-full flex-col gap-2 p-2.5',
-        discounted && 'market-discount',
+        sale && 'market-discount',
         soon && 'opacity-80'
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <TagChip tag={item.tag} />
-          {discounted ? <Chip tone="warn">{t('market.discountTag')}</Chip> : null}
         </div>
         {owned ? <Chip tone="good" icon={Check}>{t('wallet.owned')}</Chip> : null}
       </div>
@@ -175,13 +214,22 @@ function ProductCard({
       ) : null}
 
       {item.kind === 'title' ? (
-        <div className="flex items-center justify-center rounded-lg border border-line/70 bg-base/50 py-3">
-          <span className="flex items-center gap-1.5">
-            <span className="text-[13px] font-semibold text-ink">{item.name ?? item.refCode}</span>
-            <span className="rounded-md border border-brand/40 bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium text-brand">
-              {item.name ?? item.refCode}
-            </span>
-          </span>
+        <div className="relative flex min-h-14 items-center justify-center overflow-hidden rounded-lg border border-line/70 bg-base/50 px-3 py-3">
+          <span
+            aria-hidden
+            className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-brand/70 to-transparent"
+          />
+          <span
+            aria-hidden
+            className="absolute inset-0 opacity-60"
+            style={{ background: 'radial-gradient(ellipse at 50% 130%, color-mix(in oklab, var(--color-brand) 22%, transparent), transparent 62%)' }}
+          />
+          <TitleBadge
+            className="relative"
+            label={item.name ?? item.refCode ?? ''}
+            refCode={item.refCode}
+            size="md"
+          />
         </div>
       ) : null}
 
@@ -262,6 +310,7 @@ function ProductCard({
       ) : null}
 
       <div className="mt-auto space-y-2 border-t border-line/60 pt-2">
+        {info.cut ? <DiscountBadge percent={info.percent} /> : null}
         {vipOnly ? (
           <p className="flex items-center gap-1.5 text-[11px] font-medium text-amber-200/90">
             <Crown size={11} />
@@ -296,7 +345,7 @@ function ProductCard({
             variant={short ? 'danger' : 'primary'}
             busy={busy}
             disabled={short}
-            title={short ? t('market.insufficientHint', { need: formatCoin(price - balance) }) : undefined}
+            title={short ? t('market.insufficientHint', { need: formatCoin(info.final - balance) }) : undefined}
             onClick={onBuy}
           >
             {short ? t('market.insufficient') : t('wallet.buy')}
@@ -324,7 +373,8 @@ function VipPanel({
   onEdit: () => void
 }): ReactNode {
   const t = useT()
-  const price = item.finalPrice ?? item.price
+  const info = discountInfo(item)
+  const price = info.final
   const short = balance < price
 
   return (
@@ -365,6 +415,11 @@ function VipPanel({
             {descOf(item, language) ?? t('market.vipBodyFallback')}
           </p>
 
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="hud-label text-mute">{t('market.vipTitlePerk')}</span>
+            <TitleBadge label={t('market.vipTitleLabel')} refCode={VIP_TITLE_REF} size="sm" />
+          </div>
+
           {item.perks.length > 0 ? (
             <ul className="mt-2 flex flex-wrap gap-1.5">
               {item.perks.slice(0, 4).map((perk) => (
@@ -387,8 +442,12 @@ function VipPanel({
             </div>
           ) : (
             <div className="space-y-1.5 text-right">
+              {info.cut ? <DiscountBadge percent={info.percent} /> : null}
               <div className="flex items-baseline justify-end gap-1.5">
-                <CoinAmount value={price} size="md" tone="brand" />
+                {info.cut ? (
+                  <CoinAmount value={item.price} size="sm" tone="mute" className="line-through decoration-warn/70" />
+                ) : null}
+                <CoinAmount value={price} size="md" tone={info.cut ? 'good' : 'brand'} />
                 <span className="text-[10px] text-mute">{t('market.vipPermanent')}</span>
               </div>
               <Button
@@ -396,14 +455,14 @@ function VipPanel({
                 variant={short ? 'danger' : 'primary'}
                 busy={busy}
                 disabled={short}
-                title={short ? t('market.insufficientHint', { need: formatCoin(price - balance) }) : undefined}
+                title={short ? t('market.insufficientHint', { need: formatCoin(info.final - balance) }) : undefined}
                 onClick={onBuy}
               >
                 <Crown size={13} />
                 {short ? t('market.insufficient') : t('market.vipCta')}
               </Button>
               {short ? (
-                <p className="text-[10px] text-mute">{t('market.insufficientHint', { need: formatCoin(price - balance) })}</p>
+                <p className="text-[10px] text-mute">{t('market.insufficientHint', { need: formatCoin(info.final - balance) })}</p>
               ) : null}
             </div>
           )}
@@ -579,13 +638,14 @@ export function MarketPage(): ReactNode {
           {themeRows.map((row) => {
             const item = byKind.get('theme')?.find((entry) => entry.refCode === row.key) ?? null
             const active = wallet.theme === row.key
-            const discounted = item ? item.discountPercent > 0 : false
+            const info = item ? discountInfo(item) : null
+            const themePrice = item ? (info?.final ?? item.finalPrice ?? item.price) : 0
+            const sale = Boolean(item && info?.cut && item.discountPercent > 0)
             return (
               <RevealItem key={row.key} className="h-full">
-                <div className={cn('hud-panel flex h-full flex-col gap-2 p-2.5', active && 'ring-1 ring-inset ring-brand/50', discounted && 'market-discount')}>
+                <div className={cn('hud-panel flex h-full flex-col gap-2 p-2.5', active && 'ring-1 ring-inset ring-brand/50', sale && 'market-discount')}>
                   <div className="flex items-center justify-between gap-1">
                     <TagChip tag={item?.tag ?? 'none'} />
-                    {discounted ? <Chip tone="warn">{t('market.discountTag')}</Chip> : null}
                   </div>
                   <ThemePreview value={row.key} active={active} detailed />
                   <div className="min-w-0">
@@ -603,6 +663,7 @@ export function MarketPage(): ReactNode {
                     </ul>
                   ) : null}
                   <div className="mt-auto space-y-2 border-t border-line/60 pt-2">
+                    {info?.cut ? <DiscountBadge percent={info.percent} /> : null}
                     {item ? <PriceBlock item={item} /> : <span className="text-[11px] text-mute">{t('theme.free')}</span>}
                     {item?.tag === 'soon' ? (
                       <Button size="sm" variant="ghost" disabled className="w-full">
@@ -620,17 +681,17 @@ export function MarketPage(): ReactNode {
                     ) : row.sku && item ? (
                       <Button
                         size="sm"
-                        variant={wallet.balance < (item.finalPrice ?? item.price) ? 'danger' : 'primary'}
+                        variant={wallet.balance < themePrice ? 'danger' : 'primary'}
                         busy={purchase.isPending && purchase.variables === row.sku}
-                        disabled={wallet.balance < (item.finalPrice ?? item.price)}
+                        disabled={wallet.balance < themePrice}
                         title={
-                          wallet.balance < (item.finalPrice ?? item.price)
-                            ? t('market.insufficientHint', { need: formatCoin((item.finalPrice ?? item.price) - wallet.balance) })
+                          wallet.balance < themePrice
+                            ? t('market.insufficientHint', { need: formatCoin(themePrice - wallet.balance) })
                             : undefined
                         }
                         onClick={() => purchase.mutate(row.sku as string)}
                       >
-                        {wallet.balance < (item.finalPrice ?? item.price) ? t('market.insufficient') : t('wallet.buy')}
+                        {wallet.balance < themePrice ? t('market.insufficient') : t('wallet.buy')}
                       </Button>
                     ) : (
                       <p className="text-[11px] text-mute">{t('theme.notForSale')}</p>
@@ -651,11 +712,13 @@ export function MarketPage(): ReactNode {
         ) : (
           <RevealList className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3" count={(byKind.get('boost') ?? []).length}>
             {(byKind.get('boost') ?? []).map((item) => {
-              const affordable = wallet.balance >= (item.finalPrice ?? item.price)
+              const info = discountInfo(item)
+              const affordable = wallet.balance >= info.final
               const soon = item.tag === 'soon'
+              const sale = item.discountPercent > 0 && info.cut
               return (
                 <RevealItem key={item.sku} className="h-full">
-                  <div className={cn('hud-panel flex h-full flex-col gap-2 p-3', soon && 'opacity-80')}>
+                  <div className={cn('hud-panel flex h-full flex-col gap-2 p-3', sale && 'market-discount', soon && 'opacity-80')}>
                     <div className="flex items-center justify-between gap-1">
                       <span className="grid size-7 place-items-center rounded-lg border border-warn/35 bg-warn/12 text-warn">
                         <Flame size={13} />
@@ -668,6 +731,7 @@ export function MarketPage(): ReactNode {
                     <p className="text-[13px] leading-snug font-semibold text-ink">{nameOf(item, language)}</p>
                     <p className="text-[11px] leading-relaxed text-mute">{descOf(item, language) ?? ''}</p>
                     <div className="mt-auto space-y-2 border-t border-line/60 pt-2">
+                      {info.cut ? <DiscountBadge percent={info.percent} /> : null}
                       <PriceBlock item={item} />
                       {soon ? (
                         <Button size="sm" variant="ghost" disabled className="w-full">
@@ -688,7 +752,7 @@ export function MarketPage(): ReactNode {
                               title={
                                 affordable
                                   ? undefined
-                                  : t('market.insufficientHint', { need: formatCoin((item.finalPrice ?? item.price) - wallet.balance) })
+                                  : t('market.insufficientHint', { need: formatCoin(info.final - wallet.balance) })
                               }
                             >
                               {affordable ? t('market.applyBoost') : t('market.insufficient')}

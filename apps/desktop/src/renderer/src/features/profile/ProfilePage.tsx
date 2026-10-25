@@ -41,6 +41,7 @@ import { Badge, Banner, Button, EmptyState, INPUT_CLASS, Row, cn } from '../../c
 import { Chip, Metric, MetricGrid, PageHeader, Section } from '../../components/ui/system'
 import { StateEmpty, StateError } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
+import { TitleBadge } from '../../components/brand/title-badge'
 import { FrameRing, frameStyle } from '../../components/brand/frame'
 import { ThemePreview, skinStyle } from '../../components/brand/theme-preview'
 import { CountUp } from '../../motion/primitives/CountUp'
@@ -341,7 +342,7 @@ export function ProfilePage(): ReactNode {
             <div className="min-w-0 flex-1 pb-1">
               <p className="flex flex-wrap items-center gap-2 truncate text-lg leading-tight font-semibold text-ink">
                 {profile.displayName ?? `@${profile.handle}`}
-                {profile.titleName ? <Chip tone="brand" icon={BadgeCheck}>{profile.titleName}</Chip> : null}
+                {profile.titleName ? <TitleBadge label={profile.titleName} refCode={profile.titleKey} size="md" /> : null}
               </p>
               <p className="truncate text-[12px] text-mute">{`@${profile.handle}`}</p>
             </div>

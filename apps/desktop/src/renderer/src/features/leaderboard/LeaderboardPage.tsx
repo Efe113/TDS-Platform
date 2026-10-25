@@ -30,6 +30,7 @@ import {
   formatMetricValue,
   leagueForRank,
   storageUrl,
+  VIP_TITLE_REF,
   type LeaderboardBoard,
   type LeaderboardHubMe,
   type LeaderboardHubRow,
@@ -50,6 +51,7 @@ import { Button, INPUT_CLASS, cn } from '../../components/ui'
 import { Chip, PageHeader, Segmented } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
 import { FrameRing, frameStyle } from '../../components/brand/frame'
+import { TitleBadge } from '../../components/brand/title-badge'
 import { RevealItem, RevealList } from '../../motion/primitives/Reveal'
 
 /**
@@ -502,7 +504,7 @@ function PodiumCard({
           {board === 'strategies' ? (row.handle ? `@${row.handle}` : t('leaderboard.owner')) : row.handle ? `@${row.handle}` : ''}
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-1">
-          {row.titleName ? <Chip tone="brand">{row.titleName}</Chip> : null}
+          {row.titleName ? <TitleBadge label={row.titleName} refCode={row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined} size="sm" /> : null}
           {row.vip ? <Chip tone="warn" icon={Crown}>VIP</Chip> : null}
         </div>
       </div>
@@ -600,7 +602,7 @@ function RankRow({
               >
                 {row.name}
               </button>
-              {row.titleName ? <Chip tone="brand">{row.titleName}</Chip> : null}
+              {row.titleName ? <TitleBadge label={row.titleName} refCode={row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined} size="sm" /> : null}
               {row.vip ? <Chip tone="warn" icon={Crown}>VIP</Chip> : null}
               {isMe ? <Chip tone="good">{t('leaderboard.you')}</Chip> : null}
             </div>

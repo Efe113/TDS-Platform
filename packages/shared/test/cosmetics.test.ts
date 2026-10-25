@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FRAME_SKINS, frameSkin } from '../src/domain/cosmetics'
+import { FRAME_SKINS, frameSkin, VIP_TITLE_REF, titleEffect } from '../src/domain/cosmetics'
 
 describe('frame registry', () => {
   it('keeps one entry per frame key', () => {
@@ -20,5 +20,17 @@ describe('frame registry', () => {
     expect(frameSkin('gold')?.effect).toBeUndefined()
     expect(frameSkin('neon')).toBeNull()
     expect(frameSkin(null)).toBeNull()
+  })
+})
+
+describe('title effects', () => {
+  it('marks the VIP title for the rainbow treatment', () => {
+    expect(titleEffect(VIP_TITLE_REF)).toBe('vip-rainbow')
+  })
+
+  it('leaves ordinary and missing titles plain', () => {
+    expect(titleEffect('founder')).toBeNull()
+    expect(titleEffect(null)).toBeNull()
+    expect(titleEffect(undefined)).toBeNull()
   })
 })

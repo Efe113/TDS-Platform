@@ -2,6 +2,21 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.1.2] — 2026-10-25
+
+### Eklendi
+
+- **Market indirim görünümü:** indirimli ürün, tema, boost ve VIP kartlarında orijinal fiyat üstü çizili, indirimli fiyat vurgulu ve kartın sol altında “İndirim %X” rozeti gösteriliyor; indirim bitiş zamanı korunuyor.
+- **Yenilenen ünvan tasarımı:** profil, liderlik ve market yüzeylerinde ortak `TitleBadge` bileşeni; kırpılmış rozet formu, iç parlaklık, yavaş ışık kayması ve boyut varyantları.
+- **Animasyonlu VIP ünvanı:** VIP üyelere özel `vip_rainbow` ünvanı; akan gökkuşağı kenarlık, gökkuşağı metin ve altın taç nabzı. `prefers-reduced-motion` için sabit varyant.
+- **SQL 0036:** VIP ünvanını kataloğa ekler; `wallet_summary` ve `equip_cosmetic` VIP sahipliğini satın alma olmadan tanır.
+
+### Notlar
+
+- VIP ünvanının katalogda ve profilde görünmesi için `supabase/migrations/0036_vip_title.sql` (ve henüz çalıştırılmadıysa `0035`) Supabase dashboard'da uygulanmalı.
+- Gökkuşağı VIP ünvanı yalnızca yetkiyle gelir; `spend_currency` VIP etiketli ürünleri satın almaya kapalıdır.
+- Bu sürüm hâlâ **imzasız**; SignPath Foundation onayı bekleniyor.
+
 ## [0.1.1] — 2026-10-24
 
 ### Eklendi
