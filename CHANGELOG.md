@@ -2,6 +2,23 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.1] — 2026-10-25
+
+### Düzeltildi
+
+- **Profil teması afişin altında kalıyordu:** katman, üyenin afiş resminin altına çizildiği için afişi
+  olan herkeste tema tamamen gizleniyordu (etiket görünüyor, boyama yoktu). Artık tema afişin üstünde
+  ve `screen` karışımıyla ışık ekliyor; kart gövdesi tema zeminiyle yıkanıyor, tema halkası avatarın
+  dışına ayrı katman olarak düşüyor.
+- **Kart avatarında çerçeve halkası çizilmiyordu:** `frameStyle` hiç uygulanmadığı için kuşanma
+  çalışsa bile ekranda hiçbir şey değişmiyordu; "hiçbir çerçeveyi kuşanamıyorum" olarak görünen buydu.
+  Şimdi statik halka ve animasyonlu bant birlikte çiziliyor.
+- **Kişiselleştir perdesinin önizlemeleri gerçek:** çerçeve kutusunda ref yazısı yerine mini avatar
+  üstünde FrameRing + halka, tema kutusunda tema zemini + mini avatar, ayrıca "başkaları böyle
+  görüyor" bloğu (yorum satırı ve keşfet yazar satırı mock'u) — ikinci bir hesap gerekmiyor.
+- Kuşanma sonrası hata/başarı satırı satırların üstüne taşındı; sunucunun gerekçesi artık tıklamanın
+  hemen altında okunuyor.
+
 ## [0.3.0] — 2026-10-25
 
 ### Eklendi
