@@ -67,9 +67,23 @@ describe('wallet contract', () => {
 
   it('maps the server error prefixes the wallet can explain in its own words', () => {
     expect(spendErrorKey('INSUFFICIENT_FUNDS: need 500 have 12')).toBe('wallet.errFunds')
-    expect(spendErrorKey('ALREADY_BOOSTED: you already have an active boost on this strategy')).toBe('wallet.errAlready')
+    expect(spendErrorKey('ALREADY_BOOSTED: you already have an active boost on this strategy')).toBe('wallet.errAlreadyBoosted')
     expect(spendErrorKey('NOT_PUBLISHED: only published strategies can be boosted')).toBe('wallet.errNotPublished')
     expect(spendErrorKey('connection reset')).toBe('wallet.errGeneric')
+  })
+
+  it('never tells a VIP buyer about their boost', () => {
+    // These prefixes all used to collapse onto one boost-shaped sentence, so owning VIP and clicking
+    // buy again read as "this strategy is already promoted".
+    expect(spendErrorKey('ALREADY_OWNED: vip_lifetime')).toBe('wallet.errAlreadyOwned')
+    expect(spendErrorKey('BENEFIT_ONLY: title_vip_rainbow is a vip benefit')).toBe('wallet.errBenefit')
+    expect(spendErrorKey('BENEFIT_ONLY: boost_verified_72h is a verified benefit')).toBe('wallet.errBenefit')
+    expect(spendErrorKey('NOT_VERIFIED')).toBe('wallet.errNotVerified')
+    expect(spendErrorKey('NO_CREDIT')).toBe('wallet.errNoCredit')
+    expect(spendErrorKey('COMING_SOON: frame_toxic')).toBe('wallet.errSoon')
+    expect(spendErrorKey('NOT_OWNED')).toBe('wallet.errNotOwned')
+    expect(spendErrorKey('NOT_OWNER: pick one of your own strategies')).toBe('wallet.errNotOwner')
+    expect(spendErrorKey('UNKNOWN_SKU: nope')).toBe('wallet.errNotFound')
   })
 
   it('formats coin amounts without decimals', () => {

@@ -2,6 +2,29 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [Yayınlanmamış]
+
+### Düzeltildi
+
+- **"Bu stratejide zaten etkin bir öne çıkarman var" her yerde çıkıyordu:** `ALREADY_OWNED`,
+  `BENEFIT_ONLY`, `NOT_VERIFIED`, `NO_CREDIT`, `COMING_SOON`, `NOT_OWNED`, `NOT_OWNER` ve `NOT_FOUND`
+  hepsi tek bir boost cümlesine bağlanmıştı. Her ön ek artık kendi çevirisine sahip; VIP'i zaten olan
+  üye tekrar "VIP ol"a basınca kafa karıştıran değil doğru satırı görüyor.
+- **VIP zaten sende olsa da satın alma butonu duruyordu (0039):** `spend_currency` üyelik için
+  "herhangi bir VIP türü sipariş" sorusunu soruyor, `wallet_summary` ise `owned` bayrağını SKU bazında
+  hesaplıyordu. Uyuşmazlık, kasasının reddettiği bir teklifi rafta canlı bırakıyordu. Artık `owned`
+  yetkiyle (`app.vip_active`, `app.verified_active`) aynı soruyu soruyor ve gökkuşağı çerçevesi de
+  VIP yetkisiyle sahiplenilmiş sayılıyor. İstemci tarafı da `wallet.vip` bayrağını esas alıyor, böylece
+  migration öncesi de doğru davranıyor.
+- **Bilinmeyen bir katalog etiketi tüm Market sayfasını düşürüyordu:** `verified` etiketi 0037 ile
+  veritabanına girdiğinde 0.1.2 istemcisinin katı enum'u parse'ı patlatıyordu. `tag` ve `kind` artık
+  tanımadığı değeri görünmez karta indirgiyor; Market yönetimi ekranına da eksik `verified` seçeneği
+  eklendi.
+
+### Gereken
+
+- `supabase/migrations/0039_wallet_owned_by_tier.sql` Supabase dashboard'unda çalıştırılmalı.
+
 ## [0.1.3] — 2026-10-25
 
 ### Eklendi

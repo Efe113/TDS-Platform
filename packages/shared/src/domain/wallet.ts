@@ -126,21 +126,38 @@ export function formatCoin(amount: number): string {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(amount)
 }
 
-/** Error prefixes the wallet UI can translate instead of showing a raw Postgres message. */
-export function spendErrorKey(message: string): 'wallet.errFunds' | 'wallet.errAlready' | 'wallet.errNotPublished' | 'wallet.errGeneric' {
+/**
+ * Error prefixes the wallet UI can translate instead of showing a raw Postgres message.
+ *
+ * Each prefix keeps its own key: collapsing "you already own this" in with "this strategy is already
+ * boosted" meant a member who clicked VIP-but-owns-it was told their boost was active, which is a
+ * sentence about a different product entirely.
+ */
+export type SpendErrorKey =
+  | 'wallet.errFunds'
+  | 'wallet.errAlreadyBoosted'
+  | 'wallet.errAlreadyOwned'
+  | 'wallet.errBenefit'
+  | 'wallet.errSoon'
+  | 'wallet.errNotVerified'
+  | 'wallet.errNoCredit'
+  | 'wallet.errNotPublished'
+  | 'wallet.errNotOwner'
+  | 'wallet.errNotOwned'
+  | 'wallet.errNotFound'
+  | 'wallet.errGeneric'
+
+export function spendErrorKey(message: string): SpendErrorKey {
   if (message.startsWith('INSUFFICIENT_FUNDS')) return 'wallet.errFunds'
-  // A verified-only benefit, a missing credit or an unverified account is all "not yours to spend".
-  if (
-    message.startsWith('ALREADY_BOOSTED') ||
-    message.startsWith('ALREADY_OWNED') ||
-    message.startsWith('BENEFIT_ONLY') ||
-    message.startsWith('NOT_VERIFIED') ||
-    message.startsWith('NO_CREDIT')
-  ) {
-    return 'wallet.errAlready'
-  }
-  if (message.startsWith('NOT_PUBLISHED') || message.startsWith('NOT_FOUND') || message.startsWith('NOT_OWNER')) {
-    return 'wallet.errNotPublished'
-  }
+  if (message.startsWith('ALREADY_BOOSTED')) return 'wallet.errAlreadyBoosted'
+  if (message.startsWith('ALREADY_OWNED')) return 'wallet.errAlreadyOwned'
+  if (message.startsWith('BENEFIT_ONLY')) return 'wallet.errBenefit'
+  if (message.startsWith('COMING_SOON')) return 'wallet.errSoon'
+  if (message.startsWith('NOT_VERIFIED')) return 'wallet.errNotVerified'
+  if (message.startsWith('NO_CREDIT')) return 'wallet.errNoCredit'
+  if (message.startsWith('NOT_OWNED')) return 'wallet.errNotOwned'
+  if (message.startsWith('NOT_PUBLISHED')) return 'wallet.errNotPublished'
+  if (message.startsWith('NOT_OWNER')) return 'wallet.errNotOwner'
+  if (message.startsWith('NOT_FOUND') || message.startsWith('UNKNOWN_SKU')) return 'wallet.errNotFound'
   return 'wallet.errGeneric'
 }

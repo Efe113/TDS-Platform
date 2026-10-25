@@ -380,6 +380,7 @@ function ProductCard({
 /** The VIP shelf is not a card in a row: it is the one purchase that changes what the account can do. */
 function VipPanel({
   item,
+  active,
   language,
   balance,
   busy,
@@ -387,6 +388,8 @@ function VipPanel({
   onEdit
 }: {
   item: WalletItem
+  /** Membership is an entitlement (`app.vip_active`), not this one SKU's receipt. */
+  active: boolean
   language: string
   balance: number
   busy: boolean
@@ -429,7 +432,7 @@ function VipPanel({
               </h2>
             </div>
             <TagChip tag={item.tag} />
-            {item.owned ? <Chip tone="good" icon={Check}>{t('market.vipActive')}</Chip> : null}
+            {active ? <Chip tone="good" icon={Check}>{t('market.vipActive')}</Chip> : null}
           </div>
 
           <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-mute">
@@ -454,7 +457,7 @@ function VipPanel({
 
         <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
           <FrameSample value="rainbow" size="lg" />
-          {item.owned ? (
+          {active ? (
             <div className="space-y-1.5 text-right">
               <p className="text-[11px] font-medium text-good">{t('market.vipActiveHint')}</p>
               <Button size="sm" variant="subtle" onClick={onEdit}>
@@ -555,7 +558,9 @@ export function MarketPage(): ReactNode {
 
   const items = wallet?.catalog ?? []
   const vipItem = items.find((item) => item.sku === VIP_SKU) ?? items.find((item) => item.kind === 'vip') ?? null
-  const vipOwned = vipItem?.owned ?? false
+  // `wallet.vip` is the authoritative entitlement; the SKU-level `owned` flag only ever looked at one
+  // receipt, which is how a member ended up with a live "VIP ol" button the till refused.
+  const vipOwned = Boolean(wallet?.vip) || (vipItem?.owned ?? false)
   const byKind = useMemo(() => {
     const map = new Map<Shelf, WalletItem[]>()
     for (const shelf of SHELVES) map.set(shelf.kind, [])
@@ -681,6 +686,7 @@ export function MarketPage(): ReactNode {
       {vipItem ? (
         <VipPanel
           item={vipItem}
+          active={wallet.vip || vipItem.owned}
           language={language}
           balance={wallet.balance}
           busy={purchase.isPending && purchase.variables === vipItem.sku}
