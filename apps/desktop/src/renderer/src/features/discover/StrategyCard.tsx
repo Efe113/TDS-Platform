@@ -6,6 +6,7 @@ import { useT } from '../../i18n/use-t'
 import { difficultyEntry, useCatalogLanguage } from '../../lib/catalog-labels'
 import { relativeTime } from '../../lib/text'
 import { Badge, Button, Card, Row, cn } from '../../components/ui'
+import { VerifiedBadge } from '../../components/brand/verified-badge'
 
 export interface StrategyCardProps {
   row: SearchRow
@@ -131,7 +132,11 @@ export function StrategyCard({
       onClick={() => onOpen(row)}
       className="no-drag min-w-0 flex-1 text-left transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
     >
-      <span className="block text-sm font-semibold leading-snug">{row.name}</span>
+      {/* The tier belongs to the author, so the mark sits with the name, not in the badge rail. */}
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate text-sm font-semibold leading-snug">{row.name}</span>
+        <VerifiedBadge show={row.author_verified} size="sm" label={t('discover.verified')} />
+      </span>
       {row.subtitle ? <span className="mt-0.5 block truncate text-xs text-mute">{row.subtitle}</span> : null}
     </button>
   )

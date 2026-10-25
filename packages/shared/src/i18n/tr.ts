@@ -95,6 +95,8 @@ export const tr = {
   'discover.empty': 'Eşleşen strateji yok. Filtreleri temizleyip tekrar dene.',
   'discover.loading': 'Stratejiler getiriliyor…',
   'discover.pinned': 'Öne çıkan',
+  'discover.verified': 'Doğrulanmış',
+  'discover.verifiedOnly': 'Yalnızca doğrulanmış',
   'discover.favoriteAdd': 'Favorilere ekle',
   'discover.favoriteRemove': 'Favorilerden çıkar',
   'discover.resultCount': '{{count}} strateji bulundu',

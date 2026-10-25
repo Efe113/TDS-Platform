@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import {
   Activity,
+  BadgeCheck,
   Ban,
   CircleDollarSign,
   Coins,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useT } from '../../i18n/use-t'
 import { supabase } from '../../lib/supabase'
+import { setVerified } from '../../lib/account-api'
 import { Button, INPUT_CLASS, Row, Toggle, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, Section, Segmented } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
@@ -51,6 +53,10 @@ const userRowSchema = z.object({
   role: z.string(),
   banned: z.boolean(),
   joinedAt: z.string(),
+  // 0037: the tier the operator grants from this very row.
+  verified: z.boolean().default(false),
+  discountEndsAt: z.string().nullable().default(null),
+  credits: z.number().int().nonnegative().default(0),
   balance: z.number().int().default(0),
   published: z.number().int().default(0),
   runs: z.number().int().default(0)
@@ -291,8 +297,20 @@ export function UsersSection(): ReactNode {
     onError: () => undefined
   })
 
+  // Verification is a staff decision, so it is granted from here as well as from the application queue.
+  const verify = useMutation({
+    mutationFn: async (input: { userId: string; verified: boolean }) => {
+      await setVerified(input.userId, input.verified, input.verified ? 1 : 0, null)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+    },
+    onError: () => undefined
+  })
+
   const rows = usersQuery.data ?? []
-  const failure = ban.error ?? role.error
+  const failure = ban.error ?? role.error ?? verify.error
 
   return (
     <div className="space-y-4">
@@ -331,6 +349,11 @@ export function UsersSection(): ReactNode {
                   <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-ink">
                     {row.displayName ?? row.handle}
                     {row.banned ? <Chip tone="danger" icon={Ban}>{t('admin.banned')}</Chip> : null}
+                    {row.verified ? (
+                      <Chip tone="good" icon={BadgeCheck}>
+                        {row.credits > 0 ? `${t('admin.verifiedTag')} · ${t('admin.accountCredits')} ${String(row.credits)}` : t('admin.verifiedTag')}
+                      </Chip>
+                    ) : null}
                   </p>
                   <p className="truncate font-mono text-[10px] text-mute">{`@${row.handle}`}</p>
                 </div>
@@ -361,6 +384,16 @@ export function UsersSection(): ReactNode {
                   >
                     <Ban size={12} />
                     {row.banned ? t('admin.unban') : t('admin.ban')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={row.verified ? 'ghost' : 'primary'}
+                    busy={verify.isPending && verify.variables?.userId === row.userId}
+                    title={row.verified && row.discountEndsAt ? `${t('verified.discountTitle')}: ${new Date(row.discountEndsAt).toLocaleDateString()}` : undefined}
+                    onClick={() => verify.mutate({ userId: row.userId, verified: !row.verified })}
+                  >
+                    <BadgeCheck size={12} />
+                    {row.verified ? t('admin.unverifyMember') : t('admin.verifyMember')}
                   </Button>
                 </Row>
               </li>

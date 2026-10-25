@@ -22,6 +22,7 @@ import { LeaderboardPage } from '../leaderboard/LeaderboardPage'
 import { WalletPage } from '../wallet/WalletPage'
 import { MarketPage } from '../market/MarketPage'
 import { ProfilePage } from '../profile/ProfilePage'
+import { VerifiedPage } from '../verified/VerifiedPage'
 import { StrategyDetailPage } from '../detail/StrategyDetailPage'
 import { AdminPage } from '../admin/AdminPage'
 import { AuthPage } from '../auth/AuthPage'
@@ -59,6 +60,8 @@ function renderRoute(path: string): ReactNode {
       return <MarketPage />
     case 'profile':
       return <ProfilePage />
+    case 'verified':
+      return <VerifiedPage />
     case 'strategy':
       return <StrategyDetailPage />
     case 'account':

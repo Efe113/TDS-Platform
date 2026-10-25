@@ -37,10 +37,15 @@ export const TITLE_LIMITS = { min: 2, max: 24 } as const
 /** VIP-only title; the database grants it as an entitlement, not as an order. */
 export const VIP_TITLE_REF = 'vip_rainbow'
 
-export type TitleEffect = 'vip-rainbow'
+/** Staff-granted tier: the green title arrives with verification, never with a purchase. */
+export const VERIFIED_TITLE_REF = 'verified_green'
+
+export type TitleEffect = 'vip-rainbow' | 'verified-green'
 
 export function titleEffect(ref: string | null | undefined): TitleEffect | null {
-  return ref === VIP_TITLE_REF ? 'vip-rainbow' : null
+  if (ref === VIP_TITLE_REF) return 'vip-rainbow'
+  if (ref === VERIFIED_TITLE_REF) return 'verified-green'
+  return null
 }
 
 export function titleIsValid(value: string): boolean {

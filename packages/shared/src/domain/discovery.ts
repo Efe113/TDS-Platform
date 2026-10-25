@@ -15,7 +15,9 @@ export const discoverFiltersSchema = z.object({
   offset: z.number().int().min(0).default(0),
   /** Server-side so the count, the paging and the facets all agree with the filter. */
   favoritesOnly: z.boolean().default(false),
-  watchOnly: z.boolean().default(false)
+  watchOnly: z.boolean().default(false),
+  // 0037: verified authors sort above ordinary strategies, so the filter has to be server-side too.
+  verifiedOnly: z.boolean().default(false)
 })
 
 export type DiscoverFilters = z.input<typeof discoverFiltersSchema>
@@ -47,7 +49,9 @@ export const searchRowSchema = z.object({
   // parses the rows it can get, instead of blanking the whole board.
   is_watched: z.boolean().optional().default(false),
   trend_7d: z.coerce.number().int().nonnegative().optional().default(0),
-  rows_total: z.coerce.number().int().nonnegative().optional().default(0)
+  rows_total: z.coerce.number().int().nonnegative().optional().default(0),
+  // 0037: the author carries the verified tier, so every one of their strategies gets the mark.
+  author_verified: z.boolean().optional().default(false)
 })
 
 export type SearchRow = z.infer<typeof searchRowSchema>
@@ -157,7 +161,13 @@ export const strategyDetailSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   maps: mapSummarySchema.nullable(),
-  profiles: z.object({ id: z.string().uuid(), handle: z.string(), display_name: z.string().nullable() }).nullable(),
+  profiles: z
+    .object({
+      id: z.string().uuid(),
+      handle: z.string(),
+      display_name: z.string().nullable()
+    })
+    .nullable(),
   strategy_versions: z.array(versionDetailSchema).default([])
 })
 

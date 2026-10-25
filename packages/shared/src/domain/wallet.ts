@@ -12,6 +12,9 @@ export const SPEND_KINDS = ['badge', 'theme', 'boost', 'cosmetic', 'title', 'fra
 /** The one SKU that grants VIP. Membership is derived from its filled order, never a profile flag. */
 export const VIP_SKU = 'vip_lifetime'
 
+/** 0037: the disabled catalog row a verified promotion credit records itself against. */
+export const VERIFIED_BOOST_SKU = 'boost_verified_72h'
+
 export const walletRuleSchema = z.object({
   code: z.string(),
   kind: z.string(),
@@ -49,7 +52,7 @@ export const walletItemSchema = z.object({
   finalPrice: z.number().int().nullable().default(null),
   discountPercent: z.number().int().min(0).max(90).default(0),
   discountEndsAt: z.string().nullable().default(null),
-  tag: z.enum(['none', 'new', 'soon', 'vip']).default('none'),
+  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified']).default('none'),
   owned: z.boolean().default(false)
 })
 
@@ -74,7 +77,11 @@ export const walletSummarySchema = z.object({
   boosts: z.array(walletBoostSchema).default([]),
   // 0034: VIP state and the background path the shell paints behind every screen.
   vip: z.boolean().default(false),
-  vipBackgroundPath: z.string().nullable().default(null)
+  vipBackgroundPath: z.string().nullable().default(null),
+  // 0037: the verified tier — staff-granted, with an expiring discount and promotable credits.
+  verified: z.boolean().optional().default(false),
+  verifiedDiscountEndsAt: z.string().nullable().optional().default(null),
+  verifiedBoostCredits: z.number().int().nonnegative().optional().default(0)
 })
 
 export type WalletSummary = z.infer<typeof walletSummarySchema>
@@ -105,7 +112,18 @@ export function formatCoin(amount: number): string {
 /** Error prefixes the wallet UI can translate instead of showing a raw Postgres message. */
 export function spendErrorKey(message: string): 'wallet.errFunds' | 'wallet.errAlready' | 'wallet.errNotPublished' | 'wallet.errGeneric' {
   if (message.startsWith('INSUFFICIENT_FUNDS')) return 'wallet.errFunds'
-  if (message.startsWith('ALREADY_BOOSTED') || message.startsWith('ALREADY_OWNED')) return 'wallet.errAlready'
-  if (message.startsWith('NOT_PUBLISHED') || message.startsWith('NOT_FOUND')) return 'wallet.errNotPublished'
+  // A verified-only benefit, a missing credit or an unverified account is all "not yours to spend".
+  if (
+    message.startsWith('ALREADY_BOOSTED') ||
+    message.startsWith('ALREADY_OWNED') ||
+    message.startsWith('BENEFIT_ONLY') ||
+    message.startsWith('NOT_VERIFIED') ||
+    message.startsWith('NO_CREDIT')
+  ) {
+    return 'wallet.errAlready'
+  }
+  if (message.startsWith('NOT_PUBLISHED') || message.startsWith('NOT_FOUND') || message.startsWith('NOT_OWNER')) {
+    return 'wallet.errNotPublished'
+  }
   return 'wallet.errGeneric'
 }

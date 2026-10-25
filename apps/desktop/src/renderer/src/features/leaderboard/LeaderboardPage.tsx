@@ -52,6 +52,8 @@ import { Chip, PageHeader, Segmented } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
 import { FrameRing, frameStyle } from '../../components/brand/frame'
 import { TitleBadge } from '../../components/brand/title-badge'
+import { VerifiedBadge } from '../../components/brand/verified-badge'
+import { fetchVerificationFlags } from '../../lib/account-api'
 import { RevealItem, RevealList } from '../../motion/primitives/Reveal'
 
 /**
@@ -504,7 +506,14 @@ function PodiumCard({
           {board === 'strategies' ? (row.handle ? `@${row.handle}` : t('leaderboard.owner')) : row.handle ? `@${row.handle}` : ''}
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-1">
-          {row.titleName ? <TitleBadge label={row.titleName} refCode={row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined} size="sm" /> : null}
+          {row.titleName ? (
+            <TitleBadge
+              label={row.titleName}
+              refCode={row.titleKey ?? (row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined)}
+              size="sm"
+            />
+          ) : null}
+          <VerifiedBadge show={row.verified} size="sm" label={t('discover.verified')} />
           {row.vip ? <Chip tone="warn" icon={Crown}>VIP</Chip> : null}
         </div>
       </div>
@@ -602,7 +611,14 @@ function RankRow({
               >
                 {row.name}
               </button>
-              {row.titleName ? <TitleBadge label={row.titleName} refCode={row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined} size="sm" /> : null}
+              {row.titleName ? (
+                <TitleBadge
+                  label={row.titleName}
+                  refCode={row.titleKey ?? (row.vip && row.titleName === t('market.vipTitleLabel') ? VIP_TITLE_REF : undefined)}
+                  size="sm"
+                />
+              ) : null}
+              <VerifiedBadge show={row.verified} size="sm" label={t('discover.verified')} />
               {row.vip ? <Chip tone="warn" icon={Crown}>VIP</Chip> : null}
               {isMe ? <Chip tone="good">{t('leaderboard.you')}</Chip> : null}
             </div>
@@ -744,6 +760,7 @@ function MiniRow({
       <button type="button" className="no-drag min-w-0 flex-1 break-words text-left text-[11px] font-medium text-ink hover:text-brand" onClick={() => openEntity(row)}>
         {row.name}
       </button>
+      <VerifiedBadge show={row.verified} size="sm" label={t('discover.verified')} />
       <span className="hud-num shrink-0 text-[11px] text-ink">{scoreText(board, metric, row.score)}</span>
       <span className="shrink-0">
         <MovementBadge row={row} previousWindow={previousWindow} />
@@ -893,9 +910,39 @@ export function LeaderboardPage(): ReactNode {
     refetchInterval: live ? 60_000 : false,
     retry: 1
   })
-  const data = hubQuery.data
-  const me = data?.me ?? null
-  const rows = data?.rows ?? []
+  const hub = hubQuery.data
+
+  // The tick and the green title come from public profile reads rather than the hub RPC, so an
+  // un-migrated database leaves the board intact with no marks instead of failing the query.
+  const flagIds = useMemo(() => {
+    if (!hub) return []
+    return [
+      ...hub.rows,
+      ...hub.nearMe,
+      ...hub.movers.climbers,
+      ...hub.movers.fallers,
+      ...(hub.me ? [hub.me] : [])
+    ]
+      .flatMap((row) => (row.playerId ? [row.playerId] : []))
+      .filter((id, index, list) => list.indexOf(id) === index)
+  }, [hub])
+  const flagsQuery = useQuery({
+    queryKey: ['verified-flags', flagIds.join(',')],
+    queryFn: () => fetchVerificationFlags(flagIds),
+    enabled: flagIds.length > 0,
+    staleTime: 300_000,
+    retry: false
+  })
+  const flags = flagsQuery.data
+  const decorate = useCallback(
+    <T extends LeaderboardHubRow>(row: T): T => {
+      const flag = row.playerId && flags ? flags[row.playerId] : undefined
+      return flag ? { ...row, verified: flag.verified, titleKey: flag.titleKey ?? row.titleKey } : row
+    },
+    [flags]
+  )
+  const me = hub?.me ? decorate(hub.me) : null
+  const rows = useMemo(() => (hub?.rows ?? []).map(decorate), [hub, decorate])
 
   const mapsQuery = useQuery({
     queryKey: ['catalog', 'maps'],
@@ -1018,8 +1065,8 @@ export function LeaderboardPage(): ReactNode {
 
   const isFiltering = search.trim().length > 0 || mapFilter.length > 0 || eventOnly || watchOnly || sort !== 'rank'
   const showPodium = !isFiltering && filtered.length >= 3
-  const canShowMore = Boolean(data && data.rows.length >= limit && limit < 100)
-  const topScore = data?.rows[0]?.score ?? filtered[0]?.score ?? 0
+  const canShowMore = Boolean(hub && hub.rows.length >= limit && limit < 100)
+  const topScore = hub?.rows[0]?.score ?? filtered[0]?.score ?? 0
 
   const knownRows = useMemo(() => {
     const map = new Map<string, LeaderboardHubRow>()
@@ -1027,12 +1074,12 @@ export function LeaderboardPage(): ReactNode {
       for (const row of list) map.set(row.entityId, row)
     }
     add(rows)
-    add(data?.nearMe ?? [])
-    add(data?.movers.climbers ?? [])
-    add(data?.movers.fallers ?? [])
-    if (data?.me) map.set(data.me.entityId, data.me)
+    add((hub?.nearMe ?? []).map(decorate))
+    add((hub?.movers.climbers ?? []).map(decorate))
+    add((hub?.movers.fallers ?? []).map(decorate))
+    if (hub?.me) map.set(hub.me.entityId, decorate(hub.me))
     return map
-  }, [rows, data])
+  }, [rows, hub, decorate])
 
   const comparedRows = compare
     .map((id) => knownRows.get(id))
@@ -1046,7 +1093,7 @@ export function LeaderboardPage(): ReactNode {
       ? Math.min(60, Math.max(0, Math.ceil((60_000 - (now - hubQuery.dataUpdatedAt)) / 1000)))
       : null
   const lastUpdated = hubQuery.dataUpdatedAt > 0 ? new Date(hubQuery.dataUpdatedAt).toLocaleTimeString() : null
-  const windowStart = data?.windowStart ? new Date(data.windowStart).toLocaleDateString() : null
+  const windowStart = hub?.windowStart ? new Date(hub.windowStart).toLocaleDateString() : null
   const metricLabel = t(metricKey(board, metric))
 
   const clearFilters = (): void => {
@@ -1058,10 +1105,10 @@ export function LeaderboardPage(): ReactNode {
   }
 
   const copySummary = (): void => {
-    if (!data || !me) return
+    if (!hub || !me) return
     const parts = [
       `${t('leaderboard.title')} · ${t(BOARD_LABEL[board])} · ${t(WINDOW_LABEL[boardWindow])}`,
-      `#${String(me.rank)} / ${countText(data.total)} · ${scoreText(board, metric, me.score)} ${metricLabel}`
+      `#${String(me.rank)} / ${countText(hub.total)} · ${scoreText(board, metric, me.score)} ${metricLabel}`
     ]
     if (me.percentile !== null) parts.push(t('leaderboard.percentile', { value: me.percentile }))
     copyText(parts.join('\n'), 'summary')
@@ -1080,13 +1127,13 @@ export function LeaderboardPage(): ReactNode {
         title={t('leaderboard.title')}
         subtitle={t(board === 'players' ? 'leaderboard.subtitlePlayers' : 'leaderboard.subtitleStrategies')}
         badges={
-          data ? (
+          hub ? (
             <>
               <Chip tone="brand" icon={board === 'players' ? Users : Trophy}>
-                {t(board === 'players' ? 'leaderboard.totalPlayers' : 'leaderboard.totalStrategies', { count: data.total })}
+                {t(board === 'players' ? 'leaderboard.totalPlayers' : 'leaderboard.totalStrategies', { count: hub.total })}
               </Chip>
               <Chip tone="neutral">{t(WINDOW_LABEL[boardWindow])}</Chip>
-              {data.previousWindow ? <Chip tone="neutral">{t('leaderboard.previousWindow', { window: t(WINDOW_LABEL[data.previousWindow]) })}</Chip> : null}
+              {hub.previousWindow ? <Chip tone="neutral">{t('leaderboard.previousWindow', { window: t(WINDOW_LABEL[hub.previousWindow]) })}</Chip> : null}
             </>
           ) : null
         }
@@ -1123,7 +1170,7 @@ export function LeaderboardPage(): ReactNode {
         }
       />
 
-      {data ? <StandingPanel me={me} board={board} metric={metric} total={data.total} signedIn={signedIn} /> : null}
+      {hub ? <StandingPanel me={me} board={board} metric={metric} total={hub.total} signedIn={signedIn} /> : null}
 
       <section className="hud-panel space-y-2.5 p-3">
         <div className="flex flex-wrap items-end gap-3">
@@ -1217,7 +1264,7 @@ export function LeaderboardPage(): ReactNode {
         </div>
       ) : null}
 
-      {data && rows.length === 0 ? (
+      {hub && rows.length === 0 ? (
         <StateEmpty
           icon={board === 'players' ? Users : Trophy}
           title={t(board === 'players' ? 'leaderboard.emptyPlayers' : 'leaderboard.emptyStrategies')}
@@ -1234,7 +1281,7 @@ export function LeaderboardPage(): ReactNode {
         />
       ) : null}
 
-      {data && rows.length > 0 ? (
+      {hub && rows.length > 0 ? (
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0 space-y-3">
             {showPodium ? (
@@ -1251,7 +1298,7 @@ export function LeaderboardPage(): ReactNode {
                       place={index + 1}
                       board={board}
                       metric={metric}
-                      previousWindow={data.previousWindow}
+                      previousWindow={hub.previousWindow}
                       watched={watched.includes(row.entityId)}
                       compared={compare.includes(row.entityId)}
                       copied={copied === `copy-${row.entityId}`}
@@ -1273,13 +1320,13 @@ export function LeaderboardPage(): ReactNode {
                   <div className="flex items-center gap-1.5">
                     <h2 className="text-[13px] font-semibold tracking-wide text-ink">{t('leaderboard.ranking')}</h2>
                     <Chip tone={isFiltering ? 'warn' : 'neutral'}>
-                      {t('leaderboard.showing', { shown: filtered.length, total: data.total })}
+                      {t('leaderboard.showing', { shown: filtered.length, total: hub.total })}
                     </Chip>
                   </div>
                   <p className="mt-0.5 text-[10px] text-mute">{t('leaderboard.rankingHint')}</p>
                 </div>
-                {data.previousWindow ? (
-                  <span className="text-[10px] text-mute">{t('leaderboard.previousWindow', { window: t(WINDOW_LABEL[data.previousWindow]) })}</span>
+                {hub.previousWindow ? (
+                  <span className="text-[10px] text-mute">{t('leaderboard.previousWindow', { window: t(WINDOW_LABEL[hub.previousWindow]) })}</span>
                 ) : (
                   <span className="text-[10px] text-mute">{t('leaderboard.noPrevious')}</span>
                 )}
@@ -1312,7 +1359,7 @@ export function LeaderboardPage(): ReactNode {
                           row={row}
                           board={board}
                           metric={metric}
-                          previousWindow={data.previousWindow}
+                          previousWindow={hub.previousWindow}
                           topScore={topScore}
                           me={me}
                           watched={watched.includes(row.entityId)}
@@ -1333,7 +1380,7 @@ export function LeaderboardPage(): ReactNode {
               )}
 
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/50 px-3 py-2 text-[10px] text-mute">
-                <span>{t('leaderboard.showing', { shown: filtered.length, total: data.total })}</span>
+                <span>{t('leaderboard.showing', { shown: filtered.length, total: hub.total })}</span>
                 <div className="flex items-center gap-2">
                   {lastUpdated ? <span>{t('leaderboard.lastUpdated', { time: lastUpdated })}</span> : null}
                   {canShowMore ? (
@@ -1348,28 +1395,28 @@ export function LeaderboardPage(): ReactNode {
           </div>
 
           <aside className="min-w-0 space-y-3">
-            {me && data.nearMe.length > 0 ? (
+            {me && hub.nearMe.length > 0 ? (
               <RailSection title={t('leaderboard.nearMe')} hint={t('leaderboard.nearMeHint')} icon={Users}>
-                {data.nearMe.map((row) => (
-                  <MiniRow key={row.entityId} row={row} board={board} metric={metric} me={me} previousWindow={data.previousWindow} />
+                {hub.nearMe.map((row) => (
+                  <MiniRow key={row.entityId} row={row} board={board} metric={metric} me={me} previousWindow={hub.previousWindow} />
                 ))}
               </RailSection>
             ) : null}
 
             <RailSection title={t('leaderboard.movers')} icon={ArrowUp}>
-              {data.previousWindow === null || (data.movers.climbers.length === 0 && data.movers.fallers.length === 0) ? (
+              {hub.previousWindow === null || (hub.movers.climbers.length === 0 && hub.movers.fallers.length === 0) ? (
                 <p className="text-[11px] text-mute">{t('leaderboard.noMovers')}</p>
               ) : (
                 <div className="space-y-2">
                   <p className="hud-label text-good">{t('leaderboard.climbers')}</p>
-                  {data.movers.climbers.length === 0 ? <p className="text-[10px] text-mute">{t('leaderboard.noMovers')}</p> : null}
-                  {data.movers.climbers.map((row) => (
-                    <MiniRow key={row.entityId} row={row} board={board} metric={metric} me={me} previousWindow={data.previousWindow} />
+                  {hub.movers.climbers.length === 0 ? <p className="text-[10px] text-mute">{t('leaderboard.noMovers')}</p> : null}
+                  {hub.movers.climbers.map((row) => (
+                    <MiniRow key={row.entityId} row={row} board={board} metric={metric} me={me} previousWindow={hub.previousWindow} />
                   ))}
                   <p className="hud-label pt-1 text-danger">{t('leaderboard.fallers')}</p>
-                  {data.movers.fallers.length === 0 ? <p className="text-[10px] text-mute">{t('leaderboard.noMovers')}</p> : null}
-                  {data.movers.fallers.map((row) => (
-                    <MiniRow key={row.entityId} row={row} board={board} metric={metric} me={me} previousWindow={data.previousWindow} />
+                  {hub.movers.fallers.length === 0 ? <p className="text-[10px] text-mute">{t('leaderboard.noMovers')}</p> : null}
+                  {hub.movers.fallers.map((row) => (
+                    <MiniRow key={row.entityId} row={row} board={board} metric={metric} me={me} previousWindow={hub.previousWindow} />
                   ))}
                 </div>
               )}
@@ -1388,7 +1435,7 @@ export function LeaderboardPage(): ReactNode {
                     board={board}
                     metric={metric}
                     me={me}
-                    previousWindow={data.previousWindow}
+                    previousWindow={hub.previousWindow}
                     onUnwatch={() => toggleWatch(row.entityId)}
                   />
                 ))
@@ -1404,7 +1451,7 @@ export function LeaderboardPage(): ReactNode {
               <dl className="space-y-1.5 text-[10px]">
                 <div className="flex justify-between gap-2">
                   <dt className="text-mute">{t('leaderboard.totalLabel')}</dt>
-                  <dd className="hud-num text-ink">{countText(data.total)}</dd>
+                  <dd className="hud-num text-ink">{countText(hub.total)}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-mute">{t('leaderboard.windowLabel')}</dt>
@@ -1412,7 +1459,7 @@ export function LeaderboardPage(): ReactNode {
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-mute">{t('leaderboard.previousLabel')}</dt>
-                  <dd className="text-ink">{data.previousWindow ? t(WINDOW_LABEL[data.previousWindow]) : t('leaderboard.noPrevious')}</dd>
+                  <dd className="text-ink">{hub.previousWindow ? t(WINDOW_LABEL[hub.previousWindow]) : t('leaderboard.noPrevious')}</dd>
                 </div>
                 {windowStart ? (
                   <div className="flex justify-between gap-2">

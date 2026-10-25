@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight,
+  BadgeCheck,
   Compass,
   Eye,
   EyeOff,
@@ -88,7 +89,8 @@ const GROUPS: NavGroup[] = [
     titleKey: 'nav.groupCommunity',
     items: [
       { path: '/leaderboard', labelKey: 'nav.leaderboard', icon: Trophy },
-      { path: '/market', labelKey: 'market.title', icon: Store }
+      { path: '/market', labelKey: 'market.title', icon: Store },
+      { path: '/verified', labelKey: 'verified.nav', icon: BadgeCheck }
     ]
   },
   {

@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { BadgeCheck, Crown } from 'lucide-react'
+import { BadgeCheck, Crown, ShieldCheck } from 'lucide-react'
 import { titleEffect } from '@tds/shared'
 import { cn } from '../../lib/utils'
 
 /**
  * One title shape everywhere: the profile hero, leaderboard rows and the shop preview.
- * VIP uses the same shell but swaps the static rule for the animated rainbow treatment.
+ * VIP and verified use the same shell but swap the static rule for their own animated treatment.
  */
 export function TitleBadge({
   label,
@@ -20,7 +20,7 @@ export function TitleBadge({
 }): ReactNode {
   if (!label || label.trim().length === 0) return null
   const effect = titleEffect(refCode)
-  const Icon = effect === 'vip-rainbow' ? Crown : BadgeCheck
+  const Icon = effect === 'vip-rainbow' ? Crown : effect === 'verified-green' ? ShieldCheck : BadgeCheck
   return (
     <span
       className={cn('title-badge', className)}

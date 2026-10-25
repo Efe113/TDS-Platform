@@ -1853,3 +1853,94 @@ html.overlay-root ::-webkit-scrollbar {
   .title-badge__flare { opacity: 0; }
   .title-badge[data-effect='vip-rainbow'] .title-badge__text { background-position: 28% 50%; }
 }
+
+/* ---------------------------------------------------------------- verified tier */
+
+/* The tick has to survive every theme and every title, so it reads as an instrument in its own right:
+   a halo behind the glyph and a slow glow rather than a flat icon. */
+.verified-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  color: var(--color-good);
+}
+
+.verified-badge::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  z-index: -1;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--color-good) 26%, transparent), transparent 68%);
+}
+
+.verified-badge__icon {
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--color-good) 55%, transparent));
+  animation: verified-badge-pulse 3.6s ease-in-out infinite;
+}
+
+.verified-badge__label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.title-badge[data-effect='verified-green'] {
+  border-color: transparent;
+  background: #04120c;
+  box-shadow:
+    0 0 22px -8px rgb(62 207 142 / 0.72),
+    inset 0 0 14px rgb(62 207 142 / 0.08);
+}
+
+.title-badge[data-effect='verified-green']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(110deg, #12d88b, #3ecf8e, #8ff3c6, #2ee6a6, #12d88b) 0 0 / 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: title-badge-rainbow 3.6s linear infinite;
+}
+
+.title-badge[data-effect='verified-green'] .title-badge__text {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(110deg, #8ff3c6, #3ecf8e, #d6fff0, #2ee6a6, #8ff3c6) 0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: title-badge-rainbow 3.6s linear infinite;
+}
+
+.title-badge[data-effect='verified-green'] .title-badge__icon {
+  color: #8ff3c6;
+  animation: verified-badge-pulse 3.2s ease-in-out infinite;
+}
+
+.title-badge[data-effect='verified-green'] .title-badge__flare {
+  background: linear-gradient(100deg, transparent 30%, rgb(143 243 198 / 0.24) 48%, transparent 62%);
+  animation-duration: 4.2s;
+}
+
+@keyframes verified-badge-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px color-mix(in oklab, var(--color-good) 40%, transparent)); }
+  50% { filter: drop-shadow(0 0 11px color-mix(in oklab, var(--color-good) 92%, transparent)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verified-badge__icon,
+  .title-badge[data-effect='verified-green']::before,
+  .title-badge[data-effect='verified-green'] .title-badge__text,
+  .title-badge[data-effect='verified-green'] .title-badge__icon {
+    animation: none;
+  }
+  .title-badge[data-effect='verified-green'] .title-badge__text { background-position: 24% 50%; }
+}

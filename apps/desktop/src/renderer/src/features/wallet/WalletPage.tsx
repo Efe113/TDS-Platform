@@ -18,13 +18,14 @@ import {
   Store,
   Wallet as WalletIcon
 } from 'lucide-react'
-import { capRemaining, formatCoin, type WalletRule } from '@tds/shared'
+import { capRemaining, formatCoin, VERIFIED_PERK_KEYS, VERIFIED_TITLE_REF, type WalletRule } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate } from '../../lib/router'
 import { fetchWallet } from '../../lib/wallet-api'
 import { formatDateTime } from '../admin/admin-ui'
 import { CoinAmount, CoinIcon } from '../../components/brand/coin'
+import { TitleBadge } from '../../components/brand/title-badge'
 import { Banner, Button, EmptyState, INPUT_CLASS, Row, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, PageHeader, Section, Segmented } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
@@ -307,6 +308,56 @@ export function WalletPage(): ReactNode {
         <Metric index={2} icon={Coins} label={t('wallet.lifetimeEarned')} value={<CoinAmount value={totals.earnedLife} tone="ink" size="md" />} hint={t('wallet.ledgerHint')} />
         <Metric index={3} icon={Flame} label={t('wallet.lifetimeSpent')} value={<CoinAmount value={totals.spentLife} tone="mute" size="md" />} hint={t('wallet.ledgerHint')} />
       </MetricGrid>
+
+      {/* Tier status belongs next to the money: both answers are "what is this balance worth". */}
+      <Section
+        title={t('verified.title')}
+        hint={wallet.verified ? t('verified.creditHint') : t('verified.intro')}
+        aside={
+          wallet.verified ? (
+            <Chip tone="good" icon={BadgeCheck}>{t('verified.youAre')}</Chip>
+          ) : (
+            <Button size="sm" variant="ghost" onClick={() => navigate('/verified')}>
+              {t('verified.applyTitle')}
+            </Button>
+          )
+        }
+      >
+        {wallet.verified ? (
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="hud-panel flex flex-col gap-1 p-3">
+              <span className="hud-label">{t('verified.discountTitle')}</span>
+              <span className="text-[13px] font-semibold text-ink">
+                {wallet.verifiedDiscountEndsAt
+                  ? new Date(wallet.verifiedDiscountEndsAt).toLocaleDateString()
+                  : t('verified.discountEnded')}
+              </span>
+            </div>
+            <div className="hud-panel flex flex-col gap-1 p-3">
+              <span className="hud-label">{t('verified.creditTitle')}</span>
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ink">
+                <Flame size={13} className="text-warn" />
+                {wallet.verifiedBoostCredits > 0
+                  ? t('verified.creditCount', { count: String(wallet.verifiedBoostCredits) })
+                  : t('verified.creditNone')}
+              </span>
+            </div>
+            <div className="hud-panel flex flex-col gap-1 p-3">
+              <span className="hud-label">{t('verified.perkTitle')}</span>
+              <TitleBadge label={t('verified.title')} refCode={VERIFIED_TITLE_REF} size="sm" />
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {VERIFIED_PERK_KEYS.map((key) => (
+              <div key={key} className="hud-panel flex items-start gap-2 p-2.5 text-[11px] leading-relaxed text-mute">
+                <BadgeCheck size={13} className="mt-0.5 shrink-0 text-good" />
+                <span>{t(key)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
 
       <Section title={t('wallet.earnings')} hint={t('wallet.earningsHint')}>
         {wallet.rules.length === 0 ? (

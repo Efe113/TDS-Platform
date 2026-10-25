@@ -63,6 +63,9 @@ export const profileShowcaseSchema = z.object({
   // 0032: VIP membership and the custom hero background it unlocks.
   vip: z.boolean().optional().default(false),
   customBackgroundPath: z.string().nullable().optional().default(null),
+  // 0037: the verified tier; credits stay private to the owner and admins.
+  verified: z.boolean().optional().default(false),
+  verifiedBoostCredits: z.number().int().nonnegative().nullable().optional().default(null),
   titleKey: z.string().nullable().optional().default(null),
   titleName: z.string().nullable().optional().default(null),
   frameKey: z.string().nullable().optional().default(null),

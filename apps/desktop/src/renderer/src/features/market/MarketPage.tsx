@@ -14,12 +14,13 @@ import {
   MonitorPlay as MonitorIcon,
   Percent,
   ScanLine,
+  ShieldCheck,
   Sparkles,
   Store,
   Tag,
   Wallet
 } from 'lucide-react'
-import { FRAME_SKINS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
+import { FRAME_SKINS, VERIFIED_BENEFITS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
@@ -152,6 +153,14 @@ function TagChip({ tag }: { tag: WalletItem['tag'] }): ReactNode {
       </span>
     )
   }
+  if (tag === 'verified') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-good/50 bg-good/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-good">
+        <BadgeCheck size={9} />
+        {t('discover.verified')}
+      </span>
+    )
+  }
   return null
 }
 
@@ -185,6 +194,8 @@ function ProductCard({
   const sale = item.discountPercent > 0 && info.cut
   const soon = item.tag === 'soon'
   const vipOnly = item.tag === 'vip'
+  // A benefit-tagged row never reaches the till, whether it belongs to VIP or to verification.
+  const benefitOnly = vipOnly || item.tag === 'verified'
 
   return (
     <div
@@ -316,6 +327,11 @@ function ProductCard({
             <Crown size={11} />
             {t('market.vipOnly')}
           </p>
+        ) : benefitOnly ? (
+          <p className="flex items-center gap-1.5 text-[11px] font-medium text-good">
+            <ShieldCheck size={11} />
+            {t('verified.creditHint')}
+          </p>
         ) : (
           <PriceBlock item={item} />
         )}
@@ -328,6 +344,11 @@ function ProductCard({
           <Button size="sm" variant="primary" disabled={!onVip} onClick={onVip}>
             <Crown size={13} />
             {t('market.vipCta')}
+          </Button>
+        ) : benefitOnly && !owned ? (
+          <Button size="sm" variant="ghost" disabled className="w-full">
+            <ShieldCheck size={12} />
+            {t('discover.verified')}
           </Button>
         ) : owned && onEquip ? (
           equipped ? (
@@ -599,6 +620,11 @@ export function MarketPage(): ReactNode {
           <>
             <Chip tone="brand" icon={Store}>{t('market.catalogCount', { count: items.length })}</Chip>
             {vipOwned ? <Chip tone="warn" icon={Crown}>{t('market.vipDiscount', { percent: 25 })}</Chip> : null}
+            {wallet.verified ? (
+              <Chip tone="good" icon={BadgeCheck}>
+                {t('verified.discountTitle')} %{String(VERIFIED_BENEFITS.discountPercent)}
+              </Chip>
+            ) : null}
             {discountedCount > 0 ? <Chip tone="warn" icon={Tag}>{t('market.discountCount', { count: discountedCount })}</Chip> : null}
           </>
         }
@@ -620,6 +646,37 @@ export function MarketPage(): ReactNode {
           {spendErrorKey(failure) === 'wallet.errGeneric' ? <p className="mt-1 break-words text-[11px] text-mute">{failure}</p> : null}
         </Banner>
       ) : null}
+
+      {/* The tier strip answers "why is this price what it is" before the shelves start. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line/60 bg-base/40 px-3 py-2 text-[11px]">
+        {wallet.verified ? (
+          <>
+            <Chip tone="good" icon={BadgeCheck}>{t('verified.youAre')}</Chip>
+            <span className="min-w-0 flex-1 break-words text-mute">
+              {wallet.verifiedDiscountEndsAt
+                ? t('verified.discountActive', {
+                    percent: String(VERIFIED_BENEFITS.discountPercent),
+                    date: new Date(wallet.verifiedDiscountEndsAt).toLocaleDateString()
+                  })
+                : t('verified.discountEnded')}
+            </span>
+            <span className="flex items-center gap-1 text-ink/80">
+              <Flame size={12} className="text-warn" />
+              {wallet.verifiedBoostCredits > 0
+                ? t('verified.creditCount', { count: String(wallet.verifiedBoostCredits) })
+                : t('verified.creditNone')}
+            </span>
+          </>
+        ) : (
+          <>
+            <Chip tone="neutral" icon={ShieldCheck}>{t('verified.title')}</Chip>
+            <span className="min-w-0 flex-1 break-words text-mute">{t('verified.perkDiscount')}</span>
+            <Button size="sm" variant="ghost" onClick={() => navigate('/verified')}>
+              {t('verified.applyTitle')}
+            </Button>
+          </>
+        )}
+      </div>
 
       {vipItem ? (
         <VipPanel

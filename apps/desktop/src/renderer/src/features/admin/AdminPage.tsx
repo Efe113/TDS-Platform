@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
   Award,
+  BadgeCheck,
   ClipboardCheck,
   Images,
   ScrollText,
@@ -27,12 +28,13 @@ import { BadgesSection } from './BadgesSection'
 import { GapsSection } from './GapsSection'
 import { AuditSection } from './AuditSection'
 import { ModerationSection } from './ModerationSection'
+import { VerificationSection } from './VerificationSection'
 import { MarketAdminSection } from './MarketAdminSection'
 import { HealthSection, UsersSection } from './ConsoleSections'
 import { CATALOG_KINDS, type CatalogKind } from './admin-api'
 import { LoadingBanner, TabBar } from './admin-ui'
 
-type AdminTab = 'health' | 'review' | 'moderation' | 'users' | 'market' | 'catalog' | 'currency' | 'badges' | 'gaps' | 'audit'
+type AdminTab = 'health' | 'review' | 'moderation' | 'verified' | 'users' | 'market' | 'catalog' | 'currency' | 'badges' | 'gaps' | 'audit'
 
 const CATALOG_LABELS: Record<CatalogKind, MessageKey> = {
   maps: 'admin.maps',
@@ -57,6 +59,7 @@ const SECTIONS: SectionItem[] = [
   { id: 'health', labelKey: 'admin.health', hintKey: 'admin.healthHint', icon: Activity },
   { id: 'review', labelKey: 'admin.review', hintKey: 'admin.reviewHint', icon: ClipboardCheck },
   { id: 'moderation', labelKey: 'admin.moderation', hintKey: 'admin.moderationHint', icon: ShieldAlert },
+  { id: 'verified', labelKey: 'admin.accounts', hintKey: 'admin.accountsHint', icon: BadgeCheck, adminOnly: true },
   { id: 'users', labelKey: 'admin.users', hintKey: 'admin.usersHint', icon: Users, adminOnly: true },
   { id: 'market', labelKey: 'market.title', hintKey: 'admin.marketHint', icon: Store, adminOnly: true },
   { id: 'catalog', labelKey: 'admin.catalog', hintKey: 'admin.catalogHint', icon: Images, adminOnly: true },
@@ -185,6 +188,7 @@ export function AdminPage(): ReactNode {
           {activeTab === 'review' ? <ReviewQueueSection /> : null}
           {activeTab === 'users' ? <UsersSection /> : null}
           {activeTab === 'moderation' ? <ModerationSection /> : null}
+          {activeTab === 'verified' ? <VerificationSection /> : null}
           {activeTab === 'market' ? <MarketAdminSection /> : null}
 
           {activeTab === 'catalog' ? (

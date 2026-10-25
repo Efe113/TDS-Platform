@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  BadgeCheck,
   Bookmark,
   Check,
   Copy,
@@ -49,6 +50,7 @@ interface Filters {
   sort: DiscoverySort
   favorites: boolean
   watch: boolean
+  verified: boolean
 }
 
 const SORT_KEYS: Record<DiscoverySort, MessageKey> = {
@@ -77,7 +79,8 @@ function readFilters(query: URLSearchParams): Filters {
     tag: query.get('tag'),
     sort: (DISCOVERY_SORTS as readonly string[]).includes(query.get('sort') ?? '') ? (query.get('sort') as DiscoverySort) : 'new',
     favorites: query.get('fav') === '1',
-    watch: query.get('watch') === '1'
+    watch: query.get('watch') === '1',
+    verified: query.get('ver') === '1'
   }
 }
 
@@ -92,6 +95,7 @@ function writeFilters(filters: Filters): URLSearchParams {
   if (filters.sort !== 'new') next.set('sort', filters.sort)
   if (filters.favorites) next.set('fav', '1')
   if (filters.watch) next.set('watch', '1')
+  if (filters.verified) next.set('ver', '1')
   return next
 }
 
@@ -235,7 +239,7 @@ export function DiscoverPage(): ReactNode {
   })
 
   const facetsQuery = useQuery({
-    queryKey: ['discover', 'facets', filters.q, filters.mode, filters.map, filters.difficulty, filters.event, filters.tag],
+    queryKey: ['discover', 'facets', filters.q, filters.mode, filters.map, filters.difficulty, filters.event, filters.tag, filters.verified],
     queryFn: () =>
       fetchFacets({
         q: filters.q,
@@ -243,7 +247,8 @@ export function DiscoverPage(): ReactNode {
         map: filters.map,
         difficulty: filters.difficulty,
         event: filters.event === 'any' ? null : filters.event === 'only',
-        tag: filters.tag
+        tag: filters.tag,
+        verifiedOnly: filters.verified
       }),
     enabled: supabase !== null,
     staleTime: 60_000,
@@ -264,7 +269,8 @@ export function DiscoverPage(): ReactNode {
         sort: filters.sort,
         offset: pageParam,
         favoritesOnly: filters.favorites,
-        watchOnly: filters.watch
+        watchOnly: filters.watch,
+        verifiedOnly: filters.verified
       }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => (lastPage.length < DISCOVER_PAGE_SIZE ? undefined : DISCOVER_PAGE_SIZE * allPages.length),
@@ -310,6 +316,7 @@ export function DiscoverPage(): ReactNode {
   }
   if (filters.favorites) activeChips.push({ key: 'fav', label: t('discover.onlyFavorites'), clear: { favorites: false } })
   if (filters.watch) activeChips.push({ key: 'watch', label: t('discover.onlyWatch'), clear: { watch: false } })
+  if (filters.verified) activeChips.push({ key: 'ver', label: t('discover.verifiedOnly'), clear: { verified: false } })
 
   const clearAll = (): void => {
     setText('')
@@ -554,6 +561,11 @@ export function DiscoverPage(): ReactNode {
                 <Button size="sm" variant={filters.watch ? 'primary' : 'ghost'} disabled={!signedIn} onClick={() => patch({ watch: !filters.watch })}>
                   <SlidersHorizontal size={13} />
                   {t('discover.onlyWatch')}
+                </Button>
+                {/* Server-side, because verified authors are ranked above everyone else in the same query. */}
+                <Button size="sm" variant={filters.verified ? 'primary' : 'ghost'} onClick={() => patch({ verified: !filters.verified })}>
+                  <BadgeCheck size={13} />
+                  {t('discover.verifiedOnly')}
                 </Button>
               </div>
 

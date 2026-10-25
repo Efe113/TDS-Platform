@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bookmark,
+  BadgeCheck,
   CalendarRange,
   ChevronLeft,
   ChevronRight,
@@ -33,6 +34,8 @@ import {
 import { useT } from '../../i18n/use-t'
 import { navigate, routeSegments, useRoutePath } from '../../lib/router'
 import { call } from '../../lib/ipc'
+import { claimVerifiedBoost, fetchAuthorFlag } from '../../lib/account-api'
+import { VerifiedBadge } from '../../components/brand/verified-badge'
 import { supabase } from '../../lib/supabase'
 import { SUPABASE_BASE_URL } from '../../lib/storage-base'
 import {
@@ -397,19 +400,32 @@ function MapSection({ detail, version, language }: MapSectionProps): ReactNode {
 function CreditSection({ detail, onOpenSource, openError }: { detail: StrategyDetail; onOpenSource: () => void; openError: string | null }): ReactNode {
   const t = useT()
   const author = detail.profiles?.display_name ?? detail.profiles?.handle ?? null
+  const ownerId = detail.profiles?.id ?? null
+  // Read separately instead of through the detail embed, so an un-migrated database loses the tick and
+  // not the whole page.
+  const authorFlag = useQuery({
+    queryKey: ['verified', ownerId],
+    queryFn: () => fetchAuthorFlag(ownerId),
+    enabled: ownerId !== null,
+    staleTime: 300_000,
+    retry: false
+  })
 
   return (
     <Card title={t('detail.author')}>
       <div className="space-y-1">
         <KeyValue label={t('detail.author')}>
           {author && detail.profiles ? (
-            <button
-              type="button"
-              className="no-drag text-left hover:text-brand"
-              onClick={() => navigate(`/profile/${detail.profiles?.id ?? ''}`)}
-            >
-              {author}
-            </button>
+            <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className="no-drag text-left hover:text-brand"
+                onClick={() => navigate(`/profile/${detail.profiles?.id ?? ''}`)}
+              >
+                {author}
+              </button>
+              <VerifiedBadge show={authorFlag.data?.verified === true} label={t('discover.verified')} />
+            </span>
           ) : (
             author ?? t('common.none')
           )}
@@ -551,8 +567,22 @@ export function StrategyDetailPage(): ReactNode {
     .filter((item) => item.kind === 'boost')
     .sort((a, b) => (a.durationHours ?? 0) - (b.durationHours ?? 0))
   const boostItem = boostItems[0] ?? null
+  // The till charges app.effective_price, so the menu has to quote the same number.
+  const boostCost = (item: { price: number; finalPrice: number | null }): number => item.finalPrice ?? item.price
   const activeBoost = (walletQuery.data?.boosts ?? []).find((boost) => boost.strategyId === strategyId) ?? null
+  const verifiedCredits = walletQuery.data?.verifiedBoostCredits ?? 0
   const boostKey = useRef<string | null>(null)
+
+  // A verification credit is not a purchase: no coin moves, no idempotency key is needed.
+  const claimMutation = useMutation({
+    mutationFn: () => claimVerifiedBoost(strategyId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] })
+      void queryClient.invalidateQueries({ queryKey: ['strategy', strategyId] })
+      void queryClient.invalidateQueries({ queryKey: ['discover'] })
+      void queryClient.invalidateQueries({ queryKey: ['leaderboard-hub'] })
+    }
+  })
 
   const boostMutation = useMutation({
     mutationFn: async (sku: string) => {
@@ -699,6 +729,12 @@ export function StrategyDetailPage(): ReactNode {
               <Bookmark size={14} className={isFavorited ? 'fill-current' : undefined} />
               {isFavorited ? t('discover.favoriteRemove') : t('discover.favoriteAdd')}
             </Button>
+            {published && detail?.is_author_own && verifiedCredits > 0 && !activeBoost ? (
+              <Button variant="primary" size="sm" busy={claimMutation.isPending} onClick={() => claimMutation.mutate()}>
+                <BadgeCheck size={14} />
+                {t('verified.claim')}
+              </Button>
+            ) : null}
             {published && boostItems.length > 0 ? (
               <Menu>
                 <MenuTrigger asChild>
@@ -711,7 +747,7 @@ export function StrategyDetailPage(): ReactNode {
                   >
                     <Flame size={14} />
                     {t('detail.boostBuy')}
-                    {boostItem ? <CoinAmount value={boostItem.price} size="sm" /> : null}
+                    {boostItem ? <CoinAmount value={boostCost(boostItem)} size="sm" /> : null}
                   </Button>
                 </MenuTrigger>
                 <MenuContent align="end" side="bottom" className="w-72">
@@ -720,9 +756,9 @@ export function StrategyDetailPage(): ReactNode {
                     <MenuItem
                       key={item.sku}
                       index={index}
-                      disabled={(walletQuery.data?.balance ?? 0) < item.price || boostMutation.isPending}
+                      disabled={(walletQuery.data?.balance ?? 0) < boostCost(item) || boostMutation.isPending}
                       onSelect={() => boostMutation.mutate(item.sku)}
-                      aside={<CoinAmount value={item.price} size="sm" />}
+                      aside={<CoinAmount value={boostCost(item)} size="sm" />}
                     >
                       {`${(item.name ?? item.sku)} · ${String(item.durationHours ?? 0)}s`}
                     </MenuItem>

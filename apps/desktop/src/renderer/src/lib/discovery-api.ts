@@ -47,6 +47,7 @@ export interface DiscoverFiltersInput {
   offset: number
   favoritesOnly?: boolean
   watchOnly?: boolean
+  verifiedOnly?: boolean
 }
 
 function toOptions(data: unknown): CatalogOption[] {
@@ -73,10 +74,13 @@ export async function searchStrategies(input: DiscoverFiltersInput): Promise<Sea
     limit: DISCOVER_PAGE_SIZE,
     offset: input.offset,
     favoritesOnly: input.favoritesOnly ?? false,
-    watchOnly: input.watchOnly ?? false
+    watchOnly: input.watchOnly ?? false,
+    verifiedOnly: input.verifiedOnly ?? false
   })
 
-  const { data, error } = await db.rpc('search_strategies', {
+  // The parameter is only sent when the filter is on: an un-migrated database still exposes the old
+  // eleven-argument function, and an unknown named parameter would fail the whole search.
+  const args: Record<string, unknown> = {
     p_query: filters.q.length > 0 ? filters.q : null,
     p_mode: filters.mode,
     p_map: filters.map,
@@ -88,7 +92,10 @@ export async function searchStrategies(input: DiscoverFiltersInput): Promise<Sea
     p_offset: filters.offset,
     p_favorites_only: filters.favoritesOnly,
     p_watch_only: filters.watchOnly
-  })
+  }
+  if (filters.verifiedOnly) args.p_verified_only = true
+
+  const { data, error } = await db.rpc('search_strategies', args)
   if (error) throw new Error(error.message)
   return searchRowSchema.array().parse(data ?? [])
 }
@@ -96,14 +103,16 @@ export async function searchStrategies(input: DiscoverFiltersInput): Promise<Sea
 /** Facet counters for the current predicate set, so a filter can show what it would leave. */
 export async function fetchFacets(input: Omit<DiscoverFiltersInput, 'offset' | 'sort'>): Promise<DiscoverFacets> {
   const db = requireDb()
-  const { data, error } = await db.rpc('discover_facets', {
+  const args: Record<string, unknown> = {
     p_query: input.q.length > 0 ? input.q : null,
     p_mode: input.mode,
     p_map: input.map,
     p_difficulty: input.difficulty,
     p_event: input.event,
     p_tag: input.tag
-  })
+  }
+  if (input.verifiedOnly) args.p_verified_only = true
+  const { data, error } = await db.rpc('discover_facets', args)
   if (error) throw new Error(error.message)
   return discoverFacetsSchema.parse(data ?? {})
 }

@@ -13,6 +13,7 @@ Roblox **Tower Defense Simulator** için masaüstü strateji yardımcısı. Topl
 - **Keşfet ve detay:** Arama, filtreler, karşılaştırma, favoriler, yorum/puan ve moderasyon akışı.
 - **Liderlik:** Strateji ve oyuncu tabloları; pencere, metrik, takip listesi ve “bana yakın” görünümü.
 - **Profil ve kozmetikler:** Avatar, afiş, rozetler, temalar, çerçeveler; VIP özel arka planı ve market indirimi.
+- **Doğrulanmış hesap:** Ekip onayıyla tik rozeti, yeşil animasyonlu ünvan, bir ay %10 indirim, 3 günlük öne çıkarma kredisi ve Keşfette üst sıralama; başvurular `/verified` ekranından, kararlar Admin → Doğrulama kuyruğundan.
 - **Cüzdan ve market:** Coin ekonomisi, boost/tema/çerçeve paketleri, VIP.
 - **Ayarlar:** Tema, overlay yerleşimi, kısayollar, başlangıç davranışı, ölçek, veri araçları ve güncelleme denetimi.
 - **Admin:** Moderasyon kuyruğu, katalog düzenleme, toplu kule/harita/modifier içe aktarma, rozet ve ekonomi araçları.
@@ -41,7 +42,7 @@ npm run dev
 Doğrulama ve derleme:
 
 ```bash
-npm run verify     # IPC + SQL + typecheck + 99 test
+npm run verify     # IPC + SQL + typecheck + 107 test
 npm run build
 npm run installer:art  # SVG → 24-bit BMP installer art
 npm run dist           # imzasız NSIS installer + latest.yml + blockmap

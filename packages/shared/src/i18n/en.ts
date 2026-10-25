@@ -95,6 +95,8 @@ export const en: Record<import('./tr').TranslationKey, string> = {
   'discover.empty': 'No matching strategy. Clear the filters and try again.',
   'discover.loading': 'Loading strategies…',
   'discover.pinned': 'Featured',
+  'discover.verified': 'Verified',
+  'discover.verifiedOnly': 'Verified only',
   'discover.favoriteAdd': 'Add to favorites',
   'discover.favoriteRemove': 'Remove from favorites',
   'discover.resultCount': '{{count}} strategies found',

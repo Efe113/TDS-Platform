@@ -2,6 +2,38 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [Yayınlanmamış]
+
+### Eklendi
+
+- **Doğrulanmış hesap (0037):** ekip onayıyla verilen, satın alınmayan hesap türü. `profiles.is_verified`
+  admin-pinned kolon olarak tutulur; `app.guard_profile_columns()` kullanıcıyı kendi hesabını
+  doğrulayamaz.
+- **Avantajlar:** isim yanında otomatik tik rozeti, yeşil animasyonlu `Doğrulanmış` ünvanı (verilirken
+  otomatik kuşanır, geri alınırken temizlenir), profil afişinin açılması, bir ay boyunca tüm ürünlerde
+  %10 indirim (VIP %25 ile çarpımsal yığılır) ve kullanıldığı stratejiyi 3 gün öne çıkaran bir kredi.
+- **Keşfet:** doğrulanmış yazarların stratejileri normal stratejilerin üstünde sıralanır; "Yalnızca
+  doğrulanmış" filtresi, aktif filtre çipi ve facet sayaçları sunucu tarafında.
+- **Tik yüzeyleri:** Keşfet kartı (ızgara + liste), strateji detay künyesi, profil başlığı ve liderlik
+  (podium, satır, mini raylar, "sen" kartı).
+- **Başvuru:** `/verified` sayfası (avantaj vitrini, başvuru formu, durum takibi) ve `account_requests`
+  kuyruğu; Admin → Doğrulama kuyruğu bölümünden onay/red, Admin → Kullanıcılar'dan manuel doğrula/geri al.
+  Kurumsal hesap aynı tablonun `kind` dalında, sonraki sürümde açılacak.
+
+### Düzeltildi
+
+- **Ödenen boost öne çıkarmıyordu:** `strategies.boost_expires_at` kolonuna hiçbir yerde yazılmıyordu;
+  `buy_boost` artık hem satın alma hem kredi kullanımında bu kolonu günceller, yani Keşfet pini gerçekten
+  çalışır.
+- **Boost fiyatı kasayla raftan farklıydı:** `buy_boost` `spend_catalog.price` kullanıyordu; artık
+  `app.effective_price` üzerinden VIP ve doğrulanmış indirimlerini de uygular.
+- Rafta indirim yüzdesi ile "−%" iki kez yazılıyordu; kartın sol altındaki tek rozete indirgendi.
+
+### Gereken
+
+- `supabase/migrations/0037_verified_accounts.sql` Supabase dashboard'unda çalıştırılmalı (0035 ve 0036
+  bekliyorsa onlar önce).
+
 ## [0.1.2] — 2026-10-25
 
 ### Eklendi
