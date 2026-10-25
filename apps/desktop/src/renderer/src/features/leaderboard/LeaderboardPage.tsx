@@ -54,6 +54,7 @@ import { FrameRing, frameStyle } from '../../components/brand/frame'
 import { TitleBadge } from '../../components/brand/title-badge'
 import { VerifiedBadge } from '../../components/brand/verified-badge'
 import { fetchVerificationFlags } from '../../lib/account-api'
+import { badgeIconSrc } from '../../lib/badge-icon'
 import { RevealItem, RevealList } from '../../motion/primitives/Reveal'
 
 /**
@@ -222,18 +223,21 @@ function BadgeShelf({ row }: { row: LeaderboardHubRow }): ReactNode {
   const shown = row.badges.slice(0, 3)
   return (
     <span className="flex flex-wrap items-center gap-1">
-      {shown.map((badge) => (
-        <span
-          key={badge.code}
-          title={badge.name}
-          className={cn(
-            'grid size-5 place-items-center rounded-[4px] border text-[9px] font-bold',
-            BADGE_TONE[badge.tier] ?? BADGE_TONE.bronze
-          )}
-        >
-          {badge.name.slice(0, 1).toLocaleUpperCase()}
-        </span>
-      ))}
+      {shown.map((badge) => {
+        const icon = badgeIconSrc(badge.iconPath)
+        return (
+          <span
+            key={badge.code}
+            title={badge.name}
+            className={cn(
+              'grid size-5 place-items-center overflow-hidden rounded-[4px] border text-[9px] font-bold',
+              BADGE_TONE[badge.tier] ?? BADGE_TONE.bronze
+            )}
+          >
+            {icon ? <img src={icon} alt="" loading="lazy" className="size-full object-cover" /> : badge.name.slice(0, 1).toLocaleUpperCase()}
+          </span>
+        )
+      })}
       {row.badgeCount > shown.length ? (
         <span className="text-[10px] text-mute">{t('leaderboard.badgeMore', { count: row.badgeCount - shown.length })}</span>
       ) : null}

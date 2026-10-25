@@ -43,6 +43,7 @@ import { StateEmpty, StateError } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
 import { TitleBadge } from '../../components/brand/title-badge'
 import { VerifiedBadge } from '../../components/brand/verified-badge'
+import { badgeIconSrc } from '../../lib/badge-icon'
 import { FrameRing, frameStyle } from '../../components/brand/frame'
 import { ThemePreview, skinStyle } from '../../components/brand/theme-preview'
 import { CountUp } from '../../motion/primitives/CountUp'
@@ -95,6 +96,14 @@ function BadgeTile({ badge, inShowcase, onToggle }: { badge: ProfileBadge; inSho
       )}
     >
       <Row className="gap-2">
+        {badgeIconSrc(badge.iconPath) ? (
+          <img
+            src={badgeIconSrc(badge.iconPath) as string}
+            alt=""
+            loading="lazy"
+            className="size-7 rounded-lg border border-line/70 bg-base/60 object-cover"
+          />
+        ) : null}
         <Badge tone={TIER_TONE[badge.tier]}>{t(TIER_LABEL[badge.tier])}</Badge>
         {inShowcase ? <span className="text-[11px] text-brand">{t('profile.inShowcase')}</span> : null}
       </Row>

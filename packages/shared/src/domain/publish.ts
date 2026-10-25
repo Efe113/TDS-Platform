@@ -133,9 +133,53 @@ export const tagCatalogRowSchema = z.object({
   name_en: z.string().min(1)
 })
 
+/**
+ * 0038: what a rule earns *for* (business kind) is separated from how it books into the ledger
+ * (`ledger_kind`), because the ledger CHECK is a fixed vocabulary the wallet already colours with.
+ * The lists here mirror the CHECK constraints in 0038 exactly; a value outside them is rejected by
+ * `admin_upsert_rule`, so the admin form and the database cannot drift.
+ */
+export const CURRENCY_RULE_KINDS = [
+  'usage', 'publish', 'approval', 'badge', 'event', 'streak', 'milestone',
+  'community', 'referral', 'challenge', 'support', 'grant'
+] as const
+
+export const RULE_LEDGER_KINDS = ['usage', 'publish', 'approval', 'badge', 'grant'] as const
+
+/** Also the CHECK list in 0038. `per_event` is the DB default and the fallback. */
+export const CURRENCY_RULE_UNITS = [
+  'per_event', 'per_qualifying_session', 'per_approved_version', 'per_first_approval', 'per_badge',
+  'per_session', 'per_run', 'per_day', 'per_hour', 'per_step', 'per_wave', 'per_percent',
+  'per_report', 'per_comment', 'per_vote', 'per_invite', 'flat_once'
+] as const
+
+export type CurrencyRuleKind = (typeof CURRENCY_RULE_KINDS)[number]
+export type RuleLedgerKind = (typeof RULE_LEDGER_KINDS)[number]
+export type CurrencyRuleUnit = (typeof CURRENCY_RULE_UNITS)[number]
+
+/**
+ * Which units a kind can be paid on. `flat_once` is always available so a one-off campaign rule is
+ * expressible; the rest keep the picker honest instead of letting an admin invent `per_hour` on a
+ * publish bonus and wonder why nothing changes.
+ */
+export const UNITS_BY_KIND: Record<CurrencyRuleKind, readonly CurrencyRuleUnit[]> = {
+  usage: ['per_qualifying_session', 'per_session', 'per_run', 'per_hour', 'per_step', 'per_wave', 'flat_once'],
+  publish: ['per_approved_version', 'per_event', 'flat_once'],
+  approval: ['per_first_approval', 'per_approved_version', 'flat_once'],
+  badge: ['per_badge', 'flat_once'],
+  event: ['per_event', 'per_wave', 'flat_once'],
+  streak: ['per_day', 'flat_once'],
+  milestone: ['per_step', 'per_run', 'flat_once'],
+  community: ['per_comment', 'per_vote', 'per_report', 'flat_once'],
+  referral: ['per_invite', 'flat_once'],
+  challenge: ['per_run', 'per_wave', 'flat_once'],
+  support: ['per_report', 'flat_once'],
+  grant: ['flat_once', 'per_percent']
+}
+
 export const currencyRuleRowSchema = z.object({
   code: z.string().min(2),
-  kind: z.enum(['usage', 'publish', 'approval', 'badge', 'grant']),
+  kind: z.enum(CURRENCY_RULE_KINDS),
   amount: z.number().int(),
   unit: z.string().default('per_event'),
   daily_cap: z.number().int().nullable(),
@@ -148,7 +192,10 @@ export const currencyRuleRowSchema = z.object({
   name_tr: z.string().nullable().optional().default(null),
   name_en: z.string().nullable().optional().default(null),
   desc_tr: z.string().nullable().optional().default(null),
-  desc_en: z.string().nullable().optional().default(null)
+  desc_en: z.string().nullable().optional().default(null),
+  // 0038: the column existed since 0029 with no writer and no reader; both arrive now.
+  icon: z.string().nullable().optional().default(null),
+  ledger_kind: z.enum(RULE_LEDGER_KINDS).optional().default('usage')
 })
 
 export const badgeDefinitionRowSchema = z.object({
@@ -156,6 +203,11 @@ export const badgeDefinitionRowSchema = z.object({
   name_tr: z.string().min(1),
   name_en: z.string().nullable(),
   desc_tr: z.string().nullable(),
+  /**
+   * 0038: this column finally means something. It holds either an absolute https URL or a
+   * `strategy-media` object path (`badges/<code>.webp`); the client resolves it through `storageUrl`,
+   * which passes absolute URLs through untouched.
+   */
   icon_path: z.string().nullable(),
   tier: z.enum(['bronze', 'silver', 'gold', 'special']).default('bronze'),
   conditions: z.record(z.string(), z.unknown()),
@@ -163,6 +215,38 @@ export const badgeDefinitionRowSchema = z.object({
   currency_reward: z.number().int().min(0).default(0),
   active: z.boolean().default(true)
 })
+
+/** Row shape of public.admin_user_badges(): every definition plus whether this member holds it. */
+export const memberBadgeRowSchema = z.object({
+  code: z.string(),
+  name: z.string().nullable().default(null),
+  nameEn: z.string().nullable().default(null),
+  desc: z.string().nullable().default(null),
+  tier: z.enum(['bronze', 'silver', 'gold', 'special']).default('bronze'),
+  awardMode: z.enum(['auto', 'manual']).default('auto'),
+  reward: z.coerce.number().int().nonnegative().default(0),
+  iconPath: z.string().nullable().default(null),
+  active: z.boolean().default(true),
+  awarded: z.boolean().default(false),
+  awardedAt: z.string().nullable().default(null),
+  awardedBy: z.string().nullable().default(null)
+})
+
+export type MemberBadgeRow = z.infer<typeof memberBadgeRowSchema>
+
+/** Manual admin money moves: the error prefixes the console can translate. */
+export function economyErrorKey(
+  message: string
+): 'admin.errNote' | 'admin.errDelta' | 'admin.errSelf' | 'admin.errRule' | 'admin.errFunds' | 'admin.errGeneric' {
+  if (message.startsWith('NOTE_REQUIRED') || message.startsWith('NOTE_LONG')) return 'admin.errNote'
+  if (message.startsWith('DELTA_INVALID') || message.startsWith('USER_REQUIRED')) return 'admin.errDelta'
+  if (message.startsWith('SELF_FORBIDDEN')) return 'admin.errSelf'
+  if (message.startsWith('UNKNOWN_RULE') || message.startsWith('UNKNOWN_BADGE') || message.startsWith('NOT_FOUND')) {
+    return 'admin.errRule'
+  }
+  if (message.startsWith('INSUFFICIENT_FUNDS')) return 'admin.errFunds'
+  return 'admin.errGeneric'
+}
 
 export const appFlagRowSchema = z.object({
   key: z.string(),

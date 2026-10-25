@@ -36,7 +36,9 @@ export type LeaderboardLeague = (typeof LEADERBOARD_LEAGUES)[number]
 export const leaderboardBadgeSchema = z.object({
   code: z.string(),
   name: z.string(),
-  tier: z.enum(['bronze', 'silver', 'gold', 'special'])
+  tier: z.enum(['bronze', 'silver', 'gold', 'special']),
+  // 0038: the shelf paints the real badge art when the definition carries one.
+  iconPath: z.string().nullable().optional().default(null)
 })
 
 export const leaderboardHubRowSchema = z.object({

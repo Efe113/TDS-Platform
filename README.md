@@ -42,7 +42,7 @@ npm run dev
 Doğrulama ve derleme:
 
 ```bash
-npm run verify     # IPC + SQL + typecheck + 107 test
+npm run verify     # IPC + SQL + typecheck + 116 test
 npm run build
 npm run installer:art  # SVG → 24-bit BMP installer art
 npm run dist           # imzasız NSIS installer + latest.yml + blockmap

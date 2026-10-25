@@ -16,7 +16,10 @@ export const profileBadgeSchema = z.object({
   desc: z.string().nullable(),
   tier: z.enum(BADGE_TIERS),
   awardedAt: z.string(),
-  publicSlot: z.number().int().nullable().default(null)
+  publicSlot: z.number().int().nullable().default(null),
+  // 0038: badge art finally reaches the client. Either an https URL or a strategy-media object path.
+  iconPath: z.string().nullable().optional().default(null),
+  awardedBy: z.string().nullable().optional().default(null)
 })
 
 export type ProfileBadge = z.infer<typeof profileBadgeSchema>

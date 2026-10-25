@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import {
   Activity,
+  Award,
   BadgeCheck,
   Ban,
   CircleDollarSign,
@@ -14,14 +15,24 @@ import {
   Store,
   Users
 } from 'lucide-react'
+import { economyErrorKey } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { supabase } from '../../lib/supabase'
 import { setVerified } from '../../lib/account-api'
+import { badgeIconSrc } from '../../lib/badge-icon'
+import { showcaseQueryKey } from '../../lib/identity'
 import { Button, INPUT_CLASS, Row, Toggle, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, Section, Segmented } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
-import { fetchMaintenanceFlag, setMaintenance } from './admin-api'
+import {
+  adjustBalance,
+  awardBadge,
+  fetchMaintenanceFlag,
+  fetchMemberBadges,
+  revokeBadge,
+  setMaintenance
+} from './admin-api'
 import { relativeTime } from '../../lib/text'
 
 /**
@@ -70,6 +81,9 @@ const ledgerRowSchema = z.object({
   kind: z.string(),
   ruleCode: z.string().nullable().default(null),
   refType: z.string().nullable().default(null),
+  // 0038: an admin move carries its reason next to the number it changed.
+  note: z.string().nullable().default(null),
+  createdBy: z.string().nullable().default(null),
   at: z.string()
 })
 
@@ -244,7 +258,10 @@ export function HealthSection(): ReactNode {
               {entries.map((entry) => (
                 <li key={entry.id} className="flex items-center gap-2 rounded-md px-1 py-1 text-[11px] hover:bg-panel-soft/50">
                   <span className="hud-num w-16 shrink-0 truncate text-mute">{entry.handle ?? '—'}</span>
-                  <span className="min-w-0 flex-1 truncate text-mute">{entry.ruleCode ?? entry.kind}</span>
+                  <span className="min-w-0 flex-1 truncate text-mute" title={entry.note ?? undefined}>
+                    {entry.ruleCode ?? entry.kind}
+                    {entry.note ? <span className="ml-1 text-ink/70">{`· ${entry.note}`}</span> : null}
+                  </span>
                   <CoinAmount value={entry.delta} signed size="sm" tone={entry.delta >= 0 ? 'good' : 'danger'} />
                 </li>
               ))}
@@ -258,10 +275,160 @@ export function HealthSection(): ReactNode {
 
 const ROLE_LABEL: Record<string, string> = { user: 'Üye', moderator: 'Moderatör', admin: 'Yönetici' }
 
+/**
+ * The drawer an operator actually wants on a member row: hand out a badge, or move coins with a
+ * reason. Both go through definer RPCs so the ledger and the audit log stay the only truths — the
+ * console never edits `user_badges` or the cached balance directly.
+ */
+function MemberTools({ userId, displayName }: { userId: string; displayName: string }): ReactNode {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const [amount, setAmount] = useState('500')
+  const [note, setNote] = useState('')
+  const [reward, setReward] = useState(true)
+
+  const badgesQuery = useQuery({
+    queryKey: ['admin', 'member-badges', userId],
+    queryFn: () => fetchMemberBadges(userId),
+    retry: 1
+  })
+
+  const refresh = (): void => {
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'member-badges', userId] })
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'ledger'] })
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+    void queryClient.invalidateQueries({ queryKey: showcaseQueryKey(userId) })
+  }
+
+  const award = useMutation({
+    mutationFn: (input: { code: string; pay: boolean }) => awardBadge(userId, input.code, input.pay),
+    onSuccess: refresh
+  })
+  const revoke = useMutation({
+    mutationFn: (code: string) => revokeBadge(userId, code),
+    onSuccess: refresh
+  })
+  const adjust = useMutation({
+    mutationFn: (delta: number) => adjustBalance({ userId, delta, note }),
+    onSuccess: () => {
+      setNote('')
+      refresh()
+    }
+  })
+
+  const badges = badgesQuery.data ?? []
+  const earned = badges.filter((badge) => badge.awarded).length
+  const parsedAmount = Number.parseInt(amount, 10)
+  const amountValid = Number.isFinite(parsedAmount) && Math.abs(parsedAmount) > 0
+  const noteValid = note.trim().length >= 3
+  const failure = award.error ?? revoke.error ?? adjust.error
+
+  return (
+    <div className="w-full space-y-2 rounded-lg border border-line/60 bg-base/40 p-2.5">
+      {failure ? (
+        <div className="rounded-lg border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] text-danger">
+          {t(economyErrorKey(failure instanceof Error ? failure.message : String(failure)))}
+        </div>
+      ) : null}
+      {badgesQuery.isError ? (
+        <div className="rounded-lg border border-warn/40 bg-warn/10 px-2 py-1 text-[11px] text-warn">
+          {t('admin.memberToolsNeedsSql')}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="hud-label">{t('admin.badgesOf', { name: displayName })}</span>
+        <span className="hud-num text-[10px] text-mute">{`${String(earned)}/${String(badges.length)}`}</span>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <Toggle checked={reward} onChange={setReward} label={<span className="text-[11px] text-mute">{t('admin.payBadgeReward')}</span>} />
+          <input
+            className={cn(INPUT_CLASS, 'no-drag h-7 w-24 py-0 text-[11px]')}
+            value={amount}
+            onChange={(event) => setAmount(event.target.value.replace(/[^0-9-]/g, ''))}
+            inputMode="numeric"
+            aria-label={t('admin.moveAmount')}
+          />
+          <input
+            className={cn(INPUT_CLASS, 'no-drag h-7 w-56 py-0 text-[11px]')}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder={t('admin.moveNoteHint')}
+            maxLength={300}
+            aria-label={t('admin.moveNote')}
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!amountValid || !noteValid || adjust.isPending}
+            busy={adjust.isPending && (adjust.variables ?? 0) > 0}
+            onClick={() => adjust.mutate(Math.abs(parsedAmount))}
+          >
+            <Coins size={12} />
+            {t('admin.giveCoins')}
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            disabled={!amountValid || !noteValid || adjust.isPending}
+            busy={adjust.isPending && (adjust.variables ?? 0) < 0}
+            onClick={() => adjust.mutate(-Math.abs(parsedAmount))}
+          >
+            <Ban size={12} />
+            {t('admin.takeCoins')}
+          </Button>
+        </div>
+      </div>
+
+      {badgesQuery.isPending ? (
+        <p className="text-[11px] text-mute">{t('common.loading')}</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {badges.map((badge) => {
+            const icon = badgeIconSrc(badge.iconPath)
+            return (
+              <button
+                key={badge.code}
+                type="button"
+                data-press
+                onClick={() =>
+                  badge.awarded
+                    ? revoke.mutate(badge.code)
+                    : award.mutate({ code: badge.code, pay: reward && badge.reward > 0 })
+                }
+                disabled={award.isPending || revoke.isPending}
+                title={badge.desc ?? undefined}
+                className={cn(
+                  'no-drag flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors',
+                  badge.awarded
+                    ? 'border-good/45 bg-good/12 text-ink hover:border-danger/50 hover:bg-danger/12'
+                    : 'border-line bg-panel-soft text-mute hover:border-brand/50 hover:text-ink'
+                )}
+              >
+                {icon ? (
+                  <img src={icon} alt="" className="size-4 rounded-sm object-cover" loading="lazy" />
+                ) : (
+                  <Award size={13} className={badge.awarded ? 'text-good' : undefined} />
+                )}
+                <span className="max-w-32 truncate">{badge.name ?? badge.code}</span>
+                {badge.reward > 0 ? <CoinAmount value={badge.reward} size="sm" tone="mute" /> : null}
+                <span className="hud-label text-[9px] text-mute">
+                  {badge.awarded ? t('admin.revokeBadge') : t('admin.awardBadge')}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function UsersSection(): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const [toolsFor, setToolsFor] = useState<string | null>(null)
 
   const usersQuery = useQuery({
     queryKey: ['admin', 'users', search],
@@ -395,7 +562,18 @@ export function UsersSection(): ReactNode {
                     <BadgeCheck size={12} />
                     {row.verified ? t('admin.unverifyMember') : t('admin.verifyMember')}
                   </Button>
+                  <Button
+                    size="sm"
+                    variant={toolsFor === row.userId ? 'primary' : 'ghost'}
+                    onClick={() => setToolsFor((current) => (current === row.userId ? null : row.userId))}
+                  >
+                    <Award size={12} />
+                    {t('admin.memberTools')}
+                  </Button>
                 </Row>
+                {toolsFor === row.userId ? (
+                  <MemberTools userId={row.userId} displayName={row.displayName ?? row.handle} />
+                ) : null}
               </li>
             ))}
           </ul>

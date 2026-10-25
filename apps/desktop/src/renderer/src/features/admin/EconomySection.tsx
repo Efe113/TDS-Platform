@@ -1,58 +1,77 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BadgeCheck, CalendarClock, Coins, Gauge, Pencil, Plus, Save, Sparkles, Trash2, TrendingUp } from 'lucide-react'
-import { formatCoin } from '@tds/shared'
+import { CalendarClock, Coins, Gauge, HandCoins, Pencil, Plus, Save, Search, Trash2 } from 'lucide-react'
+import {
+  CURRENCY_RULE_KINDS,
+  RULE_LEDGER_KINDS,
+  UNITS_BY_KIND,
+  economyErrorKey,
+  formatCoin,
+  type CurrencyRuleKind,
+  type RuleLedgerKind
+} from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
-import { Badge, Button, INPUT_CLASS, Row, cn } from '../../components/ui'
+import { unitLabel } from '../../lib/rule-labels'
+import { Badge, Button, INPUT_CLASS, Row, Toggle, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, Section } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
-import { deleteCurrencyRule, fetchCurrencyRules, saveCurrencyRule, type CurrencyRuleRow } from './admin-api'
+import { IconPicker } from '../../components/brand/icon-picker'
+import { RuleIcon } from '../../components/brand/rule-icon'
+import {
+  awardRule,
+  deleteCurrencyRule,
+  fetchCurrencyRules,
+  saveCurrencyRule,
+  searchMembers,
+  type CurrencyRuleRow
+} from './admin-api'
 
 /**
  * The earning curve, edited with inputs instead of JSON.
  *
- * `params` used to be a textarea: an operator had to know that `decay_after_sessions` existed and
- * what it meant. Every field that decides payout is now a labelled control with its unit spelled out,
- * and the only free-form parameters are the ones nobody edits (preserved untouched on save).
+ * `params` used to be a textarea: an operator had to know that `decay_after_sessions` existed and what
+ * it meant. Every field that decides payout is a labelled control, the unit is spelled out, and 0038
+ * finally made both the icon and the weekly ceiling mean something: the icon is picked from the set the
+ * app can draw, and the ceiling is enforced at award time.
  */
 
-const KIND_LABEL: Record<CurrencyRuleRow['kind'], MessageKey> = {
+const KIND_LABEL: Record<CurrencyRuleKind, MessageKey> = {
   usage: 'admin.ruleKindUsage',
   publish: 'admin.ruleKindPublish',
   approval: 'admin.ruleKindApproval',
   badge: 'admin.ruleKindBadge',
+  event: 'admin.ruleKindEvent',
+  streak: 'admin.ruleKindStreak',
+  milestone: 'admin.ruleKindMilestone',
+  community: 'admin.ruleKindCommunity',
+  referral: 'admin.ruleKindReferral',
+  challenge: 'admin.ruleKindChallenge',
+  support: 'admin.ruleKindSupport',
   grant: 'admin.ruleKindGrant'
 }
 
-const RULE_META: Record<string, { nameKey: MessageKey; hintKey: MessageKey; icon: typeof Coins }> = {
-  usage_session: { nameKey: 'wallet.ruleUsage', hintKey: 'wallet.ruleUsageHint', icon: Gauge },
-  publish_bonus: { nameKey: 'wallet.rulePublish', hintKey: 'wallet.rulePublishHint', icon: Sparkles },
-  approval_bonus: { nameKey: 'wallet.ruleApproval', hintKey: 'wallet.ruleApprovalHint', icon: BadgeCheck },
-  badge_reward: { nameKey: 'wallet.ruleBadge', hintKey: 'wallet.ruleBadgeHint', icon: TrendingUp }
+const LEDGER_LABEL: Record<RuleLedgerKind, MessageKey> = {
+  usage: 'admin.ledgerKindUsage',
+  publish: 'admin.ledgerKindPublish',
+  approval: 'admin.ledgerKindApproval',
+  badge: 'admin.ledgerKindBadge',
+  grant: 'admin.ledgerKindGrant'
 }
 
-const UNIT_LABEL: Record<string, MessageKey> = {
-  per_qualifying_session: 'wallet.unitSession',
-  per_approved_version: 'wallet.unitVersion',
-  per_first_approval: 'wallet.unitFirstApproval',
-  per_badge: 'wallet.unitBadge',
-  per_event: 'wallet.perEvent'
-}
-
-const UNITS_BY_KIND: Record<CurrencyRuleRow['kind'], string[]> = {
-  usage: ['per_qualifying_session'],
-  publish: ['per_approved_version'],
-  approval: ['per_first_approval'],
-  badge: ['per_badge'],
-  grant: ['per_event']
+const RULE_META: Record<string, { nameKey: MessageKey; hintKey: MessageKey }> = {
+  usage_session: { nameKey: 'wallet.ruleUsage', hintKey: 'wallet.ruleUsageHint' },
+  publish_bonus: { nameKey: 'wallet.rulePublish', hintKey: 'wallet.rulePublishHint' },
+  approval_bonus: { nameKey: 'wallet.ruleApproval', hintKey: 'wallet.ruleApprovalHint' },
+  badge_reward: { nameKey: 'wallet.ruleBadge', hintKey: 'wallet.ruleBadgeHint' }
 }
 
 interface Draft {
   code: string
-  kind: CurrencyRuleRow['kind']
+  kind: CurrencyRuleKind
+  ledgerKind: RuleLedgerKind
   amount: string
   unit: string
   dailyCap: string
@@ -64,6 +83,9 @@ interface Draft {
   params: Record<string, unknown>
   nameTr: string
   nameEn: string
+  descTr: string
+  descEn: string
+  icon: string | null
 }
 
 function toDraft(rule: CurrencyRuleRow): Draft {
@@ -71,6 +93,7 @@ function toDraft(rule: CurrencyRuleRow): Draft {
   return {
     code: rule.code,
     kind: rule.kind,
+    ledgerKind: rule.ledger_kind,
     amount: String(rule.amount),
     unit: rule.unit,
     dailyCap: rule.daily_cap === null ? '' : String(rule.daily_cap),
@@ -81,13 +104,11 @@ function toDraft(rule: CurrencyRuleRow): Draft {
     enabled: rule.enabled,
     params: { ...rule.params },
     nameTr: rule.name_tr ?? '',
-    nameEn: rule.name_en ?? ''
+    nameEn: rule.name_en ?? '',
+    descTr: rule.desc_tr ?? '',
+    descEn: rule.desc_en ?? '',
+    icon: rule.icon ?? null
   }
-}
-
-function unitLabel(unit: string, t: (key: MessageKey) => string): string {
-  const key = UNIT_LABEL[unit]
-  return key ? t(key) : unit
 }
 
 function parseOptionalInt(value: string): number | null {
@@ -97,11 +118,146 @@ function parseOptionalInt(value: string): number | null {
   return Number.isNaN(parsed) ? null : parsed
 }
 
+/**
+ * Pay one rule to one member by hand. `award_currency` clamps to the rule amount and stops at the
+ * ceiling, which is right for automated earnings and wrong for an operator decision, so the panel can
+ * opt out with `ignoreLimits` and pay the typed number straight into the ledger.
+ */
+function RuleAwardPanel({
+  rule,
+  onDone
+}: {
+  rule: CurrencyRuleRow
+  onDone: () => void
+}): ReactNode {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const [query, setQuery] = useState('')
+  const [picked, setPicked] = useState<{ userId: string; label: string } | null>(null)
+  const [amount, setAmount] = useState(String(rule.amount))
+  const [note, setNote] = useState('')
+  const [ignoreLimits, setIgnoreLimits] = useState(false)
+
+  const membersQuery = useQuery({
+    queryKey: ['admin', 'members', query],
+    queryFn: () => searchMembers(query),
+    enabled: query.trim().length > 0,
+    retry: 1
+  })
+
+  const award = useMutation({
+    mutationFn: () =>
+      awardRule({
+        userId: (picked as { userId: string }).userId,
+        code: rule.code,
+        amount: ignoreLimits ? Number.parseInt(amount, 10) : null,
+        ignoreLimits,
+        note
+      }),
+    onSuccess: () => {
+      setNote('')
+      setPicked(null)
+      setQuery('')
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'ledger'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] })
+    }
+  })
+
+  const parsedAmount = Number.parseInt(amount, 10)
+  const ready = picked !== null && note.trim().length >= 3 && (ignoreLimits ? Number.isFinite(parsedAmount) && parsedAmount > 0 : true)
+
+  return (
+    <div className="w-full space-y-2 rounded-lg border border-brand/30 bg-brand/[0.05] p-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="hud-label">{`${t('admin.awardRule')}: ${rule.name_tr ?? rule.code}`}</span>
+        <Chip tone="neutral">{unitLabel(rule.unit, t)}</Chip>
+        <Button size="sm" variant="ghost" className="ml-auto" onClick={onDone}>
+          {t('common.cancel')}
+        </Button>
+      </div>
+
+      {award.isError ? (
+        <div className="rounded-lg border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] text-danger">
+          {t(economyErrorKey(award.error instanceof Error ? award.error.message : String(award.error)))}
+        </div>
+      ) : null}
+
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto]">
+        <div className="space-y-1.5">
+          <div className="relative">
+            <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-mute" />
+            <input
+              className={cn(INPUT_CLASS, 'no-drag h-8 w-full py-0 pl-7 text-[12px]')}
+              placeholder={t('admin.memberSearchHint')}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
+          {picked ? (
+            <p className="text-[11px] text-ink">{`${t('admin.picked')}: ${picked.label}`}</p>
+          ) : membersQuery.isPending && query.trim().length > 0 ? (
+            <p className="text-[11px] text-mute">{t('common.loading')}</p>
+          ) : (
+            <ul className="flex flex-wrap gap-1">
+              {(membersQuery.data ?? []).map((member) => (
+                <li key={member.userId}>
+                  <button
+                    type="button"
+                    data-press
+                    onClick={() => setPicked({ userId: member.userId, label: member.displayName ?? `@${member.handle}` })}
+                    className="no-drag rounded-md border border-line bg-panel-soft px-2 py-1 text-[11px] text-mute hover:border-brand/50 hover:text-ink"
+                  >
+                    {`${member.displayName ?? member.handle} · ${formatCoin(member.balance)}`}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <label className="space-y-1">
+          <span className="hud-label">{t('admin.amount')}</span>
+          <input
+            className={cn(INPUT_CLASS, 'no-drag h-8 w-full text-xs')}
+            inputMode="numeric"
+            value={amount}
+            disabled={!ignoreLimits}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+          <span className="text-[10px] text-mute">{ignoreLimits ? t('admin.economyPreview') : t('admin.awardRuleRuleAmount')}</span>
+        </label>
+
+        <div className="space-y-1.5">
+          <Toggle
+            checked={ignoreLimits}
+            onChange={setIgnoreLimits}
+            label={<span className="text-[11px] text-mute">{t('admin.awardIgnoreLimits')}</span>}
+          />
+          <input
+            className={cn(INPUT_CLASS, 'no-drag h-8 w-56 text-[12px]')}
+            placeholder={t('admin.moveNoteHint')}
+            value={note}
+            maxLength={300}
+            onChange={(event) => setNote(event.target.value)}
+          />
+          <Button size="sm" variant="primary" disabled={!ready} busy={award.isPending} onClick={() => award.mutate()}>
+            <HandCoins size={12} />
+            {t('admin.awardRule')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function EconomySection(): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [isNew, setIsNew] = useState(false)
+  const [awardFor, setAwardFor] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
   const rulesQuery = useQuery({ queryKey: ['admin', 'currency-rules'], queryFn: fetchCurrencyRules, retry: 1 })
@@ -128,8 +284,10 @@ export function EconomySection(): ReactNode {
         params,
         name_tr: input.nameTr.trim() || null,
         name_en: input.nameEn.trim() || null,
-        desc_tr: (rulesQuery.data ?? []).find((row) => row.code === input.code)?.desc_tr ?? null,
-        desc_en: (rulesQuery.data ?? []).find((row) => row.code === input.code)?.desc_en ?? null
+        desc_tr: input.descTr.trim() || null,
+        desc_en: input.descEn.trim() || null,
+        icon: input.icon,
+        ledger_kind: input.ledgerKind
       })
     },
     onSuccess: () => {
@@ -205,6 +363,7 @@ export function EconomySection(): ReactNode {
               setDraft({
                 code: '',
                 kind: 'usage',
+                ledgerKind: 'usage',
                 amount: '3',
                 unit: 'per_qualifying_session',
                 dailyCap: '12',
@@ -215,7 +374,10 @@ export function EconomySection(): ReactNode {
                 enabled: true,
                 params: {},
                 nameTr: '',
-                nameEn: ''
+                nameEn: '',
+                descTr: '',
+                descEn: '',
+                icon: null
               })
               setIsNew(true)
             }}
@@ -231,18 +393,20 @@ export function EconomySection(): ReactNode {
           <ul className="space-y-1.5">
             {rules.map((rule) => {
               const meta = RULE_META[rule.code]
-              const Icon = meta?.icon ?? Coins
+              // A rule's own copy wins; the four seeded codes keep their translated names as fallback.
+              const label = rule.name_tr ?? (meta ? t(meta.nameKey) : rule.code)
               return (
                 <li key={rule.code} className="hud-panel flex flex-wrap items-center gap-3 px-3 py-2.5">
                   <span className={cn('grid size-8 shrink-0 place-items-center rounded-lg border', rule.enabled ? 'border-brand/30 bg-brand/12 text-brand' : 'border-line bg-panel-soft text-mute')}>
-                    <Icon size={15} />
+                    <RuleIcon name={rule.icon} kind={rule.kind} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className={cn('truncate text-[13px] font-medium', rule.enabled ? 'text-ink' : 'text-mute')}>
-                        {meta ? t(meta.nameKey) : (rule.name_tr ?? rule.code)}
+                        {label}
                       </p>
                       <Chip tone="neutral">{t(KIND_LABEL[rule.kind])}</Chip>
+                      <Chip tone="neutral">{t('admin.ledgerKind')}: {t(LEDGER_LABEL[rule.ledger_kind])}</Chip>
                     </div>
                     <p className="truncate font-mono text-[10px] text-mute">{`${rule.code} · ${unitLabel(rule.unit, t)}`}</p>
                   </div>
@@ -282,7 +446,17 @@ export function EconomySection(): ReactNode {
                     <Button size="sm" variant={rule.enabled ? 'ghost' : 'primary'} busy={toggle.isPending} onClick={() => toggle.mutate(rule)}>
                       {rule.enabled ? t('admin.disable') : t('admin.enable')}
                     </Button>
+                    <Button
+                      size="sm"
+                      variant={awardFor === rule.code ? 'primary' : 'subtle'}
+                      disabled={!rule.enabled}
+                      onClick={() => setAwardFor((current) => (current === rule.code ? null : rule.code))}
+                    >
+                      <HandCoins size={12} />
+                      {t('admin.awardRule')}
+                    </Button>
                   </Row>
+                  {awardFor === rule.code ? <RuleAwardPanel rule={rule} onDone={() => setAwardFor(null)} /> : null}
                 </li>
               )
             })}
@@ -327,22 +501,43 @@ export function EconomySection(): ReactNode {
                 <span className="hud-label">{t('admin.nameTr')}</span>
                 <input className={cn(INPUT_CLASS, 'no-drag h-8 text-xs')} value={draft.nameTr} onChange={(event) => setDraft({ ...draft, nameTr: event.target.value })} />
               </label>
+              {/* 0038: name_en has been in the table since 0029 and wiped by every save, because no
+                  input existed and the RPC always overwrote it. */}
+              <label className="space-y-1">
+                <span className="hud-label">{t('admin.nameEn')}</span>
+                <input className={cn(INPUT_CLASS, 'no-drag h-8 text-xs')} value={draft.nameEn} onChange={(event) => setDraft({ ...draft, nameEn: event.target.value })} />
+              </label>
               <label className="space-y-1">
                 <span className="hud-label">{t('admin.kind')}</span>
                 <select
                   className={cn(INPUT_CLASS, 'no-drag h-8 text-xs')}
                   value={draft.kind}
                   onChange={(event) => {
-                    const kind = event.target.value as CurrencyRuleRow['kind']
-                    setDraft({ ...draft, kind, unit: UNITS_BY_KIND[kind]?.[0] ?? draft.unit })
+                    const kind = event.target.value as CurrencyRuleKind
+                    setDraft({ ...draft, kind, unit: UNITS_BY_KIND[kind][0] ?? 'per_event' })
                   }}
                 >
-                  {(Object.keys(KIND_LABEL) as CurrencyRuleRow['kind'][]).map((kind) => (
+                  {CURRENCY_RULE_KINDS.map((kind) => (
                     <option key={kind} value={kind}>
                       {t(KIND_LABEL[kind])}
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className="space-y-1">
+                <span className="hud-label">{t('admin.ledgerKind')}</span>
+                <select
+                  className={cn(INPUT_CLASS, 'no-drag h-8 text-xs')}
+                  value={draft.ledgerKind}
+                  onChange={(event) => setDraft({ ...draft, ledgerKind: event.target.value as RuleLedgerKind })}
+                >
+                  {RULE_LEDGER_KINDS.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {t(LEDGER_LABEL[kind])}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-mute">{t('admin.ledgerKindHint')}</span>
               </label>
               <label className="space-y-1">
                 <span className="hud-label">{t('admin.unit')}</span>
@@ -435,6 +630,33 @@ export function EconomySection(): ReactNode {
                 </label>
               </div>
             ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1">
+                <span className="hud-label">{t('admin.descTr')}</span>
+                <textarea
+                  className={cn(INPUT_CLASS, 'min-h-16 w-full resize-y text-xs')}
+                  value={draft.descTr}
+                  onChange={(event) => setDraft({ ...draft, descTr: event.target.value })}
+                  placeholder={t('admin.descTrHint')}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="hud-label">{t('admin.descEn')}</span>
+                <textarea
+                  className={cn(INPUT_CLASS, 'min-h-16 w-full resize-y text-xs')}
+                  value={draft.descEn}
+                  onChange={(event) => setDraft({ ...draft, descEn: event.target.value })}
+                  placeholder={t('admin.descEnHint')}
+                />
+              </label>
+            </div>
+
+            <IconPicker
+              label={t('admin.ruleIcon')}
+              value={draft.icon}
+              onChange={(next) => setDraft({ ...draft, icon: next })}
+            />
 
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line/70 bg-base/40 px-3 py-2 text-[11px] text-mute">
               <Badge tone="neutral">{draft.enabled ? t('admin.enabled') : t('admin.flagOff')}</Badge>

@@ -8,10 +8,12 @@
       connect-src has to be explicit: without it every fetch falls back to default-src 'self', which
       is the dev server origin (or file:// in the packaged app) and therefore blocks the Supabase REST
       calls the renderer makes. The localhost entries are the dev server and its HMR socket only.
+      img-src allows any https source since 0038, because an admin can point a badge icon at their own
+      artwork; images are passive content here, and only https is accepted (badgeIconSrc rejects http).
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.discordapp.com https://*.discordapp.net https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://*.supabase.co; connect-src 'self' https://*.supabase.co ws://localhost:* http://localhost:*; font-src 'self' data:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co ws://localhost:* http://localhost:*; font-src 'self' data:"
     />
     <title>TDS Companion</title>
   </head>

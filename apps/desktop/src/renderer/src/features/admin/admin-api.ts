@@ -5,6 +5,7 @@ import {
   badgeDefinitionRowSchema,
   currencyRuleRowSchema,
   mapCatalogRowSchema,
+  memberBadgeRowSchema,
   mutatorCatalogRowSchema,
   queueRowSchema,
   tagCatalogRowSchema,
@@ -12,6 +13,7 @@ import {
   unmatchedRowSchema,
   versionSnapshotSchema,
   type AuditRow,
+  type MemberBadgeRow,
   type QueueRow,
   type ReviewDecision,
   type UnmatchedRow
@@ -367,6 +369,10 @@ export async function saveCurrencyRule(rule: CurrencyRuleRow): Promise<void> {
     p_name_en: parsed.name_en ?? null,
     p_desc_tr: parsed.desc_tr ?? null,
     p_desc_en: parsed.desc_en ?? null,
+    // 0038: the icon column had no writer for eleven migrations, and the ledger kind is what the
+    // wallet colours by. Both are now explicit parameters instead of silently dropped.
+    p_icon: parsed.icon ?? null,
+    p_ledger_kind: parsed.ledger_kind,
     p_params: parsed.params
   })
   if (error) throw new Error(error.message)
@@ -376,6 +382,107 @@ export async function deleteCurrencyRule(code: string): Promise<void> {
   const db = requireDb()
   const { error } = await db.rpc('admin_delete_rule', { p_code: code })
   if (error) throw new Error(error.message)
+}
+
+export interface BalanceAdjustment {
+  userId: string
+  delta: number
+  note: string
+  idempotencyKey?: string | null
+}
+
+/** Manual coin movement. It is a ledger row with a reason, never an edit of the cached balance. */
+export async function adjustBalance(input: BalanceAdjustment): Promise<{ balance: number }> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_adjust_balance', {
+    p_user: input.userId,
+    p_delta: input.delta,
+    p_note: input.note.trim(),
+    p_idempotency_key: input.idempotencyKey ?? null
+  })
+  if (error) throw new Error(error.message)
+  const record = (data ?? {}) as Record<string, unknown>
+  return { balance: typeof record.balance === 'number' ? record.balance : 0 }
+}
+
+export interface MemberOption {
+  userId: string
+  handle: string
+  displayName: string | null
+  balance: number
+}
+
+const memberOptionSchema = z.object({
+  userId: z.string().uuid(),
+  handle: z.string(),
+  displayName: z.string().nullable().default(null),
+  balance: z.number().int().default(0)
+})
+
+/** Member picker for the manual money panels; reuses admin_user_search so results match the table. */
+export async function searchMembers(query: string): Promise<MemberOption[]> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_user_search', {
+    p_query: query.trim().length > 0 ? query.trim() : null,
+    p_limit: 12
+  })
+  if (error) throw new Error(error.message)
+  return memberOptionSchema.array().parse(data ?? [])
+}
+
+export interface RuleAward {
+  userId: string
+  code: string
+  amount: number | null
+  ignoreLimits: boolean
+  note: string
+}
+
+export async function awardRule(input: RuleAward): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_award_rule', {
+    p_user: input.userId,
+    p_code: input.code,
+    p_amount: input.amount,
+    p_ignore_limits: input.ignoreLimits,
+    p_note: input.note.trim()
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function fetchMemberBadges(userId: string): Promise<MemberBadgeRow[]> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_user_badges', { p_user: userId })
+  if (error) throw new Error(error.message)
+  return memberBadgeRowSchema.array().parse(data ?? [])
+}
+
+export async function awardBadge(userId: string, code: string, payReward: boolean): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_award_badge', {
+    p_user: userId,
+    p_code: code,
+    p_pay_reward: payReward
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function revokeBadge(userId: string, code: string): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_revoke_badge', { p_user: userId, p_code: code })
+  if (error) throw new Error(error.message)
+}
+
+/** Badge art lives in the same public bucket as everything else; the column stores the path. */
+export async function uploadBadgeImage(code: string, file: File): Promise<string> {
+  const db = requireDb()
+  const key = `badges/${code.trim().toLowerCase()}.webp`
+  const { error } = await db.storage.from('strategy-media').upload(key, file, {
+    upsert: true,
+    contentType: file.type.length > 0 ? file.type : 'image/webp'
+  })
+  if (error) throw new Error(error.message)
+  return key
 }
 
 export async function fetchSpendCatalog(): Promise<SpendCatalogRow[]> {

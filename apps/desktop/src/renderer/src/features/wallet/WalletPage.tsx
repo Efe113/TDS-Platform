@@ -18,10 +18,12 @@ import {
   Store,
   Wallet as WalletIcon
 } from 'lucide-react'
-import { capRemaining, formatCoin, VERIFIED_PERK_KEYS, VERIFIED_TITLE_REF, type WalletRule } from '@tds/shared'
+import { capRemaining, formatCoin, VERIFIED_PERK_KEYS, VERIFIED_TITLE_REF, type CurrencyRuleKind, type WalletRule } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate } from '../../lib/router'
+import { ruleIconFor } from '../../components/brand/rule-icon'
+import { UNIT_LABEL } from '../../lib/rule-labels'
 import { fetchWallet } from '../../lib/wallet-api'
 import { formatDateTime } from '../admin/admin-ui'
 import { CoinAmount, CoinIcon } from '../../components/brand/coin'
@@ -102,7 +104,13 @@ const KIND_META: Record<string, { key: MessageKey; icon: typeof Coins; good: boo
 function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
   const t = useT()
   const meta = RULE_META[rule.code]
-  const Icon = meta?.icon ?? Coins
+  // 0038: the server ships the icon and the copy, so a rule an admin invented looks the same as the
+  // seeded four instead of falling back to a snake_case code. The old table is only the fallback.
+  const Icon = ruleIconFor(rule.icon, rule.kind as CurrencyRuleKind)
+  const name = rule.name ?? (meta ? t(meta.nameKey) : readableCode(rule.code))
+  const unitKey = UNIT_LABEL[rule.unit]
+  const unit = unitKey ? t(unitKey) : rule.unit !== 'per_event' ? readableCode(rule.unit) : null
+  const hint = rule.desc ?? (meta ? t(meta.hintKey) : null)
   const todayLeft = capRemaining(rule.earnedToday, rule.dailyCap)
   const weekLeft = capRemaining(rule.earnedWeek, rule.weeklyCap)
   const dailyPercent = rule.dailyCap && rule.dailyCap > 0 ? Math.min(100, Math.round(((todayLeft ?? 0) / rule.dailyCap) * 100)) : null
@@ -116,10 +124,8 @@ function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
             <Icon size={15} />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold text-ink">{meta ? t(meta.nameKey) : readableCode(rule.code)}</p>
-            <p className="truncate text-[11px] text-mute">
-              {meta ? t(meta.unitKey) : readableCode(rule.code)}
-            </p>
+            <p className="truncate text-[13px] font-semibold text-ink">{name}</p>
+            <p className="truncate text-[11px] text-mute">{unit ?? readableCode(rule.code)}</p>
           </div>
         </div>
         <div className="text-right">
@@ -127,7 +133,7 @@ function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
         </div>
       </div>
 
-      {meta ? <p className="mt-2 text-[11px] leading-relaxed text-mute/85">{t(meta.hintKey)}</p> : null}
+      {hint ? <p className="mt-2 text-[11px] leading-relaxed text-mute/85">{hint}</p> : null}
 
       <div className="mt-2.5 space-y-2">
         {dailyPercent !== null ? (
@@ -459,6 +465,8 @@ export function WalletPage(): ReactNode {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] text-ink">{kind ? t(kind.key) : readableCode(entry.kind)}</span>
+                          {/* 0038: an admin move says why, next to the number it changed. */}
+                          {entry.note ? <span className="block truncate text-[11px] text-mute">{entry.note}</span> : null}
                           <span className="block text-[10px] text-mute">{new Date(entry.at).toLocaleTimeString()}</span>
                         </span>
                         <CoinAmount value={entry.delta} signed tone={entry.delta >= 0 ? 'good' : 'danger'} size="sm" className="font-semibold" />

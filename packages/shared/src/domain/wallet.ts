@@ -22,7 +22,16 @@ export const walletRuleSchema = z.object({
   dailyCap: z.number().int().nullable(),
   weeklyCap: z.number().int().nullable(),
   earnedToday: z.number().int().default(0),
-  earnedWeek: z.number().int().default(0)
+  earnedWeek: z.number().int().default(0),
+  // 0038: the payload has carried the copy for a long time; the schema used to drop it, which forced
+  // the wallet to hardcode a name and an icon per code. Optional so an un-migrated database parses.
+  unit: z.string().optional().default('per_event'),
+  ledgerKind: z.string().optional().default('usage'),
+  icon: z.string().nullable().optional().default(null),
+  name: z.string().nullable().optional().default(null),
+  nameEn: z.string().nullable().optional().default(null),
+  desc: z.string().nullable().optional().default(null),
+  descEn: z.string().nullable().optional().default(null)
 })
 
 export const walletEntrySchema = z.object({
@@ -30,6 +39,8 @@ export const walletEntrySchema = z.object({
   kind: z.enum(LEDGER_KINDS),
   ruleCode: z.string().nullable(),
   refType: z.string().nullable(),
+  // 0038: the reason an admin moved coins, shown where the member will look for it — the ledger row.
+  note: z.string().nullable().optional().default(null),
   at: z.string()
 })
 

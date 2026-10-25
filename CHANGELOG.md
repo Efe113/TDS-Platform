@@ -6,6 +6,18 @@ Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](ht
 
 ### Eklendi
 
+- **Admin ekonomi kolları (0038):** üye başına rozet ver/geri al ve notla manuel bakiye ver/al.
+  `admin_adjust_balance`, `admin_award_rule`, `admin_user_badges`, `admin_award_badge`,
+  `admin_revoke_badge` RPC'leri eklendi; her hareket normal bir defter satırı (hash zinciri,
+  `currency_balance_cache` ve negatif bakiye yasağı korunur) ve `admin_audit_log`'a yazılıyor.
+- **Kural editörü tamamlandı:** İngilizce ad, Türkçe/İngilizce açıklama ve simge seçici (33 lucide
+  simgesi) alanları geldi; `currency_rules.icon` 0029'dan beri ölü duruyordu, artık yazılıp okunuyor.
+- **12 kazanç türü, 17 birim:** iş türü (`kind`) ile muhasebe türü (`ledger_kind`) ayrıldı; defterin
+  sabit tür sözlüğü bozulmadan event/seri/kilometre taşı/topluluk/davet/meydan okuma/destek
+  tanımlanabiliyor. Birimler artık `admin_upsert_rule` tarafından da doğrulanıyor.
+- **Rozet simgesi URL:** `badge_definitions.icon_path` ya tam https adresi ya da `strategy-media`
+  yolu; yönetici panelinde önizleme ve `badges/<kod>.webp` yüklemesi var, simge profilde ve liderlik
+  rafında gerçekten çiziliyor.
 - **Doğrulanmış hesap (0037):** ekip onayıyla verilen, satın alınmayan hesap türü. `profiles.is_verified`
   admin-pinned kolon olarak tutulur; `app.guard_profile_columns()` kullanıcıyı kendi hesabını
   doğrulayamaz.
@@ -29,10 +41,19 @@ Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](ht
   `app.effective_price` üzerinden VIP ve doğrulanmış indirimlerini de uygular.
 - Rafta indirim yüzdesi ile "−%" iki kez yazılıyordu; kartın sol altındaki tek rozete indirgendi.
 
+### Değişti
+
+- **Haftalık tavan artık uygulanıyor:** `award_currency` sadece günlük tavana bakıyordu; `weekly_cap`
+  yazıldığında da kazanç orada duruyor.
+- **`decay_after_sessions` gerçek mantığa bağlandı:** eşikten sonraki her aynı-gün kazancı yarıya iner
+  (en az 1 coin), yani çiftçilik kuralı kapatmadan kendini söndürür.
+- **İçerik politikası:** `img-src` tüm `https:` kaynaklarına açıldı (rozet simgesi URL'si için);
+  `http:` istekleri istemci tarafında reddedilir.
+
 ### Gereken
 
-- `supabase/migrations/0037_verified_accounts.sql` Supabase dashboard'unda çalıştırılmalı (0035 ve 0036
-  bekliyorsa onlar önce).
+- `supabase/migrations/0037_verified_accounts.sql` ve `supabase/migrations/0038_admin_economy_and_badges.sql`
+  Supabase dashboard'unda çalıştırılmalı (0035 ve 0036 bekliyorsa onlar önce).
 
 ## [0.1.2] — 2026-10-25
 

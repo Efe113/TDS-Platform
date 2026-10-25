@@ -1,15 +1,23 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Award, Pencil, Plus, Save, Sparkles, Trash2 } from 'lucide-react'
+import { Award, Pencil, Plus, Save, Sparkles, Trash2, Upload, X } from 'lucide-react'
 
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
+import { badgeIconSrc } from '../../lib/badge-icon'
 import { Badge, Button, INPUT_CLASS, Row, cn } from '../../components/ui'
 import { Chip, Metric, MetricGrid, Section } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
-import { deleteBadgeDefinition, fetchBadgeDefinitions, fetchBadgeMetrics, saveBadgeDefinition, type BadgeDefinitionRow } from './admin-api'
+import {
+  deleteBadgeDefinition,
+  fetchBadgeDefinitions,
+  fetchBadgeMetrics,
+  saveBadgeDefinition,
+  uploadBadgeImage,
+  type BadgeDefinitionRow
+} from './admin-api'
 import { CRITERION_GROUPS, isCriterionComplete, readCriteria, writeCriteria, type CriterionGroup, type CriterionRow } from './badge-conditions'
 
 /**
@@ -146,6 +154,18 @@ export function BadgesSection(): ReactNode {
     onError: (error: unknown) => setFailure(error instanceof Error ? error.message : String(error))
   })
 
+  // Badge art: uploaded into the same public bucket as catalog imagery, stored as an object path so the
+  // admin can also paste a full https URL instead.
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const code = (draft?.code ?? '').trim().toLocaleLowerCase()
+      if (code.length < 2) throw new Error('CODE_REQUIRED')
+      return uploadBadgeImage(code, file)
+    },
+    onSuccess: (path) => setDraft((current) => (current ? { ...current, iconPath: path } : current)),
+    onError: (error: unknown) => setFailure(error instanceof Error ? error.message : String(error))
+  })
+
   const badges = badgesQuery.data ?? []
   const metrics = metricsQuery.data ?? []
   const metricOptions = useMemo(
@@ -223,6 +243,13 @@ export function BadgesSection(): ReactNode {
               const rows = readCriteria(badge.conditions) ?? []
               return (
                 <li key={badge.code} className="hud-panel flex flex-wrap items-center gap-3 px-3 py-2.5">
+                  <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-line/70 bg-base/60">
+                    {badgeIconSrc(badge.icon_path) ? (
+                      <img src={badgeIconSrc(badge.icon_path) as string} alt="" className="size-full object-cover" loading="lazy" />
+                    ) : (
+                      <Award size={14} className="text-mute" />
+                    )}
+                  </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge tone={badge.tier === 'gold' ? 'warn' : badge.tier === 'special' ? 'accent' : 'neutral'}>
@@ -458,15 +485,60 @@ export function BadgesSection(): ReactNode {
                 />
                 <span className="text-[10px] text-mute">{isNew ? t('admin.newCodeHint') : t('admin.keyLockedHint')}</span>
               </label>
-              <label className="space-y-1">
+              <div className="space-y-1.5">
                 <span className="hud-label">{t('admin.badgeIcon')}</span>
-                <input
-                  className={cn(INPUT_CLASS, 'no-drag h-8 font-mono text-xs')}
-                  value={draft.iconPath}
-                  onChange={(event) => setDraft({ ...draft, iconPath: event.target.value })}
-                  placeholder="badges/..."
-                />
-              </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    className={cn(INPUT_CLASS, 'no-drag h-8 min-w-0 flex-1 font-mono text-xs')}
+                    value={draft.iconPath}
+                    onChange={(event) => setDraft({ ...draft, iconPath: event.target.value })}
+                    placeholder={t('admin.badgeIconHint')}
+                  />
+                  <label className="no-drag">
+                    <span className="sr-only">{t('admin.uploadIcon')}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={draft.code.trim().length < 2 || upload.isPending}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        event.target.value = ''
+                        if (file) upload.mutate(file)
+                      }}
+                    />
+                    <span
+                      className={cn(
+                        'inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] transition-colors',
+                        draft.code.trim().length < 2 || upload.isPending
+                          ? 'cursor-not-allowed border-line bg-panel-soft text-mute opacity-60'
+                          : 'cursor-pointer border-brand/40 bg-brand/12 text-ink hover:bg-brand/20'
+                      )}
+                    >
+                      <Upload size={12} />
+                      {upload.isPending ? t('admin.uploading') : t('admin.uploadIcon')}
+                    </span>
+                  </label>
+                  {draft.iconPath.trim().length > 0 ? (
+                    <Button size="sm" variant="ghost" onClick={() => setDraft({ ...draft, iconPath: '' })}>
+                      <X size={12} />
+                      {t('admin.clearImage')}
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-line/70 bg-base/60">
+                    {badgeIconSrc(draft.iconPath.trim().length > 0 ? draft.iconPath.trim() : null) ? (
+                      <img src={badgeIconSrc(draft.iconPath.trim()) as string} alt="" className="size-full object-cover" loading="lazy" />
+                    ) : (
+                      <Award size={16} className="text-mute" />
+                    )}
+                  </span>
+                  <p className="text-[10px] leading-relaxed text-mute">
+                    {upload.isError ? (upload.error instanceof Error ? upload.error.message : String(upload.error)) : t('admin.badgeIconHelp')}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {validation ? <p className="text-[11px] text-warn">{validation}</p> : null}
