@@ -1279,7 +1279,7 @@ export const extraTr = {
   'theme.free': 'Ücretsiz',
   'theme.notForSale': 'Şimdilik satılık değil',
   'theme.moodWarm': 'Ocak · eriyen zemin',
-  'theme.moodAcid': 'Asit · canlı',
+  'theme.moodAcid': 'Asit · sızıntı',
   'theme.feat.default1': 'Sakin aurora katmanı',
   'theme.feat.default2': 'Kılavuz ızgara doku',
   'theme.feat.default3': 'Yavaş, dikkat dağıtmayan geçiş',

@@ -31,7 +31,7 @@ describe('theme skins', () => {
     // one color in the picker and another on the window.
     expect(THEME_SKINS.default.tokens.brand).toBe('#4c8dff')
     expect(THEME_SKINS.ember.tokens.brand).toBe('#ff8a3d')
-    expect(THEME_SKINS.toxic.tokens.brand).toBe('#7ed957')
+    expect(THEME_SKINS.toxic.tokens.brand).toBe('#84f95c')
   })
 
   it('separates the skins by more than the brand color', () => {
@@ -96,7 +96,8 @@ describe('the renewed forge skin (0045)', () => {
     expect((skin.scene?.gravity ?? 0)).toBeGreaterThan(0)
     expect(skin.sceneAlt?.kind).toBe('ash')
     expect((skin.sceneAlt?.gravity ?? 0)).toBeLessThan(0)
-    for (const key of THEME_KEYS.filter((entry) => entry !== 'ember')) {
+    // Only a renewed skin runs a second field; the ones still waiting for their renewal do not.
+    for (const key of THEME_KEYS.filter((entry) => !THEME_SKINS[entry].renewed)) {
       expect(THEME_SKINS[key].sceneAlt, `${key} should not have a second field yet`).toBeNull()
     }
   })
@@ -135,5 +136,57 @@ describe('the renewed forge skin (0045)', () => {
     expect(constraint?.[1]).toContain("'renewed'")
     expect(editor?.[1]).toContain("'renewed'")
     expect(constraint?.[1]).toBe(editor?.[1])
+  })
+})
+
+/**
+ * Renewal #2 (0.3.3, toxic). The point of doing this as a *standard* rather than as one nice fire
+ * theme is that the next skin inherits the chrome and the shelf treatment; what has to be proven each
+ * time is that the renewal is real (stack, second field, accent equality) and that it did not quietly
+ * rename or re-price something somebody already bought.
+ */
+describe('the renewed toxic skin (0047)', () => {
+  const leak = readFileSync(join(migrationsDir, '0047_toxic_theme_renewal.sql'), 'utf8')
+  const skin = THEME_SKINS.toxic
+
+  it('meets the same renewal bar as the forge', () => {
+    const renewed = THEME_KEYS.filter((key) => THEME_SKINS[key].renewed)
+    expect(renewed).toEqual(['ember', 'toxic'])
+    for (const key of renewed) {
+      const entry = THEME_SKINS[key]
+      expect(entry.layers.length, `${key} stack`).toBeGreaterThanOrEqual(6)
+      // A renewal that cannot survive its own layer list is just CSS with a new name.
+      expect(TIER_BUDGETS.high.ambientLayers, `${key} needs headroom`).toBeGreaterThanOrEqual(entry.layers.length - 1)
+      expect(entry.sceneAlt, `${key} needs a second field`).not.toBeNull()
+    }
+  })
+
+  it('leads with the leak instead of the stripe', () => {
+    expect(skin.layers.slice(0, 3)).toEqual(['sludge', 'drip', 'hazard'])
+    expect(skin.layers).toContain('scanline')
+    expect(skin.layers).toContain('grain')
+    expect(skin.scene?.kind).toBe('spore')
+    expect(skin.sceneAlt?.kind).toBe('dust')
+    // Spores fall, dust floats: two directions, one canvas.
+    expect((skin.scene?.gravity ?? 1)).toBeLessThan(0)
+    expect(skin.sceneAlt?.gravity).toBe(0)
+  })
+
+  it('keeps the name and the price an owner bought', () => {
+    expect(leak).toContain("'Toksik', 'Toxic',")
+    expect(leak).toContain("'theme_toxic', 'theme', 220, 'toxic'")
+    expect(leak).toContain("where key = 'toxic'")
+  })
+
+  it('keeps the database accent equal to the registry brand', () => {
+    expect(leak).toContain(`"${skin.tokens.brand}"`)
+  })
+
+  it('re-declares the identical chip vocabulary', () => {
+    const forge = readFileSync(join(migrationsDir, '0045_forge_theme_renewal.sql'), 'utf8')
+    const in45 = forge.match(/check \(tag in \(([^)]*)\)/)
+    const in47 = leak.match(/check \(tag in \(([^)]*)\)/)
+    expect(in47?.[1]).toBe(in45?.[1])
+    expect(in47?.[1]).toContain("'renewed'")
   })
 })

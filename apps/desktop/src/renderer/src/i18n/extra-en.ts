@@ -1277,7 +1277,7 @@ export const extraEn: Record<ExtraKey, string> = {
   'theme.free': 'Free',
   'theme.notForSale': 'Not for sale yet',
   'theme.moodWarm': 'Forge · molten floor',
-  'theme.moodAcid': 'Acid · vivid',
+  'theme.moodAcid': 'Acid · leak',
   'theme.feat.default1': 'Calm aurora layer',
   'theme.feat.default2': 'Guide-grid texture',
   'theme.feat.default3': 'Slow, non-distracting transitions',

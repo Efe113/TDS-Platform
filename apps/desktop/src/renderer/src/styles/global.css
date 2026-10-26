@@ -534,10 +534,64 @@ html.overlay-root ::-webkit-scrollbar {
   color: color-mix(in oklab, var(--color-brand) 55%, var(--color-mute));
 }
 
+/*
+ * The acid renewal (0.3.3). Foam running along the pool surface, strands that ooze and drops that
+ * detach on their own clocks. Token-driven like the forge chrome, so a skin renewing later inherits
+ * these rules in its own colors instead of getting a second copy of every surface.
+ */
+@keyframes toxic-foam-run {
+  from { background-position: 0% 0; }
+  to { background-position: 220% 0; }
+}
+
+.toxic-foam {
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-warn) 80%, transparent) 0 10px,
+    color-mix(in oklab, var(--color-brand) 45%, transparent) 10px 15px,
+    transparent 15px 34px
+  );
+  background-size: 220% 100%;
+  opacity: 0.55;
+  filter: blur(0.6px);
+  animation: toxic-foam-run 7s linear infinite;
+}
+
+@keyframes toxic-strand-ooze {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.5; }
+  45% { transform: scaleY(1.05) scaleX(1.22); opacity: 0.72; }
+  72% { transform: scaleY(1.14) scaleX(0.9); opacity: 0.58; }
+}
+
+.toxic-strand {
+  display: block;
+  border-radius: 999px;
+  transform-origin: 50% 0;
+  animation: toxic-strand-ooze var(--strand-duration, 6s) ease-in-out infinite;
+}
+
+@keyframes toxic-drop-fall {
+  0%, 54% { transform: translate3d(0, 0, 0) scale(0.55); opacity: 0; }
+  60% { transform: translate3d(0, 3px, 0) scale(1); opacity: 0.95; }
+  100% { transform: translate3d(0, var(--drop-fall, 44vh), 0) scale(0.8); opacity: 0; }
+}
+
+.toxic-drop {
+  position: absolute;
+  top: 100%;
+  left: -22%;
+  border-radius: 999px 999px 62% 62%;
+  filter: blur(0.3px);
+  animation: toxic-drop-fall var(--drop-duration, 4s) cubic-bezier(0.4, 0, 0.8, 0.45) var(--drop-delay, 0s) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .forge-seam,
   .forge-coal,
   .forge-coal--flare,
+  .toxic-foam,
+  .toxic-strand,
+  .toxic-drop,
   [data-renewed='on'] [data-slot='card']::after,
   [data-renewed='on'] .hud-panel::after,
   [data-renewed='on'] [data-skin-part='active-pill']::after,

@@ -2,6 +2,35 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.3] — 2026-10-26
+
+### Yenilendi: **Toksik** (second renewal, same standard as Ocak)
+
+Tema yenilemesi artık tek bir temaya özel cilâ değil, bir standart. Toksik eskiden bir tehlike
+şeridi + içinde yüzen noktalardı; şimdi bir **sızıntı**:
+
+- **Asit banyosu (sludge):** tabanda çalkalanan havuz, yüzeyde sağa koşan köpük hattı, üç hava
+  kanalından yavaşça kabaran buhar, havuzun üstünde yeşil bir pus.
+- **Sarkan sıvı (drip):** tavandan yedi damar; her biri kendi hızında uzuyor ve damla kendi
+  saatinde kopup tabana düşüyor. CSS keyframe ile çiziliyor — sonsuz damlalar JS tik'i harcamıyor.
+- **Çift tarama bandı (scanline):** biri aşağı inen geniş bant, diğeri yukarı çıkan ince parlak hat;
+  kesiştikleri yerde cihaz çalışıyor hissi.
+- **İki köşede tehlike bandı (hazard):** 45° ve −45° şeritler zıt yönlerde emekliyor; duvar kâğıdı
+  değil, canlı bariyer.
+- **Patlayan baloncuklar:** yedi kabarcık on biri çıktı, tepeye yakın şişip **patlıyor** — solup
+  kaybolmak yerine.
+- **Sürünen toz (sceneAlt):** sporlar aşağı düşerken kontaminasyon tozu havada asılı sürükleniyor;
+  iki alan tek canvas, tek rAF döngüsü.
+- Yedi katman, `renewed: true` — 0.3.2'nin `data-renewed` kromunu (kart dikişi, panel yıkanması, ray
+  kıvılcımı, kaydırma çubuğu, isim yanması) token'lar üzerinden kendi asit rengiyle alıyor.
+- İsim ve fiyat **değişmedi** (`toxic`, 220): sahipler ne aldıysa onu koruyor. Yenileme bir kopya
+  değişikliği, test artık bunu da kilitliyor.
+
+### Kalan temalar
+
+Kutup (aurora) ve Boşluk (void) sıradaki patch'lerde aynı standarta çekilecek; Varsayılan skin bilinçli
+olarak sakin kalıyor (ücretsiz olanın görevi dikkat dağıtmamak).
+
 ## [0.3.2] — 2026-10-26
 
 ### Yenilendi: **Kor → Ocak (Forge)**

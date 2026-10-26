@@ -38,6 +38,10 @@ export type AmbientLayer =
   | 'coals'
   /** Heat distortion read as soft-light bands climbing the frame. */
   | 'shimmer'
+  /** A churning pool of acid at the floor, with a foam line that runs along its surface. */
+  | 'sludge'
+  /** Viscous strands hanging from the ceiling, each shedding a drop on its own clock. */
+  | 'drip'
 export type CardEdge = 'none' | 'heat' | 'acid' | 'conic' | 'star'
 
 export interface ThemeTokens {
@@ -146,34 +150,38 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     },
     motion: { cycleSeconds: 12, spring: { stiffness: 260, damping: 24 }, travel: 11 }
   },
+  // Toksik (0.3.3). The old skin was a hazard stripe with dots in it. This is a leak: an acid pool
+  // churning at the floor with a foam line running across its surface, strands of ooze hanging from
+  // the ceiling and shedding drops on staggered clocks, a double scan pass, drifting contamination
+  // dust against falling spores, and a film grain so the green never reads as flat neon.
   toxic: {
     key: 'toxic',
     moodKey: 'theme.moodAcid',
     signature: 'pulse',
     ambient: 'acid',
-    glow: ['rgba(126, 217, 87, 0.28)', 'rgba(45, 212, 191, 0.18)'],
-    // Hazard is the signature; bubbles are the next thing a medium machine can afford.
-    layers: ['hazard', 'bubbles', 'scanline', 'vignette'],
+    glow: ['rgba(132, 249, 92, 0.3)', 'rgba(45, 212, 191, 0.2)'],
+    // Sludge is the signature: a machine that can only afford two layers still gets a leaking floor.
+    layers: ['sludge', 'drip', 'hazard', 'bubbles', 'scanline', 'grain', 'vignette'],
     cardEdge: 'acid',
-    parallax: 12,
-    scene: { kind: 'spore', density: 110, palette: ['#a3e635', '#2dd4bf'], speed: 0.55, size: 3, gravity: -0.08, twinkle: true },
-    sceneAlt: null,
-    renewed: false,
+    parallax: 14,
+    scene: { kind: 'spore', density: 120, palette: ['#b6f24a', '#2dd4bf'], speed: 0.6, size: 2.8, gravity: -0.1, twinkle: true },
+    sceneAlt: { kind: 'dust', density: 64, palette: ['#7ea86a', '#d9f99d'], speed: 0.16, size: 1.3, gravity: 0, twinkle: false },
+    renewed: true,
     minimumTierForScene: 'medium',
     tokens: {
-      base: '#07120b',
-      panel: '#0c1c12',
-      panelSoft: '#122819',
-      line: '#1e3d28',
-      ink: '#e8fbe9',
-      mute: '#93b89b',
-      brand: '#7ed957',
-      brandSoft: '#173d21',
+      base: '#04100a',
+      panel: '#0a1d12',
+      panelSoft: '#123020',
+      line: '#22522f',
+      ink: '#eafceb',
+      mute: '#8fb896',
+      brand: '#84f95c',
+      brandSoft: '#14401f',
       danger: '#ff7a7a',
-      warn: '#f5d76e',
-      good: '#4ade80'
+      warn: '#eaff5a',
+      good: '#3ee08a'
     },
-    motion: { cycleSeconds: 8, spring: { stiffness: 380, damping: 26 }, travel: 11 }
+    motion: { cycleSeconds: 7, spring: { stiffness: 380, damping: 26 }, travel: 12 }
   },
   aurora: {
     key: 'aurora',

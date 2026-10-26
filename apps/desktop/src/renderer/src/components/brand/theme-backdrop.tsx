@@ -46,7 +46,10 @@ const TOXIC_BUBBLES = [
   { left: '51%', size: 24, duration: 15, delay: 1.2 },
   { left: '65%', size: 12, duration: 10, delay: 5.3 },
   { left: '78%', size: 34, duration: 19, delay: 3.2 },
-  { left: '90%', size: 20, duration: 14, delay: 6.1 }
+  { left: '90%', size: 20, duration: 14, delay: 6.1 },
+  { left: '26%', size: 9, duration: 9, delay: 7.4 },
+  { left: '44%', size: 38, duration: 21, delay: 8.6 },
+  { left: '72%', size: 11, duration: 12, delay: 9.8 }
 ] as const
 
 /**
@@ -86,6 +89,27 @@ const HEAT_BANDS = [
   { left: '34%', width: '44%', height: 300, duration: 12.5, delay: 2.2 },
   { left: '62%', width: '52%', height: 250, duration: 10.5, delay: 4.1 },
   { left: '12%', width: '38%', height: 180, duration: 8.5, delay: 6 }
+] as const
+
+/**
+ * Ooze strands hanging from the ceiling. Each one sheds a drop on its own clock: a leak that drips in
+ * step reads as a loop, and a loop is what this skin was before.
+ */
+const TOXIC_DRIPS = [
+  { left: '6%', width: 5, length: 96, delay: 0.4, duration: 6.2 },
+  { left: '19%', width: 3, length: 58, delay: 2.8, duration: 5.1 },
+  { left: '34%', width: 6, length: 132, delay: 1.2, duration: 7.4 },
+  { left: '52%', width: 4, length: 76, delay: 3.9, duration: 5.8 },
+  { left: '68%', width: 7, length: 118, delay: 0.9, duration: 8.2 },
+  { left: '84%', width: 3, length: 64, delay: 4.6, duration: 6.6 },
+  { left: '94%', width: 5, length: 88, delay: 2.1, duration: 6.9 }
+] as const
+
+/** Blowholes in the acid pool: where the churn visibly vents. */
+const TOXIC_VENTS = [
+  { left: '14%', size: 120, duration: 7.5, delay: 0 },
+  { left: '46%', size: 170, duration: 9.5, delay: 2.4 },
+  { left: '76%', size: 130, duration: 8.5, delay: 4.2 }
 ] as const
 
 function Layer({ skin, name, still, compact }: { skin: ThemeSkin; name: AmbientLayer; still: boolean; compact: boolean }): ReactNode {
@@ -181,6 +205,89 @@ function Layer({ skin, name, still, compact }: { skin: ThemeSkin; name: AmbientL
             }}
           />
         ))}
+      </span>
+    )
+  }
+
+  if (name === 'sludge') {
+    // The pool is the signature layer, so it survives to the low tier: no blur, still a churning
+    // acid floor. Everything here is transform/opacity or a background-position run — no layout.
+    return (
+      <span className="absolute inset-x-0 bottom-0 h-[42%]">
+        <motion.span
+          className="absolute inset-x-[-10%] bottom-0 h-[26%]"
+          style={{
+            background: `linear-gradient(to top, ${skin.tokens.brand}, ${skin.tokens.brandSoft} 58%, transparent)`,
+            filter: budget.blur ? 'blur(26px)' : undefined,
+            transformOrigin: '50% 100%',
+            opacity: 0.46
+          }}
+          animate={still ? undefined : { scaleY: [1, 1.14, 1.02, 1.18, 1], opacity: [0.36, 0.56, 0.42, 0.58, 0.36] }}
+          transition={{ duration: skin.motion.cycleSeconds, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <span className="toxic-foam absolute inset-x-0" style={{ bottom: compact ? '15%' : '25%', height: 2 }} />
+        {TOXIC_VENTS.map((vent, index) => (
+          <motion.span
+            key={vent.left}
+            className="absolute bottom-[16%] rounded-full"
+            style={{
+              left: vent.left,
+              width: compact ? vent.size * 0.4 : vent.size,
+              height: compact ? vent.size * 0.4 : vent.size,
+              background: `radial-gradient(circle, ${skin.tokens.warn}, transparent 66%)`,
+              filter: budget.blur ? 'blur(24px)' : undefined,
+              opacity: 0.22
+            }}
+            animate={still ? undefined : { scale: [0.8, 1.3, 0.9, 1.2, 0.8], opacity: [0.14, 0.34, 0.2, 0.3, 0.14], y: [0, -12, -4, -18, 0] }}
+            transition={{ duration: vent.duration, delay: vent.delay, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ))}
+        <span
+          className="absolute inset-x-0 bottom-0 h-[60%]"
+          style={{ background: `linear-gradient(to top, ${skin.glow[1]}, transparent 72%)`, opacity: 0.5 }}
+        />
+      </span>
+    )
+  }
+
+  if (name === 'drip') {
+    // CSS keyframes rather than twelve motion components: the drops fall forever and a background
+    // thread should not cost a JS tick per drop.
+    if (still) return null
+    return (
+      <span className="absolute inset-x-0 top-0 h-[70%]">
+        {TOXIC_DRIPS.map((strand) => {
+          const length = compact ? strand.length * 0.35 : strand.length
+          return (
+            <span
+              key={strand.left}
+              className="absolute top-0"
+              style={
+                {
+                  left: strand.left,
+                  width: strand.width,
+                  ['--strand-duration']: `${String(strand.duration)}s`,
+                  ['--drop-delay']: `${String(strand.delay)}s`,
+                  ['--drop-duration']: `${String(strand.duration * 0.55)}s`,
+                  ['--drop-fall']: compact ? '16vh' : '44vh'
+                } as CSSProperties
+              }
+            >
+              <span
+                className="toxic-strand"
+                style={{
+                  width: strand.width,
+                  height: length,
+                  background: `linear-gradient(to bottom, ${skin.tokens.brandSoft}, ${skin.tokens.brand} 62%, ${skin.tokens.warn})`
+                }}
+              />
+              <span
+                className="toxic-drop"
+                style={{ width: strand.width * 1.7, height: strand.width * 2.1, background: skin.tokens.warn }}
+              />
+            </span>
+          )
+        })}
       </span>
     )
   }
@@ -360,8 +467,9 @@ function Layer({ skin, name, still, compact }: { skin: ThemeSkin; name: AmbientL
             animate={{
               y: [0, -((compact ? 70 : 160) + bubble.size * 5)],
               x: [0, index % 2 === 0 ? 14 : -14, 0],
-              opacity: [0, 0.5, 0.55, 0],
-              scale: [0.82, 1, 1.06, 1.1]
+              // The bubble swells and bursts at the top of its rise instead of fading out.
+              opacity: [0, 0.5, 0.58, 0.8, 0],
+              scale: [0.8, 1, 1.08, 1.34, 1.55]
             }}
             transition={{
               duration: compact ? bubble.duration * 0.55 : bubble.duration,
@@ -376,26 +484,50 @@ function Layer({ skin, name, still, compact }: { skin: ThemeSkin; name: AmbientL
   }
 
   if (name === 'hazard') {
+    // Two tapes in two corners, crawling opposite ways: a live cordon instead of a wallpaper stripe.
     return (
-      <span
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `repeating-linear-gradient(45deg, ${skin.tokens.brand} 0 2px, transparent 2px 34px)`,
-          maskImage: 'radial-gradient(ellipse 70% 60% at 100% 0%, #000, transparent 68%)',
-          opacity: 0.07
-        }}
-      />
+      <>
+        <motion.span
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `repeating-linear-gradient(45deg, ${skin.tokens.brand} 0 2px, transparent 2px 34px)`,
+            maskImage: 'radial-gradient(ellipse 70% 60% at 100% 0%, #000, transparent 68%)',
+            opacity: 0.08
+          }}
+          animate={still ? undefined : { backgroundPosition: ['0px 0px', '0px 68px'] }}
+          transition={{ duration: skin.motion.cycleSeconds * 1.6, repeat: Infinity, ease: 'linear' }}
+        />
+        <motion.span
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `repeating-linear-gradient(-45deg, ${skin.tokens.warn} 0 2px, transparent 2px 44px)`,
+            maskImage: 'radial-gradient(ellipse 62% 52% at 0% 100%, #000, transparent 66%)',
+            opacity: 0.05
+          }}
+          animate={still ? undefined : { backgroundPosition: ['0px 0px', '0px -88px'] }}
+          transition={{ duration: skin.motion.cycleSeconds * 2.2, repeat: Infinity, ease: 'linear' }}
+        />
+      </>
     )
   }
 
   if (name === 'scanline') {
+    // One band is a screensaver; two bands crossing each other are an instrument.
     return (
-      <motion.span
-        className="absolute inset-x-0 h-40"
-        style={{ background: `linear-gradient(to bottom, transparent, ${skin.glow[0]}, transparent)`, opacity: 0.3 }}
-        animate={still ? { top: '28%' } : { top: ['-12%', '112%'] }}
-        transition={{ duration: still ? 0.01 : skin.motion.cycleSeconds * 1.6, repeat: still ? 0 : Infinity, ease: 'linear' }}
-      />
+      <>
+        <motion.span
+          className="absolute inset-x-0 h-40"
+          style={{ background: `linear-gradient(to bottom, transparent, ${skin.glow[0]}, transparent)`, opacity: 0.3 }}
+          animate={still ? { top: '28%' } : { top: ['-12%', '112%'] }}
+          transition={{ duration: still ? 0.01 : skin.motion.cycleSeconds * 1.6, repeat: still ? 0 : Infinity, ease: 'linear' }}
+        />
+        <motion.span
+          className="absolute inset-x-0 h-1"
+          style={{ background: `linear-gradient(90deg, transparent, ${skin.tokens.warn}, transparent)`, opacity: 0.34 }}
+          animate={still ? { top: '62%' } : { top: ['108%', '-6%'] }}
+          transition={{ duration: still ? 0.01 : skin.motion.cycleSeconds * 2.4, repeat: still ? 0 : Infinity, ease: 'linear' }}
+        />
+      </>
     )
   }
 
