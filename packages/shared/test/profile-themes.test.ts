@@ -132,3 +132,37 @@ describe('the cosmetic pins 0037 lost (0043)', () => {
     expect(theme).toContain("update public.profiles set profile_theme_key = v_ref")
   })
 })
+
+/**
+ * A re-declared reader silently loses fields: 0040 rewrote `profile_showcase` without `frameKey` and
+ * 0043 copied that shape, so the equip wrote to `profiles.frame_key` while the client parsed a missing
+ * key into `null`. The schema defaults every late field, so nothing threw — it just looked like
+ * equipping was broken. This test is the closed door: the newest declaration has to carry the whole
+ * client contract.
+ */
+describe('the profile reader contract', () => {
+  const latestShowcase = (() => {
+    let body = ''
+    for (const name of readdirSync(migrationsDir).filter((entry) => entry.endsWith('.sql')).sort()) {
+      const text = readFileSync(join(migrationsDir, name), 'utf8')
+      const start = text.indexOf('create or replace function public.profile_showcase')
+      if (start < 0) continue
+      const stop = text.indexOf('$$;', start)
+      body = text.slice(start, stop)
+    }
+    return body.slice(body.lastIndexOf('return jsonb_build_object'))
+  })()
+
+  const emitted = new Set(
+    [...latestShowcase.matchAll(/'([a-zA-Z_]+)'/g)].flatMap((match) => (typeof match[1] === 'string' ? [match[1]] : []))
+  )
+
+  it('emits every field the showcase schema reads', () => {
+    const missing = Object.keys(profileShowcaseSchema.shape).filter((key) => !emitted.has(key))
+    expect(missing).toEqual([])
+  })
+
+  it('sends the equipped frame from the profile row, not from a receipt', () => {
+    expect(latestShowcase).toContain("'frameKey', v_profile.frame_key,")
+  })
+})

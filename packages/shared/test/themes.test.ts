@@ -1,5 +1,12 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_THEME_KEY, THEME_KEYS, THEME_SKINS, TOKEN_VARS, resolveThemeKey, themeSkin } from '../src/domain/themes'
+import { TIER_BUDGETS } from '../src/domain/motion'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const migrationsDir = join(here, '../../../supabase/migrations')
 
 const TOKEN_KEYS = Object.keys(TOKEN_VARS)
 
@@ -23,7 +30,7 @@ describe('theme skins', () => {
     // The wallet swatch reads profile_themes.css {"accent": ...}; a different brand there would show
     // one color in the picker and another on the window.
     expect(THEME_SKINS.default.tokens.brand).toBe('#4c8dff')
-    expect(THEME_SKINS.ember.tokens.brand).toBe('#ff7a45')
+    expect(THEME_SKINS.ember.tokens.brand).toBe('#ff8a3d')
     expect(THEME_SKINS.toxic.tokens.brand).toBe('#7ed957')
   })
 
@@ -62,5 +69,71 @@ describe('theme skins', () => {
     for (const key of THEME_KEYS) {
       expect(themeSkin(key).moodKey.startsWith('theme.mood')).toBe(true)
     }
+  })
+})
+
+/**
+ * 0.3.2 renews one skin instead of tinting it, and the renewal is only real if the layer stack, the
+ * second particle field and the database copy all move together. These tests are the seams between
+ * those three places: the registry, the migration and the two dictionaries.
+ */
+describe('the renewed forge skin (0045)', () => {
+  const forge = readFileSync(join(migrationsDir, '0045_forge_theme_renewal.sql'), 'utf8')
+  const tr = readFileSync(join(here, '../../../apps/desktop/src/renderer/src/i18n/extra-tr.ts'), 'utf8')
+  const en = readFileSync(join(here, '../../../apps/desktop/src/renderer/src/i18n/extra-en.ts'), 'utf8')
+  const skin = THEME_SKINS.ember
+
+  it('stacks more layers than any unrenewed skin', () => {
+    expect(skin.renewed).toBe(true)
+    expect(skin.layers.length).toBeGreaterThan(Math.max(...THEME_KEYS.filter((key) => !THEME_SKINS[key].renewed).map((key) => THEME_SKINS[key].layers.length)))
+    expect(skin.layers.slice(0, 3)).toEqual(['crucible', 'flames', 'coals'])
+    expect(skin.layers).toContain('shimmer')
+  })
+
+  it('runs embers up and ash down in one field', () => {
+    // Gravity is negated into the vertical velocity by the seed, so positive rises and negative falls.
+    expect(skin.scene?.kind).toBe('ember')
+    expect((skin.scene?.gravity ?? 0)).toBeGreaterThan(0)
+    expect(skin.sceneAlt?.kind).toBe('ash')
+    expect((skin.sceneAlt?.gravity ?? 0)).toBeLessThan(0)
+    for (const key of THEME_KEYS.filter((entry) => entry !== 'ember')) {
+      expect(THEME_SKINS[key].sceneAlt, `${key} should not have a second field yet`).toBeNull()
+    }
+  })
+
+  it('has a tier ladder that can actually show the stack', () => {
+    // Declaring seven layers means nothing if the top budget still cuts them to three.
+    expect(TIER_BUDGETS.high.ambientLayers).toBeGreaterThanOrEqual(6)
+    expect(TIER_BUDGETS.medium.ambientLayers).toBeGreaterThanOrEqual(4)
+  })
+
+  it('renames the display name in both languages and keeps the key', () => {
+    expect(tr).toContain("'theme.name.ember': 'Ocak'")
+    expect(en).toContain("'theme.name.ember': 'Forge'")
+    expect(forge).toContain("name_tr = 'Ocak'")
+    expect(forge).toContain("name_en = 'Forge'")
+    expect(forge).toContain("key = 'ember'")
+  })
+
+  it('puts the same accent in the database as the registry paints', () => {
+    expect(forge).toContain(`"${skin.tokens.brand}"`)
+  })
+
+  it('keeps the renewal chip out of the till\'s benefit list', () => {
+    // 'renewed' is marketing. If it ever lands next to the benefit tags, membership products stop selling.
+    expect(forge).toContain("'renewed'")
+    expect(forge).not.toMatch(/v_item\.tag in \([^)]*renewed/)
+    expect(forge).not.toMatch(/coalesce\(p_tag, 'none'\) in \([^)]*renewed/)
+    const till = readFileSync(join(migrationsDir, '0042_vip_membership_is_a_product.sql'), 'utf8')
+    expect(till).toContain("v_item.kind <> 'vip' and v_item.tag in ('vip', 'verified', 'corporate')")
+  })
+
+  it('teaches both the constraint and the editor the new chip', () => {
+    // Two tag vocabularies in the database; a widened CHECK with a narrow editor is a silent 500.
+    const constraint = forge.match(/check \(tag in \(([^)]*)\)/)
+    const editor = forge.match(/p_tag, 'none'\) not in \(([^)]*)\)/)
+    expect(constraint?.[1]).toContain("'renewed'")
+    expect(editor?.[1]).toContain("'renewed'")
+    expect(constraint?.[1]).toBe(editor?.[1])
   })
 })
