@@ -21,7 +21,7 @@ import {
   Tag,
   Wallet
 } from 'lucide-react'
-import { FRAME_SKINS, CORPORATE_BENEFITS, PROFILE_THEME_KEYS, profileThemeSkin, VERIFIED_BENEFITS, VIP_SKU, VIP_TITLE_REF, formatCoin, spendErrorKey, type ThemeKey, type WalletItem } from '@tds/shared'
+import { FRAME_SKINS, CORPORATE_BENEFITS, PROFILE_THEME_KEYS, profileThemeSkin, spendErrorKey, themeSkin, VERIFIED_BENEFITS, VIP_SKU, VIP_TITLE_REF, formatCoin, type ThemeKey, type WalletItem } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
@@ -168,6 +168,15 @@ function TagChip({ tag }: { tag: WalletItem['tag'] }): ReactNode {
       <span className="inline-flex items-center gap-1 rounded-md border border-[#f2c14e]/55 bg-[#f2c14e]/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-[#f2c14e]">
         <Building2 size={9} />
         {t('discover.corporate')}
+      </span>
+    )
+  }
+  if (tag === 'renewed') {
+    // Drawn, not re-shot: the chip carries the same travelling light as the renewed skin's seams.
+    return (
+      <span className="market-tag-renewed inline-flex items-center gap-1 rounded-md border border-warn/55 bg-warn/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-warn">
+        <Flame size={9} />
+        {t('market.tagRenewed')}
       </span>
     )
   }
@@ -743,6 +752,10 @@ export function MarketPage(): ReactNode {
           {themeRows.map((row) => {
             const item = byKind.get('theme')?.find((entry) => entry.refCode === row.key) ?? null
             const active = wallet.theme === row.key
+            // The registry is the truth about how deep a skin goes, so the shelf can say it instead of
+            // implying it: a renewed skin shows its whole layer stack and its full change list.
+            const skin = themeSkin(row.key)
+            const perkCount = skin.renewed ? 5 : 3
             const info = item ? discountInfo(item) : null
             const themePrice = item ? (info?.final ?? item.finalPrice ?? item.price) : 0
             const sale = Boolean(item && info?.cut && item.discountPercent > 0)
@@ -751,6 +764,9 @@ export function MarketPage(): ReactNode {
                 <div className={cn('hud-panel flex h-full flex-col gap-2 p-2.5', active && 'ring-1 ring-inset ring-brand/50', sale && 'market-discount')}>
                   <div className="flex items-center justify-between gap-1">
                     <TagChip tag={item?.tag ?? 'none'} />
+                    {skin.renewed ? (
+                      <Chip tone="warn" icon={Flame}>{t('market.renewedLayers', { count: skin.layers.length })}</Chip>
+                    ) : null}
                   </div>
                   <ThemePreview value={row.key} active={active} detailed />
                   <div className="min-w-0">
@@ -759,7 +775,7 @@ export function MarketPage(): ReactNode {
                   </div>
                   {item && item.perks.length > 0 ? (
                     <ul className="space-y-0.5">
-                      {item.perks.slice(0, 3).map((perk) => (
+                      {item.perks.slice(0, perkCount).map((perk) => (
                         <li key={perk} className="flex items-start gap-1.5 text-[10px] text-mute">
                           <Check size={10} className="mt-0.5 shrink-0 text-good" />
                           <span>{perk}</span>

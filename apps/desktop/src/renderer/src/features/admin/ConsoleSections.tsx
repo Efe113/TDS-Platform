@@ -31,11 +31,9 @@ import { CoinAmount } from '../../components/brand/coin'
 import {
   adjustBalance,
   awardBadge,
-  fetchMaintenanceFlag,
   fetchMemberBadges,
   reconcileBalance,
   revokeBadge,
-  setMaintenance,
   setVip
 } from './admin-api'
 import { relativeTime } from '../../lib/text'
@@ -139,16 +137,6 @@ export function HealthSection(): ReactNode {
     retry: 1
   })
 
-  const maintenanceQuery = useQuery({ queryKey: ['admin', 'maintenance'], queryFn: fetchMaintenanceFlag, retry: 1 })
-  const maintenance = useMutation({
-    mutationFn: (on: boolean) => setMaintenance(on, null),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'maintenance'] })
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'health'] })
-      void queryClient.invalidateQueries({ queryKey: ['wallet'] })
-    }
-  })
-
   const setFlag = useMutation({
     mutationFn: async (input: { key: string; enabled: boolean }) => {
       if (!supabase) throw new Error('SUPABASE_NOT_CONFIGURED')
@@ -180,23 +168,6 @@ export function HealthSection(): ReactNode {
         <Metric index={6} icon={Coins} label={t('admin.healthEarned')} value={<CoinAmount value={health.earned24h} size="md" tone="good" />} hint={t('admin.healthEarnedHint')} />
         <Metric index={7} icon={Activity} label={t('admin.healthQualified')} value={String(health.qualified7d)} hint={t('admin.healthQualifiedHint')} />
       </MetricGrid>
-
-      <Section title={t('admin.maintenanceTitle')} hint={t('admin.maintenanceHint')}>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/70 bg-base/40 px-3 py-2">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[12px] font-medium text-ink">
-              {maintenanceQuery.data ? t('admin.maintenanceOn') : t('admin.maintenanceOff')}
-              <Chip tone={maintenanceQuery.data ? 'warn' : 'good'}>{maintenanceQuery.data ? 'ON' : 'OFF'}</Chip>
-            </p>
-            <p className="text-[10px] leading-relaxed text-mute">{t('admin.maintenanceBody')}</p>
-          </div>
-          <Toggle
-            checked={maintenanceQuery.data === true}
-            onChange={(next) => maintenance.mutate(next)}
-            label={maintenanceQuery.data ? t('admin.disable') : t('admin.enable')}
-          />
-        </div>
-      </Section>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={t('admin.flagsTitle')} hint={t('admin.flagsHint')}>

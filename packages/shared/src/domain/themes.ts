@@ -10,13 +10,34 @@ import type { MotionTier, ParticleScene } from './motion'
  *
  * A skin is judged by what it *does*, not its hue: `ember` moves heat upward, `toxic` scans and
  * pulses, `aurora` flows in ribbons, `void` has depth parallax. That is also why the prices differ.
+ *
+ * `renewed` marks a skin that has been rebuilt to the flagship standard (0.3.2 starts with `ember`,
+ * which is renamed Ocak/Forge at the same time). A renewed skin declares a much longer layer stack and
+ * a second particle field, and the shelf says so with the `renewed` tag — which is a marketing chip,
+ * never an entitlement, so the till must keep ignoring it.
  */
 
 export const THEME_KEYS = ['default', 'ember', 'toxic', 'aurora', 'void'] as const
 export type ThemeKey = (typeof THEME_KEYS)[number]
 
 export type SkinSignature = 'drift' | 'rise' | 'pulse' | 'flow' | 'bloom'
-export type AmbientLayer = 'mesh' | 'ribbons' | 'grain' | 'vignette' | 'scanline' | 'hazard' | 'grid' | 'flames' | 'bubbles' | 'smoke'
+export type AmbientLayer =
+  | 'mesh'
+  | 'ribbons'
+  | 'grain'
+  | 'vignette'
+  | 'scanline'
+  | 'hazard'
+  | 'grid'
+  | 'flames'
+  | 'bubbles'
+  | 'smoke'
+  /** The molten bath at the floor of a forge, with the bright seam that travels along it. */
+  | 'crucible'
+  /** Individual coal chips, each pulsing on its own phase instead of one shared blink. */
+  | 'coals'
+  /** Heat distortion read as soft-light bands climbing the frame. */
+  | 'shimmer'
 export type CardEdge = 'none' | 'heat' | 'acid' | 'conic' | 'star'
 
 export interface ThemeTokens {
@@ -44,6 +65,13 @@ export interface ThemeSkin {
   /** Pointer parallax in pixels, before the tier clamps it. */
   parallax: number
   scene: ParticleScene | null
+  /**
+   * A second field on the same canvas. `ember` needs it: ash falling from above against embers
+   * rising from below is what makes the floor read as a fire rather than as an orange gradient.
+   */
+  sceneAlt: ParticleScene | null
+  /** Rebuilt to the flagship standard — drives the longer layer stack, the preview and the shelf chip. */
+  renewed: boolean
   /** What the tier still allows on a weak machine, so the skin keeps its identity without particles. */
   minimumTierForScene: MotionTier
   tokens: ThemeTokens
@@ -68,6 +96,8 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     cardEdge: 'none',
     parallax: 10,
     scene: null,
+    sceneAlt: null,
+    renewed: false,
     minimumTierForScene: 'medium',
     tokens: {
       base: '#060a12',
@@ -84,32 +114,37 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     },
     motion: { cycleSeconds: 26, spring: { stiffness: 320, damping: 34 }, travel: 7 }
   },
+  // Ocak / Forge (0.3.2). The old `ember` was a fire gradient with dots rising through it. This is a
+  // forge: a molten bath that breathes at the floor, a bright seam that travels along it, coal chips
+  // each cooling on their own clock, heat shimmer climbing the frame, smoke, and ash falling from
+  // above while embers rise from below. Seven layers deep, so a weak machine still gets the bath.
   ember: {
     key: 'ember',
     moodKey: 'theme.moodWarm',
     signature: 'rise',
     ambient: 'ember',
-    glow: ['rgba(255, 106, 43, 0.3)', 'rgba(255, 179, 71, 0.18)'],
-    layers: ['flames', 'smoke', 'vignette', 'mesh'],
+    glow: ['rgba(255, 122, 47, 0.34)', 'rgba(255, 209, 102, 0.22)'],
+    layers: ['crucible', 'flames', 'coals', 'shimmer', 'smoke', 'mesh', 'vignette'],
     cardEdge: 'heat',
-    parallax: 12,
-    // The flame veil is the layer, not the particles: on the low tier the window still burns.
-    scene: { kind: 'ember', density: 130, palette: ['#ff5a1f', '#ffd88a'], speed: 1.35, size: 2.4, gravity: 0.7, twinkle: true },
+    parallax: 16,
+    scene: { kind: 'ember', density: 150, palette: ['#ff5a1f', '#ffd88a'], speed: 1.4, size: 2.2, gravity: 0.75, twinkle: true },
+    sceneAlt: { kind: 'ash', density: 54, palette: ['#9c8b81', '#4a3a31'], speed: 0.45, size: 1.4, gravity: -0.3, twinkle: false },
+    renewed: true,
     minimumTierForScene: 'medium',
     tokens: {
-      base: '#100a07',
-      panel: '#1a110b',
-      panelSoft: '#241711',
-      line: '#3b2418',
-      ink: '#f7ece4',
-      mute: '#c2a291',
-      brand: '#ff7a45',
-      brandSoft: '#3a1c0e',
-      danger: '#ff5c5c',
-      warn: '#ffc061',
-      good: '#7fd08c'
+      base: '#0b0605',
+      panel: '#17100a',
+      panelSoft: '#241610',
+      line: '#3f2417',
+      ink: '#f9ede3',
+      mute: '#c69d82',
+      brand: '#ff8a3d',
+      brandSoft: '#3f1c0a',
+      danger: '#ff5f57',
+      warn: '#ffd166',
+      good: '#8fd08a'
     },
-    motion: { cycleSeconds: 12, spring: { stiffness: 260, damping: 24 }, travel: 10 }
+    motion: { cycleSeconds: 12, spring: { stiffness: 260, damping: 24 }, travel: 11 }
   },
   toxic: {
     key: 'toxic',
@@ -122,6 +157,8 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     cardEdge: 'acid',
     parallax: 12,
     scene: { kind: 'spore', density: 110, palette: ['#a3e635', '#2dd4bf'], speed: 0.55, size: 3, gravity: -0.08, twinkle: true },
+    sceneAlt: null,
+    renewed: false,
     minimumTierForScene: 'medium',
     tokens: {
       base: '#07120b',
@@ -148,6 +185,8 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     cardEdge: 'conic',
     parallax: 14,
     scene: { kind: 'ribbon', density: 6, palette: ['#38bdf8', '#818cf8'], speed: 0.45, size: 1.6, gravity: 0, twinkle: false },
+    sceneAlt: null,
+    renewed: false,
     minimumTierForScene: 'medium',
     tokens: {
       base: '#060a18',
@@ -174,6 +213,8 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     cardEdge: 'star',
     parallax: 18,
     scene: { kind: 'star', density: 140, palette: ['#e2e8ff', '#a78bfa'], speed: 0.25, size: 1.5, gravity: 0, twinkle: true },
+    sceneAlt: null,
+    renewed: false,
     minimumTierForScene: 'medium',
     tokens: {
       base: '#04050a',

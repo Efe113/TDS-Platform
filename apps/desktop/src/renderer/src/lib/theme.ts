@@ -22,6 +22,9 @@ export function applyTheme(value: string | null | undefined): ThemeSkin {
   // component having to know which skin is active.
   root.dataset.edge = skin.cardEdge
   root.dataset.signature = skin.signature
+  // Renewed skins get the heavy chrome (molten card seams, rail trails, name burn). The flag is on
+  // the root so the stylesheet keys off capability, not off a list of theme names it would drift from.
+  root.dataset.renewed = skin.renewed ? 'on' : 'off'
 
   return skin
 }

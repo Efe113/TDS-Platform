@@ -8,7 +8,7 @@ import { navigate, routeSegments, useRoutePath } from '../../lib/router'
 import { useIpcEvent } from '../../lib/events'
 import { call, IpcError } from '../../lib/ipc'
 import { useAppStore } from '../../store/app-store'
-import { initAuth, selectSignedIn, useAuth } from '../../store/auth-store'
+import { initAuth, selectRole, selectSignedIn, useAuth } from '../../store/auth-store'
 import { cn } from '../../components/ui'
 import { SideNav } from './SideNav'
 import { TitleBar } from './TitleBar'
@@ -32,7 +32,8 @@ import { AboutPage } from '../about/AboutPage'
 import { ConsentGate } from '../legal/ConsentGate'
 import { ComingSoonPage } from '../milestone/ComingSoonPage'
 import { fetchWallet } from '../../lib/wallet-api'
-import { fetchMaintenanceFlag } from '../admin/admin-api'
+import { fetchMaintenance } from '../admin/admin-api'
+import { MaintenanceBanner, MaintenanceGate } from './MaintenanceSurface'
 import { applyTheme } from '../../lib/theme'
 import { ThemeBackdrop } from '../../components/brand/theme-backdrop'
 import { MotionProvider } from '../../motion/context'
@@ -162,10 +163,15 @@ export function App(): ReactNode {
   // operator flips it while the app is open.
   const maintenanceQuery = useQuery({
     queryKey: ['maintenance'],
-    queryFn: fetchMaintenanceFlag,
+    queryFn: fetchMaintenance,
     refetchInterval: 60_000,
     retry: false
   })
+  const maintenance = maintenanceQuery.data ?? null
+  // Staff see the band but never the gate: the person who can lift maintenance must not be locked out
+  // of the console that lifts it.
+  const staffRole = useAuth(selectRole)
+  const staff = staffRole === 'admin' || staffRole === 'moderator'
 
   // Two segments deep, so moving between two strategies swaps the screen the same way a new section does.
   const swapKey = routeSegments(path).slice(0, 2).join('/') || 'home'
@@ -192,11 +198,8 @@ export function App(): ReactNode {
             <div className="border-b border-danger/40 bg-danger/10 px-4 py-2 text-sm text-danger">{t('app.bridgeMissing')}</div>
           ) : null}
 
-          {maintenanceQuery.data ? (
-            <div className="flex items-center gap-2 border-b border-warn/40 bg-warn/10 px-4 py-2 text-[12px] text-warn">
-              <span className="size-1.5 shrink-0 rounded-full bg-warn" />
-              {t('app.maintenanceBanner')}
-            </div>
+          {maintenance !== null && (maintenance.on || maintenance.scheduled) ? (
+            <MaintenanceBanner state={maintenance} />
           ) : null}
 
           <main ref={mainRef} className={cn('min-w-0 flex-1 overflow-y-auto px-6 py-5')}>
@@ -206,6 +209,12 @@ export function App(): ReactNode {
               </ConsentGate>
             </div>
           </main>
+
+          {/* Outside the scroll container on purpose: an absolute child of an `overflow-y-auto` box
+              positions against it and drifts when the page is scrolled partway down. */}
+          {maintenance !== null && maintenance.on && maintenance.mode === 'locked' ? (
+            <MaintenanceGate state={maintenance} staff={staff} />
+          ) : null}
         </div>
 
         <RunRail />

@@ -79,7 +79,9 @@ function DetailedPreview({ skin }: { skin: ThemeSkin }): ReactNode {
   return (
     <>
       <div aria-hidden className="absolute inset-0 overflow-hidden">
-        <SkinLayers skin={skin} cap={2} />
+        {/* A renewed skin is judged by its stack, so the miniature paints the stack rather than a
+            two-layer taste of it. */}
+        <SkinLayers skin={skin} cap={skin.renewed ? 4 : 2} />
       </div>
       <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-base/65 via-base/5 to-base/25" />
       {skin.signature === 'pulse' ? <span aria-hidden className="theme-preview-scan" /> : null}
@@ -217,6 +219,7 @@ export function ThemePreview({
         'relative overflow-hidden border bg-base',
         full ? 'h-24 rounded-xl' : 'h-9 rounded-lg',
         active ? 'border-brand ring-1 ring-brand/40' : 'border-line',
+        skin.renewed && 'theme-preview--renewed',
         className
       )}
       style={skinStyle(skin)}

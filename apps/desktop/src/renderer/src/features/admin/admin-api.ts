@@ -12,7 +12,10 @@ import {
   towerCatalogRowSchema,
   unmatchedRowSchema,
   versionSnapshotSchema,
+  maintenanceState,
   type AuditRow,
+  type MaintenanceMode,
+  type MaintenanceState,
   type MemberBadgeRow,
   type QueueRow,
   type ReviewDecision,
@@ -628,19 +631,40 @@ export async function deleteBadgeDefinition(code: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-/** The maintenance switch the Health panel flips; read back through the same flag table. */
-export async function fetchMaintenanceFlag(): Promise<boolean> {
+/**
+ * Maintenance is read straight off the flag row (app_flags is public-select) and evaluated by the
+ * shared rule, which is the same window arithmetic the server runs inside its trigger. One row, one
+ * rule, no RPC needed for a status the whole app has to agree on.
+ */
+export async function fetchMaintenance(): Promise<MaintenanceState> {
   const db = requireDb()
   const { data, error } = await db.from('app_flags').select('value').eq('key', 'maintenance_mode').maybeSingle()
   if (error) throw new Error(error.message)
-  const value = (data as { value?: { enabled?: boolean } } | null)?.value
-  return value?.enabled === true
+  return maintenanceState((data as { value?: unknown } | null)?.value, Date.now())
 }
 
-export async function setMaintenance(on: boolean, note: string | null): Promise<void> {
+export interface MaintenanceInput {
+  on: boolean
+  mode: MaintenanceMode
+  title: string | null
+  note: string | null
+  startsAt: string | null
+  endsAt: string | null
+}
+
+/** The RPC owns the flag row, so turning maintenance on is one audited write instead of an edit. */
+export async function setMaintenance(input: MaintenanceInput): Promise<MaintenanceState> {
   const db = requireDb()
-  const { error } = await db.rpc('admin_set_maintenance', { p_on: on, p_note: note })
+  const { error } = await db.rpc('admin_set_maintenance', {
+    p_on: input.on,
+    p_mode: input.mode,
+    p_title: input.title,
+    p_note: input.note,
+    p_starts_at: input.startsAt,
+    p_ends_at: input.endsAt
+  })
   if (error) throw new Error(error.message)
+  return fetchMaintenance()
 }
 
 export function parseAlias(value: string): string[] {

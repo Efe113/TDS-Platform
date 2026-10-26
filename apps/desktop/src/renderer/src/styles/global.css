@@ -375,7 +375,173 @@ html.overlay-root ::-webkit-scrollbar {
   box-shadow: 0 0 26px -6px color-mix(in oklab, var(--color-brand) 85%, transparent);
 }
 
+/*
+ * Renewed-skin chrome (0.3.2). Keyed off data-renewed, which applyTheme writes, and painted only from
+ * the theme tokens - so the same rule reads molten under Ocak and acidic under a later renewal instead
+ * of needing a per-theme copy of every surface. A renewed skin treats the whole window: the floor, the
+ * card edges, the rail, the scrollbar, the name and the focus ring.
+ */
+
+/* The bright seam that runs along the top of the molten bath. */
+@keyframes forge-seam-run {
+  from { background-position: 0% 0; }
+  to { background-position: -220% 0; }
+}
+
+.forge-seam {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--color-brand) 70%, transparent) 8%,
+    var(--color-warn) 15%,
+    color-mix(in oklab, #fff 55%, var(--color-warn)) 19%,
+    var(--color-brand) 27%,
+    transparent 46%,
+    color-mix(in oklab, var(--color-brand) 60%, transparent) 60%,
+    var(--color-warn) 71%,
+    color-mix(in oklab, var(--color-brand) 55%, transparent) 84%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  opacity: 0.8;
+  filter: blur(0.4px);
+  animation: forge-seam-run calc(var(--skin-cycle, 12s) * 1.4) linear infinite;
+}
+
+/* A coal cooling on its own clock, and the rare one that catches. */
+@keyframes forge-coal-pulse {
+  0%, 100% { opacity: 0.18; transform: scale(0.86); }
+  38% { opacity: 0.9; transform: scale(1.12); }
+  62% { opacity: 0.44; transform: scale(0.96); }
+}
+
+@keyframes forge-coal-flare {
+  0%, 84%, 100% { opacity: 0; transform: scale(0.5); }
+  88% { opacity: 1; transform: scale(2.6); }
+  93% { opacity: 0.35; transform: scale(1.4); }
+}
+
+.forge-coal {
+  position: absolute;
+  border-radius: 999px;
+  animation: forge-coal-pulse var(--coal-duration, 5s) ease-in-out var(--coal-delay, 0s) infinite;
+}
+
+.forge-coal--flare {
+  animation: forge-coal-flare var(--coal-duration, 5s) ease-out var(--coal-delay, 0s) infinite;
+}
+
+/* A band of travelling light around every card, plus the scorch rising from its floor. */
+@keyframes forge-card-scorch {
+  0%, 100% { opacity: 0.5; transform: translateY(1px); }
+  50% { opacity: 0.85; transform: translateY(-1px); }
+}
+
+[data-renewed='on'] [data-slot='card'] {
+  position: relative;
+  background-image:
+    linear-gradient(to top, color-mix(in oklab, var(--color-brand) 13%, transparent), transparent 38%),
+    radial-gradient(ellipse 90% 70% at 50% 118%, color-mix(in oklab, var(--color-warn) 12%, transparent), transparent 64%);
+}
+
+[data-renewed='on'] [data-slot='card']::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--edge-angle, 0deg),
+    transparent 0 58%,
+    color-mix(in oklab, var(--color-brand) 60%, transparent) 70%,
+    color-mix(in oklab, var(--color-warn) 85%, var(--color-brand)) 78%,
+    transparent 92%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.85;
+  animation: skin-edge-turn 9s linear infinite;
+  pointer-events: none;
+}
+
+[data-renewed='on'] .hud-panel {
+  background-image:
+    linear-gradient(to top, color-mix(in oklab, var(--color-brand) 9%, transparent), transparent 42%),
+    radial-gradient(ellipse 120% 60% at 50% 120%, color-mix(in oklab, var(--color-warn) 8%, transparent), transparent 70%);
+}
+
+[data-renewed='on'] .hud-panel::after {
+  animation-name: forge-card-scorch;
+  animation-duration: 4.6s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* The rail's active pill throws a spark upward every few seconds. */
+@keyframes forge-pill-spark {
+  0%, 70%, 100% { opacity: 0; transform: translateY(140%) scale(0.7); }
+  76% { opacity: 1; transform: translateY(40%) scale(1); }
+  92% { opacity: 0; transform: translateY(-90%) scale(0.8); }
+}
+
+[data-renewed='on'] [data-skin-part='active-pill'] {
+  position: relative;
+}
+
+[data-renewed='on'] [data-skin-part='active-pill']::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: 2px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in oklab, #fff 40%, var(--color-warn));
+  box-shadow: 0 0 8px 1px color-mix(in oklab, var(--color-warn) 70%, transparent);
+  animation: forge-pill-spark 7.5s ease-in 1.4s infinite;
+  pointer-events: none;
+}
+
+[data-renewed='on'] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-brand) 60%, transparent),
+    color-mix(in oklab, var(--color-warn) 45%, var(--color-brand))
+  );
+  border-radius: 999px;
+}
+
+[data-renewed='on'] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--color-brand), var(--color-warn));
+}
+
+[data-renewed='on'] :focus-visible {
+  outline-color: color-mix(in oklab, var(--color-warn) 70%, var(--color-brand));
+}
+
+/* The name burns instead of sitting flat, and the handle picks up the heat underneath it. */
+@keyframes forge-name-burn {
+  0%, 100% { text-shadow: 0 0 18px -6px color-mix(in oklab, var(--color-brand) 60%, transparent); }
+  50% { text-shadow: 0 0 26px -2px color-mix(in oklab, var(--color-warn) 65%, transparent); }
+}
+
+[data-renewed='on'] .profile-card__name {
+  animation: forge-name-burn calc(var(--skin-cycle, 12s) * 0.75) ease-in-out infinite;
+}
+
+[data-renewed='on'] .profile-card__handle {
+  color: color-mix(in oklab, var(--color-brand) 55%, var(--color-mute));
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .forge-seam,
+  .forge-coal,
+  .forge-coal--flare,
+  [data-renewed='on'] [data-slot='card']::after,
+  [data-renewed='on'] .hud-panel::after,
+  [data-renewed='on'] [data-skin-part='active-pill']::after,
+  [data-renewed='on'] .profile-card__name,
   [data-theme='ember'] [data-skin-part='progress'],
   [data-theme='ember'] [data-skin-part='active-pill'],
   [data-theme='ember'] [data-skin-part='header']::before,
@@ -1648,6 +1814,70 @@ html.overlay-root ::-webkit-scrollbar {
   .market-discount {
     animation: none;
     box-shadow: 0 0 0 1px color-mix(in oklab, #ffc85a 55%, transparent);
+  }
+}
+
+/* A renewed product carries the same travelling light as the seams of the skin it belongs to. */
+@keyframes market-tag-renewed-run {
+  from { background-position: 0% 50%; }
+  to { background-position: 200% 50%; }
+}
+
+.market-tag-renewed {
+  background-image: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--color-warn) 14%, transparent) 0%,
+    color-mix(in oklab, #fff 22%, transparent) 22%,
+    color-mix(in oklab, var(--color-warn) 14%, transparent) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: market-tag-renewed-run 4.6s linear infinite;
+}
+
+.theme-preview--renewed {
+  border-color: color-mix(in oklab, var(--color-warn) 40%, var(--color-line));
+}
+
+.theme-preview--renewed::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-warn) 85%, var(--color-brand)) 28%,
+    color-mix(in oklab, #fff 45%, var(--color-warn)) 36%,
+    color-mix(in oklab, var(--color-brand) 80%, transparent) 58%,
+    transparent
+  );
+  background-size: 220% 100%;
+  animation: forge-seam-run 6s linear infinite;
+  pointer-events: none;
+}
+
+/* Maintenance band: the dot is the status, so a glance says frozen-or-not without reading. */
+@keyframes maintenance-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-warn) 55%, transparent); }
+  55% { box-shadow: 0 0 0 5px transparent; }
+}
+
+.maintenance-pulse {
+  animation: maintenance-pulse 2.4s ease-out infinite;
+}
+
+.maintenance-banner,
+.maintenance-gate {
+  backdrop-filter: blur(10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-tag-renewed,
+  .maintenance-pulse,
+  .theme-preview--renewed::after {
+    animation: none;
   }
 }
 

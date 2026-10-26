@@ -33,10 +33,15 @@ export interface MotionBudget {
   glow: boolean
 }
 
+/**
+ * Layer headroom, not layer count: a skin declares the stack it wants and the tier cuts the tail.
+ * A renewed skin (0.3.2's `ember`) names six or seven layers, so the ladder has to have room for them
+ * or the flagship would render the same three as the free skin.
+ */
 export const TIER_BUDGETS: Record<MotionTier, MotionBudget> = {
-  low: { particles: 0, blur: false, ambientLayers: 1, parallax: 0, staggerMs: 0, enterMs: 140, pressScale: 1, glow: false },
-  medium: { particles: 44, blur: true, ambientLayers: 2, parallax: 6, staggerMs: 26, enterMs: 240, pressScale: 0.985, glow: false },
-  high: { particles: 130, blur: true, ambientLayers: 3, parallax: 14, staggerMs: 40, enterMs: 320, pressScale: 0.97, glow: true }
+  low: { particles: 0, blur: false, ambientLayers: 2, parallax: 0, staggerMs: 0, enterMs: 140, pressScale: 1, glow: false },
+  medium: { particles: 44, blur: true, ambientLayers: 4, parallax: 6, staggerMs: 26, enterMs: 240, pressScale: 0.985, glow: false },
+  high: { particles: 130, blur: true, ambientLayers: 6, parallax: 14, staggerMs: 40, enterMs: 320, pressScale: 0.97, glow: true }
 }
 
 export interface HardwareHints {
@@ -117,7 +122,7 @@ export function clampParticles(requested: number, budget: MotionBudget): number 
   return Math.max(0, Math.min(requested, budget.particles))
 }
 
-export const PARTICLE_KINDS = ['ember', 'spore', 'star', 'dust', 'ribbon'] as const
+export const PARTICLE_KINDS = ['ember', 'spore', 'star', 'dust', 'ribbon', 'ash', 'spark'] as const
 export type ParticleKind = (typeof PARTICLE_KINDS)[number]
 
 /**
@@ -132,7 +137,7 @@ export interface ParticleScene {
   speed: number
   /** Base radius in CSS pixels. */
   size: number
-  /** -1 rises, 0 floats, 1 falls. */
+  /** Positive rises, negative falls, 0 floats — `seed` negates it into the vertical velocity. */
   gravity: number
   twinkle: boolean
 }

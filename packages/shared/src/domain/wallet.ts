@@ -69,7 +69,7 @@ export const walletItemSchema = z.object({
    * older installed client. A rejected array here blanks the entire Market page, which is what happened
    * when 0037 introduced `verified` for clients built before it existed.
    */
-  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified', 'corporate']).catch('none'),
+  tag: z.enum(['none', 'new', 'soon', 'vip', 'verified', 'corporate', 'renewed']).catch('none'),
   owned: z.boolean().default(false)
 })
 

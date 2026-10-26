@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { storageUrl, type AmbientLayer, type ThemeSkin } from '@tds/shared'
+import { storageUrl, type AmbientLayer, type ParticleScene, type ThemeSkin } from '@tds/shared'
 import { useMotion } from '../../motion/context'
 import { drift } from '../../motion/presets'
 import { ParticleField } from '../../motion/primitives/ParticleField'
@@ -49,9 +49,141 @@ const TOXIC_BUBBLES = [
   { left: '90%', size: 20, duration: 14, delay: 6.1 }
 ] as const
 
+/**
+ * The coal bed. Every chip carries its own clock, size and depth so the floor cools in places instead
+ * of blinking as one sheet. Three of them are flare pops: a coal that catches, not the whole fire.
+ */
+interface Coal {
+  left: string
+  bottom: string
+  size: number
+  duration: number
+  delay: number
+  hot: boolean
+  flare?: boolean
+}
+
+const FORGE_COALS: Coal[] = [
+  { left: '3%', bottom: '1%', size: 7, duration: 5.4, delay: 0, hot: true },
+  { left: '9%', bottom: '4%', size: 4, duration: 3.8, delay: 1.2, hot: false },
+  { left: '16%', bottom: '0%', size: 9, duration: 6.6, delay: 0.6, hot: true },
+  { left: '23%', bottom: '6%', size: 3, duration: 2.9, delay: 2.1, hot: false, flare: true },
+  { left: '31%', bottom: '2%', size: 6, duration: 4.7, delay: 0.3, hot: true },
+  { left: '38%', bottom: '8%', size: 4, duration: 5.9, delay: 1.8, hot: false },
+  { left: '46%', bottom: '1%', size: 10, duration: 7.2, delay: 0.9, hot: true },
+  { left: '54%', bottom: '5%', size: 5, duration: 4.1, delay: 2.6, hot: true },
+  { left: '61%', bottom: '0%', size: 8, duration: 6.1, delay: 0.2, hot: false },
+  { left: '68%', bottom: '7%', size: 3, duration: 3.3, delay: 1.5, hot: true, flare: true },
+  { left: '75%', bottom: '2%', size: 7, duration: 5.1, delay: 0.8, hot: true },
+  { left: '83%', bottom: '5%', size: 4, duration: 4.4, delay: 2.9, hot: false },
+  { left: '90%', bottom: '1%', size: 9, duration: 6.8, delay: 0.4, hot: true },
+  { left: '96%', bottom: '6%', size: 3, duration: 3.1, delay: 1.9, hot: true, flare: true }
+]
+
+/** Four bands at different widths and speeds, so the shimmer never reads as one moving stripe. */
+const HEAT_BANDS = [
+  { left: '-6%', width: '58%', height: 220, duration: 9.5, delay: 0 },
+  { left: '34%', width: '44%', height: 300, duration: 12.5, delay: 2.2 },
+  { left: '62%', width: '52%', height: 250, duration: 10.5, delay: 4.1 },
+  { left: '12%', width: '38%', height: 180, duration: 8.5, delay: 6 }
+] as const
+
 function Layer({ skin, name, still, compact }: { skin: ThemeSkin; name: AmbientLayer; still: boolean; compact: boolean }): ReactNode {
   const { budget } = useMotion()
   const animation = drift(budget, 60)
+
+  if (name === 'crucible') {
+    // The bath breathes on transform/opacity only and the seam is a CSS background-position run, so
+    // the signature layer costs no layout. On the low tier the blur drops but the shape stays.
+    return (
+      <span className="absolute inset-x-0 bottom-0 h-[46%]">
+        <motion.span
+          className="absolute inset-x-[-12%] bottom-0 h-[30%]"
+          style={{
+            background: `linear-gradient(to top, ${skin.tokens.warn}, ${skin.tokens.brand} 34%, transparent)`,
+            filter: budget.blur ? 'blur(26px)' : undefined,
+            transformOrigin: '50% 100%',
+            opacity: 0.5
+          }}
+          animate={still ? undefined : { scaleY: [1, 1.16, 1.05, 1.2, 1], opacity: [0.4, 0.62, 0.48, 0.64, 0.4] }}
+          transition={{ duration: skin.motion.cycleSeconds, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <span className="forge-seam absolute inset-x-0" style={{ bottom: compact ? '16%' : '26%', height: 2 }} />
+        <span
+          className="absolute inset-x-0 bottom-0 h-[18%]"
+          style={{ background: `linear-gradient(to top, ${skin.glow[0]}, transparent 78%)`, opacity: 0.55 }}
+        />
+        {[0, 1].map((index) => (
+          <motion.span
+            key={index}
+            className="absolute bottom-[14%] size-40 rounded-full"
+            style={{
+              left: index === 0 ? '12%' : '62%',
+              background: `radial-gradient(circle, ${skin.tokens.warn}, transparent 68%)`,
+              filter: budget.blur ? 'blur(34px)' : undefined,
+              opacity: 0.3
+            }}
+            animate={still ? undefined : { scale: [0.9, 1.25, 0.95, 1.15, 0.9], opacity: [0.22, 0.4, 0.26, 0.38, 0.22] }}
+            transition={{ duration: skin.motion.cycleSeconds * (1.3 + index * 0.5), repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ))}
+      </span>
+    )
+  }
+
+  if (name === 'coals') {
+    const coals = compact ? FORGE_COALS.filter((coal) => coal.hot || coal.flare) : FORGE_COALS
+    return (
+      <span className="absolute inset-x-0 bottom-0 h-[30%]">
+        {coals.map((coal) => (
+          <span
+            key={coal.left}
+            className={coal.flare ? 'forge-coal forge-coal--flare' : 'forge-coal'}
+            style={
+              {
+                left: coal.left,
+                bottom: coal.bottom,
+                width: compact ? coal.size * 0.6 : coal.size,
+                height: compact ? coal.size * 0.6 : coal.size,
+                background: coal.hot ? skin.tokens.warn : skin.tokens.brand,
+                ['--coal-duration']: `${String(coal.duration)}s`,
+                ['--coal-delay']: `${String(coal.delay)}s`
+              } as CSSProperties
+            }
+          />
+        ))}
+      </span>
+    )
+  }
+
+  if (name === 'shimmer') {
+    if (still) return null
+    return (
+      <span className="absolute inset-0 overflow-hidden">
+        {HEAT_BANDS.map((band, index) => (
+          <motion.span
+            key={band.left}
+            className="absolute bottom-[-30%] rounded-full"
+            style={{
+              left: band.left,
+              width: band.width,
+              height: compact ? band.height * 0.4 : band.height,
+              background: `linear-gradient(to top, ${skin.glow[1]}, transparent 72%)`,
+              mixBlendMode: 'soft-light',
+              filter: budget.blur ? 'blur(18px)' : undefined
+            }}
+            animate={{ y: [0, -((compact ? 60 : 260) + index * 24)], scaleX: [1, 1.14, 0.94, 1.08, 1], opacity: [0, 0.6, 0.45, 0] }}
+            transition={{
+              duration: compact ? band.duration * 0.5 : band.duration,
+              delay: compact ? band.delay * 0.4 : band.delay,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }}
+          />
+        ))}
+      </span>
+    )
+  }
 
   if (name === 'flames') {
     return (
@@ -279,13 +411,14 @@ export function SkinLayers({ skin, cap }: { skin: ThemeSkin; cap?: number }): Re
   const still = reduced === true
   const { budget } = useMotion()
   const layers = skin.layers.slice(0, Math.max(1, cap ?? budget.ambientLayers))
+  const scenes = [skin.scene, skin.sceneAlt].filter((entry): entry is ParticleScene => entry !== null)
 
   return (
     <>
       {layers.map((layer) => (
         <Layer key={layer} skin={skin} name={layer} still={still} compact={cap !== undefined} />
       ))}
-      <ParticleField scene={skin.scene} countCap={cap === undefined ? undefined : Math.max(6, cap * 4)} />
+      <ParticleField scenes={scenes} countCap={cap === undefined ? undefined : Math.max(6, cap * 4)} />
     </>
   )
 }

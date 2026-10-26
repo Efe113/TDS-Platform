@@ -118,7 +118,7 @@ export function ProfileCard({ profile, compact = false, actions, className }: Pr
         </div>
 
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className={cn('min-w-0 break-words font-semibold text-ink', compact ? 'text-[14px]' : 'text-lg leading-tight')}>
+          <span className={cn('profile-card__name min-w-0 break-words font-semibold text-ink', compact ? 'text-[14px]' : 'text-lg leading-tight')}>
             {profile.displayName ?? `@${profile.handle}`}
           </span>
           {profile.pronouns ? <span className="text-[11px] text-mute">{profile.pronouns}</span> : null}
@@ -126,7 +126,7 @@ export function ProfileCard({ profile, compact = false, actions, className }: Pr
           {titleName !== null ? <TitleBadge label={titleName} refCode={profile.titleKey} size="sm" /> : null}
         </p>
 
-        <p className="truncate font-mono text-[11px] text-mute">{`@${profile.handle}`}</p>
+        <p className="profile-card__handle truncate font-mono text-[11px] text-mute">{`@${profile.handle}`}</p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {marks.map((mark) => mark.node)}
