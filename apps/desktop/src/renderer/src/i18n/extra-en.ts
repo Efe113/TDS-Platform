@@ -1289,7 +1289,7 @@ export const extraEn: Record<ExtraKey, string> = {
   'theme.feat.toxic1': 'Scanning band in the header',
   'theme.feat.toxic2': 'Pulsing active item',
   'theme.feat.toxic3': 'Hazard stripe texture',
-  'theme.moodAurora': 'Polar · flowing bands',
+  'theme.moodAurora': 'Polar · light curtain',
   'theme.moodVoid': 'Void · depth',
   'theme.feat.aurora1': 'Flowing ribbon layers',
   'theme.feat.aurora2': 'Conic shimmer on card edges',

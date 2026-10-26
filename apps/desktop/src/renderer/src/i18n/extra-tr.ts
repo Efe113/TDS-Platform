@@ -1291,7 +1291,7 @@ export const extraTr = {
   'theme.feat.toxic1': 'Başlıkta tarama bandı',
   'theme.feat.toxic2': 'Nabız gibi atan aktif öğe',
   'theme.feat.toxic3': 'Tehlike şeridi doku',
-  'theme.moodAurora': 'Kutup · akan bantlar',
+  'theme.moodAurora': 'Kutup · ışık perdesi',
   'theme.moodVoid': 'Boşluk · derinlik',
   'theme.feat.aurora1': 'Akan kurdele katmanları',
   'theme.feat.aurora2': 'Kart kenarında konik parlama',

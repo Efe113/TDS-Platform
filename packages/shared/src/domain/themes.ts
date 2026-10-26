@@ -42,6 +42,10 @@ export type AmbientLayer =
   | 'sludge'
   /** Viscous strands hanging from the ceiling, each shedding a drop on its own clock. */
   | 'drip'
+  /** Vertical curtains of coloured light that wave on their own clocks, under a fading mask. */
+  | 'curtain'
+  /** A cold horizon line with light pollution welling up from below it. */
+  | 'horizon'
 export type CardEdge = 'none' | 'heat' | 'acid' | 'conic' | 'star'
 
 export interface ThemeTokens {
@@ -183,33 +187,36 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     },
     motion: { cycleSeconds: 7, spring: { stiffness: 380, damping: 26 }, travel: 12 }
   },
+  // Kutup (0.3.4). Three horizontal bands was a screensaver. This is a polar night sky: light curtains
+  // waving on their own clocks over a star backing, a cold horizon with light pollution welling up from
+  // under it, drifting mesh and a film grain so the cyan never sits flat on the panel.
   aurora: {
     key: 'aurora',
     moodKey: 'theme.moodAurora',
     signature: 'flow',
     ambient: 'aurora',
-    glow: ['rgba(56, 189, 248, 0.24)', 'rgba(129, 140, 248, 0.22)'],
-    layers: ['ribbons', 'mesh', 'vignette'],
+    glow: ['rgba(79, 210, 255, 0.26)', 'rgba(168, 139, 255, 0.24)'],
+    layers: ['curtain', 'ribbons', 'horizon', 'mesh', 'grain', 'vignette'],
     cardEdge: 'conic',
-    parallax: 14,
-    scene: { kind: 'ribbon', density: 6, palette: ['#38bdf8', '#818cf8'], speed: 0.45, size: 1.6, gravity: 0, twinkle: false },
-    sceneAlt: null,
-    renewed: false,
+    parallax: 18,
+    scene: { kind: 'ribbon', density: 8, palette: ['#4fd2ff', '#a88bff'], speed: 0.5, size: 1.7, gravity: 0, twinkle: false },
+    sceneAlt: { kind: 'star', density: 90, palette: ['#eaf3ff', '#9fd8ff'], speed: 0.18, size: 1.1, gravity: 0, twinkle: true },
+    renewed: true,
     minimumTierForScene: 'medium',
     tokens: {
-      base: '#060a18',
-      panel: '#0c1327',
-      panelSoft: '#131c34',
-      line: '#22304f',
-      ink: '#e9f1ff',
-      mute: '#93a6c9',
-      brand: '#38bdf8',
-      brandSoft: '#0f2b44',
-      danger: '#fb7185',
-      warn: '#fcd34d',
-      good: '#34d399'
+      base: '#030814',
+      panel: '#081428',
+      panelSoft: '#0f1e38',
+      line: '#1d3355',
+      ink: '#eaf3ff',
+      mute: '#8fa8cc',
+      brand: '#4fd2ff',
+      brandSoft: '#0b2f4a',
+      danger: '#ff8aa8',
+      warn: '#a88bff',
+      good: '#5eead4'
     },
-    motion: { cycleSeconds: 20, spring: { stiffness: 240, damping: 22 }, travel: 10 }
+    motion: { cycleSeconds: 18, spring: { stiffness: 240, damping: 22 }, travel: 12 }
   },
   void: {
     key: 'void',

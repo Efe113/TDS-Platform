@@ -1,5 +1,5 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import { createSupabaseClient, sessionSummary, type AuthSessionPayload, type SessionSummary } from '@tds/shared'
+import { createSupabaseClient, sessionStorageAction, sessionSummary, type AuthSessionPayload, type SessionSummary } from '@tds/shared'
 import { isSupabaseConfigured, supabaseEnv } from '../config/env'
 import { clearSession, loadSession, saveSession } from './storage'
 import { AUTH_RETURN_TO, parseAuthCallback } from './callback'
@@ -49,12 +49,24 @@ export class AuthManager {
 
     this.client = createSupabaseClient(supabaseEnv as NonNullable<typeof supabaseEnv>, { persist: false })
 
-    void this.restoreStoredSession()
+    // Subscribe only after the stored session has been restored. The state-change callback always
+    // delivers an INITIAL_SESSION for whatever is in memory right now, and with persistence off that is
+    // null at boot — so subscribing first used to delete session.bin before the asynchronous file read
+    // had even finished, and every launch started signed out.
+    void this.restoreStoredSession().finally(() => this.subscribeToState())
+  }
 
-    const { data } = this.client.auth.onAuthStateChange((_event, session) => {
-      this.persist(session)
+  private subscribeToState(): void {
+    if (!this.client) return
+    const { data } = this.client.auth.onAuthStateChange((event, session) => {
+      const action = sessionStorageAction(event, session !== null)
+      if (action === 'persist' && session) {
+        this.persist(session)
+        this.scheduleRefresh(session)
+      } else if (action === 'clear') {
+        clearSession()
+      }
       this.publish()
-      this.scheduleRefresh(session)
     })
     this.unsubscribe = () => data.subscription.unsubscribe()
   }
@@ -72,7 +84,11 @@ export class AuthManager {
       clearSession()
       return
     }
-    if (!parsed.access_token || !parsed.refresh_token) return
+    if (!parsed.access_token || !parsed.refresh_token) {
+      logger.warn('stored session has no tokens; it was written by an older shape and is dropped')
+      clearSession()
+      return
+    }
 
     try {
       await this.client.auth.setSession({

@@ -585,6 +585,37 @@ html.overlay-root ::-webkit-scrollbar {
   animation: toxic-drop-fall var(--drop-duration, 4s) cubic-bezier(0.4, 0, 0.8, 0.45) var(--drop-delay, 0s) infinite;
 }
 
+/*
+ * The polar renewal (0.3.4). Striations running *along* each curtain, faded toward the bottom by a
+ * mask: that grain is the difference between an aurora and a blob of cyan. The hue rides in on a custom
+ * property set by the layer, so the same rule serves both gases.
+ */
+@keyframes aurora-curtain-shimmer {
+  from { background-position: 0% 0%; }
+  to { background-position: 0% -240%; }
+}
+
+.aurora-curtain {
+  border-radius: 46% 54% 10% 10% / 26% 26% 8% 8%;
+}
+
+.aurora-curtain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    178deg,
+    color-mix(in oklab, var(--aurora-hue, var(--color-brand)) 55%, transparent) 0 2px,
+    transparent 2px 12px
+  );
+  background-size: 100% 240%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 6%, transparent 80%);
+  mask-image: linear-gradient(to bottom, #000 6%, transparent 80%);
+  opacity: 0.5;
+  animation: aurora-curtain-shimmer var(--curtain-duration, 16s) linear var(--curtain-delay, 0s) infinite;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .forge-seam,
   .forge-coal,
@@ -592,6 +623,7 @@ html.overlay-root ::-webkit-scrollbar {
   .toxic-foam,
   .toxic-strand,
   .toxic-drop,
+  .aurora-curtain::after,
   [data-renewed='on'] [data-slot='card']::after,
   [data-renewed='on'] .hud-panel::after,
   [data-renewed='on'] [data-skin-part='active-pill']::after,

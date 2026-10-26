@@ -55,7 +55,7 @@ describe('theme skins', () => {
   })
 
   it('keeps the new skin keys and their accent pairs', () => {
-    expect(THEME_SKINS.aurora.tokens.brand).toBe('#38bdf8')
+    expect(THEME_SKINS.aurora.tokens.brand).toBe('#4fd2ff')
     expect(THEME_SKINS.void.tokens.brand).toBe('#a78bfa')
     expect(THEME_SKINS.aurora.layers).toContain('ribbons')
     expect(THEME_SKINS.void.layers).toContain('grain')
@@ -151,7 +151,7 @@ describe('the renewed toxic skin (0047)', () => {
 
   it('meets the same renewal bar as the forge', () => {
     const renewed = THEME_KEYS.filter((key) => THEME_SKINS[key].renewed)
-    expect(renewed).toEqual(['ember', 'toxic'])
+    expect(renewed).toEqual(['ember', 'toxic', 'aurora'])
     for (const key of renewed) {
       const entry = THEME_SKINS[key]
       expect(entry.layers.length, `${key} stack`).toBeGreaterThanOrEqual(6)
@@ -188,5 +188,49 @@ describe('the renewed toxic skin (0047)', () => {
     const in47 = leak.match(/check \(tag in \(([^)]*)\)/)
     expect(in47?.[1]).toBe(in45?.[1])
     expect(in47?.[1]).toContain("'renewed'")
+  })
+})
+
+/**
+ * Renewal #3 (0.3.4, aurora). A polar night has a specific shape: light hanging in vertical curtains,
+ * not bands painted across the window. The test keeps the shape honest — the curtain leads, the frozen
+ * horizon is under it, and the sky behind is stars, which is the one thing the free skins cannot show.
+ */
+describe('the renewed aurora skin (0048)', () => {
+  const polar = readFileSync(join(migrationsDir, '0048_aurora_theme_renewal.sql'), 'utf8')
+  const skin = THEME_SKINS.aurora
+
+  it('hangs curtains instead of painting bands', () => {
+    expect(skin.renewed).toBe(true)
+    expect(skin.layers[0]).toBe('curtain')
+    expect(skin.layers).toContain('horizon')
+    expect(skin.layers.indexOf('horizon')).toBeGreaterThan(skin.layers.indexOf('curtain'))
+    expect(skin.layers).toContain('grain')
+    expect(skin.parallax).toBeGreaterThanOrEqual(16)
+  })
+
+  it('puts a star backing under the curtains', () => {
+    expect(skin.scene?.kind).toBe('ribbon')
+    expect(skin.sceneAlt?.kind).toBe('star')
+    // Void owns a dense three-plane field; the polar sky needs fewer, smaller points behind the light.
+    expect((skin.sceneAlt?.density ?? 0)).toBeLessThan(THEME_SKINS.void.scene?.density ?? 0)
+  })
+
+  it('keeps the name and the price an owner bought', () => {
+    expect(polar).toContain("'Kutup', 'Aurora',")
+    expect(polar).toContain("'theme_aurora', 'theme', 320, 'aurora'")
+  })
+
+  it('matches the registry brand in the database accent', () => {
+    expect(polar).toContain(`"${skin.tokens.brand}"`)
+  })
+
+  it('carries the same chip vocabulary as every other renewal file', () => {
+    const lists = ['0045_forge_theme_renewal.sql', '0047_toxic_theme_renewal.sql', '0048_aurora_theme_renewal.sql'].map((name) => {
+      const text = readFileSync(join(migrationsDir, name), 'utf8')
+      return text.match(/check \(tag in \(([^)]*)\)/)?.[1] ?? ''
+    })
+    expect(new Set(lists).size).toBe(1)
+    expect(lists[0]).toContain("'renewed'")
   })
 })

@@ -112,9 +112,97 @@ const TOXIC_VENTS = [
   { left: '76%', size: 130, duration: 8.5, delay: 4.2 }
 ] as const
 
+/**
+ * Five curtains, each leaning its own way and waving on its own clock. A single sine for all of them is
+ * what made the old aurora look like one wallpaper stripe; the hue alternates so the sky reads as
+ * several gases, the way a real polar display does.
+ */
+const AURORA_CURTAINS = [
+  { left: '-8%', width: '30%', tilt: -8, duration: 16, delay: 0, hue: 0 },
+  { left: '16%', width: '24%', tilt: 6, duration: 13, delay: 2.5, hue: 1 },
+  { left: '38%', width: '32%', tilt: -4, duration: 19, delay: 1.2, hue: 0 },
+  { left: '62%', width: '22%', tilt: 9, duration: 14, delay: 4.4, hue: 1 },
+  { left: '78%', width: '30%', tilt: -6, duration: 17, delay: 2, hue: 0 }
+] as const
+
 function Layer({ skin, name, still, compact }: { skin: ThemeSkin; name: AmbientLayer; still: boolean; compact: boolean }): ReactNode {
   const { budget } = useMotion()
   const animation = drift(budget, 60)
+
+  if (name === 'curtain') {
+    // The curtain is the signature: vertical light, a mask that fades it into the sky, and a shimmer
+    // running *along* each column instead of across the window. Transforms and opacity only.
+    return (
+      <span className="absolute inset-x-0 top-0 h-[78%]">
+        {AURORA_CURTAINS.map((curtain, index) => {
+          const hue = curtain.hue === 0 ? skin.tokens.brand : skin.tokens.warn
+          const soft = curtain.hue === 0 ? skin.glow[0] : skin.glow[1]
+          return (
+            <motion.span
+              key={curtain.left}
+              className="aurora-curtain absolute -top-[12%] origin-top"
+              style={{
+                left: curtain.left,
+                width: curtain.width,
+                height: '84%',
+                background: `linear-gradient(to bottom, ${soft}, transparent 78%)`,
+                ['--aurora-hue' as string]: hue,
+                ['--curtain-duration' as string]: `${String(curtain.duration)}s`,
+                ['--curtain-delay' as string]: `${String(curtain.delay)}s`,
+                filter: budget.blur ? 'blur(34px)' : undefined,
+                mixBlendMode: 'screen',
+                opacity: 0.5
+              }}
+              animate={
+                still
+                  ? undefined
+                  : {
+                      skewX: [curtain.tilt, -curtain.tilt, curtain.tilt / 2, curtain.tilt],
+                      scaleY: [1, 1.12, 0.96, 1.06, 1],
+                      opacity: [0.34, 0.62, 0.42, 0.58, 0.34]
+                    }
+              }
+              transition={{ duration: curtain.duration, delay: curtain.delay, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )
+        })}
+      </span>
+    )
+  }
+
+  if (name === 'horizon') {
+    // A polar night is lit from below: the ice carries the glow, and the line between them stays crisp.
+    return (
+      <span className="absolute inset-x-0 bottom-0 h-[38%]">
+        <span
+          className="absolute inset-x-0 bottom-0 h-full"
+          style={{ background: `linear-gradient(to top, ${skin.glow[1]}, transparent 62%)`, opacity: 0.5 }}
+        />
+        <span
+          className="absolute inset-x-0 h-px"
+          style={{
+            bottom: compact ? '18%' : '30%',
+            background: `linear-gradient(90deg, transparent, ${skin.tokens.brand} 22%, ${skin.tokens.good} 50%, ${skin.tokens.warn} 78%, transparent)`,
+            opacity: 0.55
+          }}
+        />
+        {[0, 1].map((index) => (
+          <motion.span
+            key={index}
+            className="absolute bottom-[18%] size-56 rounded-full"
+            style={{
+              left: index === 0 ? '8%' : '58%',
+              background: `radial-gradient(circle, ${index === 0 ? skin.tokens.brand : skin.tokens.warn}, transparent 66%)`,
+              filter: budget.blur ? 'blur(42px)' : undefined,
+              opacity: 0.2
+            }}
+            animate={still ? undefined : { x: [0, index === 0 ? 60 : -60, 0], opacity: [0.14, 0.3, 0.18, 0.28, 0.14] }}
+            transition={{ duration: skin.motion.cycleSeconds * (1.2 + index * 0.4), repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ))}
+      </span>
+    )
+  }
 
   if (name === 'crucible') {
     // The bath breathes on transform/opacity only and the seam is a CSS background-position run, so

@@ -60,6 +60,19 @@ function readAvatarUrl(user: Session['user']): string | null {
   return /^https:\/\//i.test(value) ? value : null
 }
 
+/**
+ * What the stored session file should do when the auth client reports a state change.
+ *
+ * `onAuthStateChange` always delivers an `INITIAL_SESSION` carrying whatever the client holds in
+ * memory, and a client built with persistence off holds nothing at boot. Reading "no session" as
+ * "signed out" is what deleted the stored session on every launch before the restore had finished, so
+ * the member had to sign in again each time the app opened.
+ */
+export function sessionStorageAction(event: string, hasSession: boolean): 'persist' | 'clear' | 'keep' {
+  if (hasSession) return 'persist'
+  return event === 'SIGNED_OUT' ? 'clear' : 'keep'
+}
+
 export function sessionSummary(session: Session | null): SessionSummary {
   if (!session) return { userId: null, email: null, provider: null, expiresAt: null, role: null, handle: null, avatarUrl: null }
   return {

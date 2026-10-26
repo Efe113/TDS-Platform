@@ -2,6 +2,42 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.4] — 2026-10-26
+
+### Yenilendi: **Kutup (Aurora)** — üçüncüsü
+
+Yatay üç bant yerine **kutup gecesi**:
+
+- **Işık perdesi (curtain):** beş dikme perde; her biri kendi eğimi, hızı ve gecikmesiyle dalgalanıyor,
+  rengi iki gaz arasında dönüşümlü (camgöbeği / mor). Perdenin içinde **boyuna yürüyen damar doku**
+  var — maskenin altta sönmesiyle birlikte bu grain, ışığın bir leke değil perde gibi görünmesini
+  sağlıyor.
+- **Buz ufku (horizon):** altta keskin bir ufuk çizgisi, çizginin altında yukarı vuran ışık
+  kirliliği ve iki yönde sürüklenen soğuk parlama — kutup ışığı gökten değil, buzdan da geliyor.
+- **Yıldız desteği (sceneAlt `star`):** gökyüzünde hafif, küçük, iki katmanlı yıldızlar; kurdeleler
+  ortada akmaya devam ediyor. Boşluk temasının yoğun üç katmanlı yıldız alanından bilinçli olarak
+  daha seyrek — ayrımcı olması için.
+- Film grenli zemin + 18 px paralaks; altı katman, `renewed: true` — 0.3.2 kromunu kendi soğuk
+  rengiyle alıyor.
+- Anahtar `aurora`, fiyat 320: sahiplik korunuyor. Accent `#4fd2ff` registry brand'iyle eşitleniyor.
+
+Sırada bir tek **Boşluk (void)** kalıyor; **Varsayılan** bilinçli olarak sakin kalacak.
+
+### Düzeltildi: her açılışta yeniden giriş
+
+Oturum diske yazılıyordu ama **her açılışta siliniyordu**. `main/auth/manager.ts` state-change
+dinleyicisini oturum geri yüklenmeden **önce** kaydediyordu; Supabase istemcisi yeni bir aboneye
+her zaman belleğindeki oturumu taşıyan bir `INITIAL_SESSION` olayı gönderiyor ve kalıcılık kapalı
+olduğu için o bellek açılışta boş. Eldeki kod "oturum yok"u "çıkış yapıldı" sayıp `session.bin`'i
+siliyordu — dosya okuma daha bitmeden. Kanıt: `%APPDATA%\@tds\desktop\auth\` klasörü var ama boş, ve
+`main.log` dosyasında tek bir uyarı satırı yok (silme sessiz).
+
+- Abonelik artık `restoreStoredSession()` bittikten **sonra** kuruluyor.
+- "Oturum yok" kararı tek saf fonksiyona taşındı: `sessionStorageAction(event, hasSession)` —
+  `INITIAL_SESSION`/`USER_UPDATED` boş gelirse dosyaya dokunmuyor, yalnızca `SIGNED_OUT` siliyor.
+- Bozuk/eski biçimde yazılmış bir dosya artık sessizce geçmiyor; bir uyarı satırı bırakıyor.
+- Test: olay tablosu + "abonelik geri yüklemeden sonra" sıralaması + tek abonelik.
+
 ## [0.3.3] — 2026-10-26
 
 ### Yenilendi: **Toksik** (second renewal, same standard as Ocak)
