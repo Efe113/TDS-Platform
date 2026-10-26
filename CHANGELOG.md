@@ -2,6 +2,65 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.2] — 2026-10-26
+
+### Yenilendi: **Kor → Ocak (Forge)**
+
+İlk kez bir tema renklendirilmedi, baştan çizildi. Ocak artık bir ateş gradyanı değil, bir ocak:
+
+- **Eriyen zemin (crucible):** tabanda nefes alan ergimiş bir banyo ve üzerinde sağa doğru dolaşan
+  parlak dikiş; iki ısı kuyusu ayrı ritimlerde parlayıyor.
+- **Kor yatağı (coals):** on dört kömür, her biri kendi boyutunda, gecikmesinde ve ritminde
+  soğuyor; üçü ara sıra tutuşuyor. Tek bir nabız değil, dağınık bir ateş.
+- **Isı titreşimi (shimmer):** soft-light ile yükselen dört bant, farklı genişlik ve hızda.
+- **Kül düşüyor (ash):** kıvılcımlar alttan yükselirken üstten kül düşüyor; iki alan tek canvas ve
+  tek rAF döngüsünde, bütçe payları oranında bölünüyor.
+- **Krom temayla geliyor:** kartların çevresinde dolaşan ergimiş bant, panel tabanında kavrulma,
+  raydaki aktif öğeden yükselen kıvılcım, ateş renkli kaydırma çubuğu, odak halkası ve profil
+  adında yanma. Kurallar tema adına değil `data-renewed` yeteneğine bağlı — sonraki yenileme
+  kendi rengini token'lardan alacak.
+- Yedi katman bildiriyor; katman merdiveni (2/4/6) buna yer açacak şekilde yükseltildi, aksi halde
+  amiral gemisi ücretsiz temayla aynı üç katmanı çizecekti.
+- Anahtar `ember` kaldı: sahipler, makbuzlar ve `profiles.theme_key` korunuyor. Fiyat 180.
+
+### 'Yenilendi' etiketi
+
+- `spend_catalog.tag` sözlüğüne `renewed` eklendi; CHECK ve Market editörü aynı listede tutuluyor
+  (test artık bu iki listeyi birebir karşılaştırıyor).
+- Etiket bir pazarlama işareti, **avantaj değil**: kasasının red listesi büyümüyor, yani
+  yenilenmiş ürün eskisi gibi satılabilir.
+- Rafda etiket + katman sayısı şipi; önizleme yenilenmiş temada tam katman yığınını (4 katman)
+  ve dikişini çiziyor.
+
+### Bakım sistemi artık bir operasyon
+
+- Tek anahtar yerine pencere: `{enabled, mode, title, note, startsAt, endsAt}`.
+- İki mod: **salt okunur** (yazımlar sunucuda reddedilir, uygulama kullanılır) ve **tam kilit**
+  (aynı kural + tam ekran kapı, kalan süre ve saat bilgisiyle). Okumalar, overlay ve yerel oyun
+  takibi ikisinde de çalışmaya devam ediyor.
+- Zamanlama: başlangıç ileri alınırsa bakım **önceden duyurulur**; bitiş dolunca sunucu kendiliğinden
+  açılır (cron yok). Bozuk/elle yazılmış zaman damgası "sonsuz açık" olarak okunur, patlamaz.
+- Guard artık **insert + update + delete** ve sekiz yüzeyde: `spend_orders`, `user_themes`,
+  `strategy_boosts`, `comments`, `ratings`, `favorites`, `account_requests`, `reports`. Önceden dört
+  tabloda yalnızca insert engelleniyordu; üye bakım sırasında kendi yorumunu düzenleyebiliyordu.
+  Bir BEFORE DELETE tetikleyicisinin `NEW` döndürürse silmeyi sessizce atlayacağı da düzeltildi.
+- Reddedilen yazım üyeye **nedenini** söylüyor: band/kapıdaki başlık, trigger'ın attığı mesajla aynı.
+- Console'a **Bakım** bölümü geldi: durum, mod denetimi, başlık/not (sayaçlı), başlangıç/bitiş,
+  hızlı bitiş düğmeleri (30dk/2s/8s/24s, bitiş yok, hemen başlasın), dondurulan yüzeyler ve
+  **gerçek bileşenle canlı önizleme**. Personel kapıda değil — kapı kaldıran kişi kapıda kalamaz.
+
+### Düzeltildi
+
+- **Kuşanılan çerçeve hiçbir yerde görünmüyordu:** 0040 `profile_showcase`'i yeniden yazarken
+  `frameKey` çıkış alanını düşürdü, 0043 de o şekli taşıdı. Yazım tarafı baştan beri çalışıyordu
+  (canlıda ölçüldü: `profiles.frame_key = 'void'`) ama sunucu alanı hiç göndermediği için istemci
+  varsayana düşüyordu — halka yok, "kuşanıldı" işareti yok, tıklama ölü görünüyor. 0044 geri koydu.
+- Yeniden yazılan bir okuyucunun alan kaybetmesi sınıfına karşı iki kalıcı kapı:
+  `scripts/check-sql-drift.mjs` (`npm run verify` zincirinde; son bildirimin çıplak parantez-eşlemeli
+  `jsonb_build_object` anahtarlarını önceki bildirimlerle karşılaştırıyor) ve şemanın her alanının en
+  yeni `profile_showcase` çıktısında bulunduğunu doğrulayan test. Negatif fixture ile denendi: 0044
+  kaldırıldığında tarayıcı tam olarak `frameKey`'i işaret ediyor.
+
 ## [0.3.1] — 2026-10-25
 
 ### Düzeltildi

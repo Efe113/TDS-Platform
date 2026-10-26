@@ -1,6 +1,6 @@
 {
   "name": "tds-companion",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Desktop strategy companion for Roblox Tower Defense Simulator",
   "license": "MIT",
@@ -18,9 +18,10 @@
     "test:watch": "npm run test:watch -w @tds/shared",
     "check:ipc": "node scripts/check-preload-channels.mjs",
     "check:sql": "node scripts/check-sql.mjs",
+    "check:sql:drift": "node scripts/check-sql-drift.mjs",
     "icons": "node scripts/make-icon.mjs",
     "installer:art": "node scripts/make-installer-art.mjs",
-    "verify": "npm run check:ipc && npm run check:sql && npm run typecheck && npm run test",
+    "verify": "npm run check:ipc && npm run check:sql && npm run check:sql:drift && npm run typecheck && npm run test",
     "typecheck": "npm run typecheck -w @tds/shared && npm run typecheck -w @tds/desktop"
   },
   "devDependencies": {
