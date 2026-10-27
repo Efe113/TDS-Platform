@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import i18next from 'i18next'
-import { IPC_CHANNELS, deepLinkSchema, hotKeyEventSchema, settingsSchema, type AppMeta, type Settings } from '@tds/shared'
+import { IPC_CHANNELS, deepLinkSchema, hotKeyEventSchema, pickNotices, settingsSchema, type ActiveAnnouncement, type AppMeta, type Settings } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { navigate, routeSegments, useRoutePath } from '../../lib/router'
 import { useIpcEvent } from '../../lib/events'
@@ -33,10 +33,12 @@ import { ConsentGate } from '../legal/ConsentGate'
 import { ComingSoonPage } from '../milestone/ComingSoonPage'
 import { fetchWallet } from '../../lib/wallet-api'
 import { fetchActiveCampaigns, pickCampaignBanner } from '../../lib/campaign-api'
+import { fetchActiveAnnouncements, markAnnouncement } from '../../lib/announcement-api'
 import { useDismissal } from '../../lib/dismissals'
 import { fetchMaintenance } from '../admin/admin-api'
 import { MaintenanceBanner, MaintenanceGate } from './MaintenanceSurface'
 import { CampaignBand, CampaignModal } from './CampaignSurface'
+import { NoticeBand, NoticeModal } from './NoticeSurface'
 import { applyTheme } from '../../lib/theme'
 import { ThemeBackdrop } from '../../components/brand/theme-backdrop'
 import { MotionProvider } from '../../motion/context'
@@ -185,20 +187,63 @@ export function App(): ReactNode {
     refetchInterval: 60_000,
     retry: false
   })
+  const noticesQuery = useQuery({
+    queryKey: ['notices'],
+    queryFn: fetchActiveAnnouncements,
+    refetchInterval: 60_000,
+    retry: false
+  })
+
+  // A dismissal answered by the server follows the account; when there is no account to attribute the
+  // click to, the same click is kept here so a visitor is not ambushed on every poll.
+  const [localDismissals, setLocalDismissals] = useState<Record<string, string>>({})
+  const visibleNotices = (noticesQuery.data ?? []).filter((notice) => localDismissals[notice.key] !== notice.updatedAt)
+  const notices = pickNotices(visibleNotices, Date.now())
+
+  const dismissNotice = (notice: ActiveAnnouncement): void => {
+    void markAnnouncement(notice.key, 'dismissed')
+      .then((recorded) => {
+        if (recorded) void queryClient.invalidateQueries({ queryKey: ['notices'] })
+        else setLocalDismissals((current) => ({ ...current, [notice.key]: notice.updatedAt }))
+      })
+      .catch(() => setLocalDismissals((current) => ({ ...current, [notice.key]: notice.updatedAt })))
+  }
+
+  const acknowledgeNotice = (notice: ActiveAnnouncement): void => {
+    void markAnnouncement(notice.key, 'read')
+      .then(() => queryClient.invalidateQueries({ queryKey: ['notices'] }))
+      .catch(() => undefined)
+    setOpenNotice(null)
+  }
+
   const campaign = pickCampaignBanner(campaignsQuery.data ?? [])
   const [campaignDismissed, dismissCampaign] = useDismissal(campaign?.key ?? null, campaign?.endsAt ?? null)
   const [campaignOpen, setCampaignOpen] = useState(false)
+  // The notice whose detail is open: either the one the shell opened by itself, or the one the member
+  // clicked into from a band. A banner notice with a long text still has a story to tell.
+  const [openNotice, setOpenNotice] = useState<ActiveAnnouncement | null>(null)
   // A modal campaign opens by itself exactly once per campaign, not once per poll: the 60 second refetch
   // would otherwise re-arm the interruption while the member is reading something else.
   const autoOpened = useRef<string | null>(null)
 
+  // One interruption at a time, and a notice outranks a campaign: an announcement is about the member's
+  // account, a campaign is about the shop.
+  const noticeModal = notices.modal !== null && notices.modal.state === 'live' && notices.modal.readAt === null ? notices.modal : null
+  const noticeBand = notices.band
+
   useEffect(() => {
+    if (noticeModal !== null) {
+      if (autoOpened.current === `notice:${noticeModal.key}`) return
+      autoOpened.current = `notice:${noticeModal.key}`
+      setOpenNotice(noticeModal)
+      return
+    }
     if (campaign === null || campaignDismissed) return
     if (campaign.surface !== 'modal' || campaign.state !== 'live') return
-    if (autoOpened.current === campaign.key) return
-    autoOpened.current = campaign.key
+    if (autoOpened.current === `campaign:${campaign.key}`) return
+    autoOpened.current = `campaign:${campaign.key}`
     setCampaignOpen(true)
-  }, [campaign, campaignDismissed])
+  }, [campaign, campaignDismissed, noticeModal])
 
   const closeCampaign = (): void => {
     setCampaignOpen(false)
@@ -235,7 +280,15 @@ export function App(): ReactNode {
             <MaintenanceBanner state={maintenance} />
           ) : null}
 
-          {campaign !== null && !campaignDismissed && campaign.surface === 'banner' ? (
+          {/* One band, one voice. Maintenance is the platform's own state and always comes first; after
+              it a notice outranks a campaign, because a notice is about the member's account. */}
+          {noticeBand !== null ? (
+            <NoticeBand
+              notice={noticeBand}
+              onOpen={() => setOpenNotice(noticeBand)}
+              onDismiss={() => dismissNotice(noticeBand)}
+            />
+          ) : campaign !== null && !campaignDismissed && campaign.surface === 'banner' && noticeModal === null ? (
             <CampaignBand
               campaign={campaign}
               onOpen={() => setCampaignOpen(true)}
@@ -257,8 +310,13 @@ export function App(): ReactNode {
             <MaintenanceGate state={maintenance} staff={staff} />
           ) : null}
 
+          {/* A notice owns the interruption while it is unread; a campaign waits for the band. */}
+          {openNotice !== null ? <NoticeModal notice={openNotice} onAck={() => acknowledgeNotice(openNotice)} onClose={() => setOpenNotice(null)} /> : null}
+
           {/* A campaign opened from the band, or by itself when the operator chose the modal surface. */}
-          {campaignOpen && campaign !== null ? <CampaignModal campaign={campaign} onClose={closeCampaign} /> : null}
+          {campaignOpen && campaign !== null && openNotice === null ? (
+            <CampaignModal campaign={campaign} onClose={closeCampaign} />
+          ) : null}
         </div>
 
         <RunRail />

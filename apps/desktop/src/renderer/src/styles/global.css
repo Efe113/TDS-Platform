@@ -2027,11 +2027,28 @@ html.overlay-root ::-webkit-scrollbar {
   color: var(--campaign-accent);
 }
 
+/* Notice band (0052). The tone classes are the ones the maintenance banner already uses, so a critical
+ * notice and a locked maintenance window cannot drift into two different reds. Only the dot breathes,
+ * and it breathes on opacity. */
+@keyframes notice-glow {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+.notice-glow {
+  animation: notice-glow 2.6s ease-in-out infinite;
+}
+
+.notice-band--critical .notice-glow {
+  animation-duration: 1.4s;
+}
+
 
 @media (prefers-reduced-motion: reduce) {
   .market-tag-renewed,
   .maintenance-pulse,
   .campaign-glow,
+  .notice-glow,
   .theme-preview--renewed::after {
     animation: none;
   }

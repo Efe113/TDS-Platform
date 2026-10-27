@@ -16,12 +16,16 @@ import {
   campaignAdminRowSchema,
   campaignDraftPayload,
   campaignRulesPayload,
+  adminAnnouncementSchema,
+  noticeDraftPayload,
   type AuditRow,
+  type AdminAnnouncement,
   type CampaignAdminRow,
   type CampaignDraft,
   type CampaignRuleDraft,
   type MaintenanceMode,
   type MaintenanceState,
+  type NoticeDraft,
   type MemberBadgeRow,
   type QueueRow,
   type ReviewDecision,
@@ -729,6 +733,45 @@ export function campaignImagePath(key: string): string {
 export async function uploadCampaignImage(key: string, file: File): Promise<string> {
   const db = requireDb()
   const path = campaignImagePath(key)
+  const { error } = await db.storage.from('strategy-media').upload(path, file, {
+    upsert: true,
+    contentType: file.type.length > 0 ? file.type : 'image/webp'
+  })
+  if (error) throw new Error(error.message)
+  return path
+}
+
+/**
+ * Notices (0052). Same shape as campaigns on purpose: an operator who learned one learns the other, and
+ * both are rows the shell reads through a definer function instead of a table select.
+ */
+export async function fetchAnnouncements(): Promise<AdminAnnouncement[]> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_list_announcements')
+  if (error) throw new Error(error.message)
+  return adminAnnouncementSchema.array().parse(data ?? [])
+}
+
+export async function saveAnnouncement(draft: NoticeDraft): Promise<string> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_upsert_announcement', noticeDraftPayload(draft))
+  if (error) throw new Error(error.message)
+  return String((data as { state?: string } | null)?.state ?? 'off')
+}
+
+export async function deleteAnnouncement(key: string): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_delete_announcement', { p_key: key })
+  if (error) throw new Error(error.message)
+}
+
+export function noticeImagePath(key: string): string {
+  return `notices/${key.trim().toLowerCase()}.webp`
+}
+
+export async function uploadNoticeImage(key: string, file: File): Promise<string> {
+  const db = requireDb()
+  const path = noticeImagePath(key)
   const { error } = await db.storage.from('strategy-media').upload(path, file, {
     upsert: true,
     contentType: file.type.length > 0 ? file.type : 'image/webp'
