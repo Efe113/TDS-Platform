@@ -28,15 +28,20 @@ import {
   VERIFIED_TITLE_REF,
   capRemaining,
   formatCoin,
+  campaignRuleBadge,
+  type ActiveCampaign,
+  type CampaignRule,
   type CurrencyRuleKind,
   type WalletRule
 } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate } from '../../lib/router'
+import { useCatalogLanguage } from '../../lib/catalog-labels'
 import { ruleIconFor } from '../../components/brand/rule-icon'
 import { UNIT_LABEL } from '../../lib/rule-labels'
 import { fetchWallet } from '../../lib/wallet-api'
+import { campaignBoostByCode, fetchActiveCampaigns } from '../../lib/campaign-api'
 import { formatDateTime } from '../admin/admin-ui'
 import { CoinAmount, CoinIcon } from '../../components/brand/coin'
 import { TitleBadge } from '../../components/brand/title-badge'
@@ -113,8 +118,9 @@ const KIND_META: Record<string, { key: MessageKey; icon: typeof Coins; good: boo
   reverse: { key: 'wallet.kindReverse', icon: ArrowDownLeft, good: false }
 }
 
-function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
+function RuleCard({ rule, boost }: { rule: WalletRule; boost: { campaign: ActiveCampaign; rule: CampaignRule } | null }): ReactNode {
   const t = useT()
+  const language = useCatalogLanguage() === 'en' ? 'en' : 'tr'
   const meta = RULE_META[rule.code]
   // 0038: the server ships the icon and the copy, so a rule an admin invented looks the same as the
   // seeded four instead of falling back to a snake_case code. The old table is only the fallback.
@@ -123,9 +129,18 @@ function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
   const unitKey = UNIT_LABEL[rule.unit]
   const unit = unitKey ? t(unitKey) : rule.unit !== 'per_event' ? readableCode(rule.unit) : null
   const hint = rule.desc ?? (meta ? t(meta.hintKey) : null)
-  const todayLeft = capRemaining(rule.earnedToday, rule.dailyCap)
+
+  // A campaign can raise both what one event pays and the ceiling above it, and the ceiling is what the
+  // progress bar measures against. Showing the base cap during a boost would tell a member they are
+  // out of runway while the server is still paying them.
+  const paid = boost !== null ? boost.rule.effectiveAmount : rule.amount
+  const cap = boost !== null && boost.rule.dailyCap !== null ? boost.rule.dailyCap : rule.dailyCap
+  const badge = boost !== null ? campaignRuleBadge(boost.rule) : ''
+  const campaignName = boost !== null ? (language === 'tr' ? boost.campaign.nameTr : boost.campaign.nameEn) : ''
+
+  const todayLeft = capRemaining(rule.earnedToday, cap)
   const weekLeft = capRemaining(rule.earnedWeek, rule.weeklyCap)
-  const dailyPercent = rule.dailyCap && rule.dailyCap > 0 ? Math.min(100, Math.round(((todayLeft ?? 0) / rule.dailyCap) * 100)) : null
+  const dailyPercent = cap && cap > 0 ? Math.min(100, Math.round(((todayLeft ?? 0) / cap) * 100)) : null
   const weekPercent = rule.weeklyCap && rule.weeklyCap > 0 ? Math.min(100, Math.round(((weekLeft ?? 0) / rule.weeklyCap) * 100)) : null
 
   return (
@@ -141,9 +156,22 @@ function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
           </div>
         </div>
         <div className="text-right">
-          <CoinAmount value={rule.amount} size="md" />
+          <CoinAmount value={paid} size="md" />
+          {boost !== null && paid !== rule.amount ? (
+            <p className="mt-0.5 text-[10px] text-mute">
+              <span className="line-through">{formatCoin(rule.amount)}</span>
+              {badge.length > 0 ? <span className="ml-1 text-brand">{badge}</span> : null}
+            </p>
+          ) : null}
         </div>
       </div>
+
+      {boost !== null ? (
+        <p className="mt-2 flex items-center gap-1.5 text-[10px] text-brand">
+          <Flame size={11} className="shrink-0" />
+          <span className="truncate">{t('wallet.campaignBoost', { name: campaignName })}</span>
+        </p>
+      ) : null}
 
       {hint ? <p className="mt-2 text-[11px] leading-relaxed text-mute/85">{hint}</p> : null}
 
@@ -152,7 +180,7 @@ function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
           <div>
             <div className="flex items-center justify-between gap-2 text-[10px] text-mute">
               <span className="hud-label">{t('wallet.dailyCap')}</span>
-              <span className="hud-num">{`${formatCoin(rule.earnedToday)} / ${formatCoin(rule.dailyCap ?? 0)}`}</span>
+              <span className="hud-num">{`${formatCoin(rule.earnedToday)} / ${formatCoin(cap ?? 0)}`}</span>
             </div>
             <div className="mt-1 h-1 overflow-hidden rounded-full bg-panel-soft">
               <div className="h-full rounded-full bg-brand/70" style={{ width: `${String(dailyPercent)}%` }} />
@@ -170,7 +198,7 @@ function RuleCard({ rule }: { rule: WalletRule }): ReactNode {
             </div>
           </div>
         ) : null}
-        {rule.dailyCap === null && rule.weeklyCap === null ? (
+        {cap === null && rule.weeklyCap === null ? (
           <Chip tone="neutral" icon={TrendingUp}>{t('wallet.unlimited')}</Chip>
         ) : null}
       </div>
@@ -186,6 +214,11 @@ export function WalletPage(): ReactNode {
 
   const walletQuery = useQuery({ queryKey: ['wallet'], queryFn: fetchWallet, retry: 1 })
   const wallet = walletQuery.data
+
+  // The same cached read the band above uses, so the rule list and the band cannot disagree about what
+  // a campaign pays. No second fetch: react-query hands out the shell's result.
+  const campaignsQuery = useQuery({ queryKey: ['campaigns'], queryFn: fetchActiveCampaigns, refetchInterval: 60_000, retry: false })
+  const boosts = useMemo(() => campaignBoostByCode(campaignsQuery.data ?? []), [campaignsQuery.data])
 
   // 0040: corporate is the superset tier, so the card reads its own window and percentage when the
   // account holds it; the credit counter already adds both pockets together in SQL.
@@ -403,7 +436,7 @@ export function WalletPage(): ReactNode {
           <RevealList className="grid gap-2.5 sm:grid-cols-2" count={wallet.rules.length}>
             {wallet.rules.map((rule) => (
               <RevealItem key={rule.code} className="h-full">
-                <RuleCard rule={rule} />
+                <RuleCard rule={rule} boost={boosts.get(rule.code) ?? null} />
               </RevealItem>
             ))}
           </RevealList>

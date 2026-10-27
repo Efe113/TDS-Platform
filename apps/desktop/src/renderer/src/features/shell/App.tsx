@@ -32,8 +32,11 @@ import { AboutPage } from '../about/AboutPage'
 import { ConsentGate } from '../legal/ConsentGate'
 import { ComingSoonPage } from '../milestone/ComingSoonPage'
 import { fetchWallet } from '../../lib/wallet-api'
+import { fetchActiveCampaigns, pickCampaignBanner } from '../../lib/campaign-api'
+import { useDismissal } from '../../lib/dismissals'
 import { fetchMaintenance } from '../admin/admin-api'
 import { MaintenanceBanner, MaintenanceGate } from './MaintenanceSurface'
+import { CampaignBand, CampaignModal } from './CampaignSurface'
 import { applyTheme } from '../../lib/theme'
 import { ThemeBackdrop } from '../../components/brand/theme-backdrop'
 import { MotionProvider } from '../../motion/context'
@@ -173,6 +176,36 @@ export function App(): ReactNode {
   const staffRole = useAuth(selectRole)
   const staff = staffRole === 'admin' || staffRole === 'moderator'
 
+  // Campaigns are read the same way: an operator opens one while the app is running, and the band has
+  // to appear without a restart. `active_campaigns()` is a definer function, so what the band says and
+  // what award_currency pays come from the same rows.
+  const campaignsQuery = useQuery({
+    queryKey: ['campaigns'],
+    queryFn: fetchActiveCampaigns,
+    refetchInterval: 60_000,
+    retry: false
+  })
+  const campaign = pickCampaignBanner(campaignsQuery.data ?? [])
+  const [campaignDismissed, dismissCampaign] = useDismissal(campaign?.key ?? null, campaign?.endsAt ?? null)
+  const [campaignOpen, setCampaignOpen] = useState(false)
+  // A modal campaign opens by itself exactly once per campaign, not once per poll: the 60 second refetch
+  // would otherwise re-arm the interruption while the member is reading something else.
+  const autoOpened = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (campaign === null || campaignDismissed) return
+    if (campaign.surface !== 'modal' || campaign.state !== 'live') return
+    if (autoOpened.current === campaign.key) return
+    autoOpened.current = campaign.key
+    setCampaignOpen(true)
+  }, [campaign, campaignDismissed])
+
+  const closeCampaign = (): void => {
+    setCampaignOpen(false)
+    // Closing the interruption means having seen it; the band's own cross does the same.
+    if (campaign?.surface === 'modal') dismissCampaign()
+  }
+
   // Two segments deep, so moving between two strategies swaps the screen the same way a new section does.
   const swapKey = routeSegments(path).slice(0, 2).join('/') || 'home'
 
@@ -202,6 +235,14 @@ export function App(): ReactNode {
             <MaintenanceBanner state={maintenance} />
           ) : null}
 
+          {campaign !== null && !campaignDismissed && campaign.surface === 'banner' ? (
+            <CampaignBand
+              campaign={campaign}
+              onOpen={() => setCampaignOpen(true)}
+              onDismiss={dismissCampaign}
+            />
+          ) : null}
+
           <main ref={mainRef} className={cn('min-w-0 flex-1 overflow-y-auto px-6 py-5')}>
             <div className="mx-auto max-w-4xl">
               <ConsentGate>
@@ -215,6 +256,9 @@ export function App(): ReactNode {
           {maintenance !== null && maintenance.on && maintenance.mode === 'locked' ? (
             <MaintenanceGate state={maintenance} staff={staff} />
           ) : null}
+
+          {/* A campaign opened from the band, or by itself when the operator chose the modal surface. */}
+          {campaignOpen && campaign !== null ? <CampaignModal campaign={campaign} onClose={closeCampaign} /> : null}
         </div>
 
         <RunRail />

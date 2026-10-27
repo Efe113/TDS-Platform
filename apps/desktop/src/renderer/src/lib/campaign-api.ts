@@ -21,15 +21,16 @@ export async function fetchActiveCampaigns(): Promise<ActiveCampaign[]> {
 
 /**
  * A rule's own numbers plus whatever a live campaign does to it — the wallet's rule list reads through
- * this so "400 coin" and "etkinlikte ×2 → 800" cannot appear on the same screen as each other.
+ * this so "400 coin" and "etkinlikte ×2 → 800" cannot appear on the same screen as each other. The
+ * campaign travels with the rule because a boosted amount is only honest with its name attached.
  */
-export function campaignRuleByCode(campaigns: ActiveCampaign[]): Map<string, CampaignRule> {
-  const map = new Map<string, CampaignRule>()
+export function campaignBoostByCode(campaigns: ActiveCampaign[]): Map<string, { campaign: ActiveCampaign; rule: CampaignRule }> {
+  const map = new Map<string, { campaign: ActiveCampaign; rule: CampaignRule }>()
   for (const campaign of campaigns) {
     for (const rule of campaign.rules) {
       // The earliest campaign wins, matching app.campaign_overlay_for_rule(); the reader already
       // orders its rows by starts_at, so the first answer seen is the authority.
-      if (!map.has(rule.code)) map.set(rule.code, rule)
+      if (!map.has(rule.code)) map.set(rule.code, { campaign, rule })
     }
   }
   return map

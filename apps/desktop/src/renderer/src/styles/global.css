@@ -2005,10 +2005,33 @@ html.overlay-root ::-webkit-scrollbar {
   animation: maintenance-pulse 2.4s ease-out infinite;
 }
 
+/* Campaign band (0051). The accent is the operator's own hex, published as a custom property by the
+ * band, so a campaign can be gold or teal without a new class per campaign. Only the dot breathes, and
+ * it breathes on opacity alone: this band sits above a window that is already animating a skin, and a
+ * repainting band is how the 0.3.5 stutter was made in the first place. */
+@keyframes campaign-glow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+.campaign-band {
+  --campaign-accent: var(--color-brand);
+}
+
+.campaign-glow {
+  background: var(--campaign-accent);
+  animation: campaign-glow 2.8s ease-in-out infinite;
+}
+
+.campaign-band--accent [data-campaign-icon] {
+  color: var(--campaign-accent);
+}
+
 
 @media (prefers-reduced-motion: reduce) {
   .market-tag-renewed,
   .maintenance-pulse,
+  .campaign-glow,
   .theme-preview--renewed::after {
     animation: none;
   }
