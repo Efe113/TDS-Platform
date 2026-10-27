@@ -41,7 +41,7 @@ export const campaignRuleSchema = z.object({
   noteTr: z.string().nullable().default(null),
   noteEn: z.string().nullable().default(null),
   /** True when the rule exists only for this campaign, rather than being boosted by it. */
-  own: z.boolean().default(false)
+  own: z.boolean().catch(false)
 })
 
 export type CampaignRule = z.infer<typeof campaignRuleSchema>
@@ -175,7 +175,7 @@ export const campaignRuleAdminSchema = z.object({
   ruleKind: z.string().default(''),
   ruleUnit: z.string().default(''),
   ruleAmount: z.coerce.number().int().default(0),
-  own: z.boolean().default(false)
+  own: z.boolean().catch(false)
 })
 
 export type CampaignRuleAdmin = z.infer<typeof campaignRuleAdminSchema>

@@ -264,7 +264,7 @@ as $$
                 'dailyCap', coalesce(cr.daily_cap_override, r.daily_cap),
                 'noteTr', cr.note_tr,
                 'noteEn', cr.note_en,
-                'own', r.campaign_key = c.key
+                'own', coalesce(r.campaign_key = c.key, false)
               )
               order by r.kind, cr.rule_code
             ),
@@ -440,7 +440,7 @@ begin
                 'ruleKind', r.kind,
                 'ruleUnit', r.unit,
                 'ruleAmount', r.amount,
-                'own', r.campaign_key = c.key
+                'own', coalesce(r.campaign_key = c.key, false)
               )
               order by cr.rule_code
             ),

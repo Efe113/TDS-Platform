@@ -64,10 +64,10 @@ export const activeAnnouncementSchema = z.object({
   startsAt: z.string(),
   endsAt: z.string(),
   updatedAt: z.string(),
-  ackRequired: z.boolean().default(false),
+  ackRequired: z.boolean().catch(false),
   state: z.enum(NOTICE_STATES).catch('live'),
   /** The caller's own dismissal, answered by the server so it follows the account, not the device. */
-  dismissed: z.boolean().default(false),
+  dismissed: z.boolean().catch(false),
   readAt: z.string().nullable().default(null)
 })
 
@@ -76,7 +76,7 @@ export type ActiveAnnouncement = z.infer<typeof activeAnnouncementSchema>
 export const adminAnnouncementSchema = activeAnnouncementSchema
   .omit({ dismissed: true, readAt: true })
   .extend({
-    enabled: z.boolean().default(true),
+    enabled: z.boolean().catch(true),
     readCount: z.coerce.number().int().default(0),
     dismissCount: z.coerce.number().int().default(0)
   })

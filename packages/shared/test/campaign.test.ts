@@ -273,3 +273,36 @@ describe('campaign server contract (0051)', () => {
     expect(sql).toContain("raise notice '0051 ok:")
   })
 })
+
+/**
+ * The shelf crashed in the field on the first real event: `active_campaigns()` answered
+ * `'own', r.campaign_key = c.key`, and for an ordinary (unbound) rule that comparison is NULL, not
+ * false — Postgres arithmetic on a null column. A `boolean` field with a `.default(false)` does not
+ * catch an explicit JSON null either, because the key *is* present. Both halves are fixed: the reader
+ * answers `coalesce(..., false)`, and the schema refuses to fall over on a null boolean.
+ */
+describe('nullable booleans from SQL', () => {
+  const row = {
+    key: 'weekend-2x',
+    nameTr: 'Hafta sonu',
+    nameEn: 'Weekend',
+    descTr: 'Çift coin',
+    descEn: 'Double coins',
+    startsAt: new Date(START).toISOString(),
+    endsAt: new Date(END).toISOString(),
+    surface: 'banner',
+    state: 'live',
+    rules: [{ code: 'usage_minute', kind: 'usage', unit: 'per_hour', baseAmount: 40, effectiveAmount: 80, multiplier: 2, own: null }]
+  }
+
+  it('answers false, never null, for whether a rule belongs to the campaign', () => {
+    expect(sql).not.toContain("'own', r.campaign_key = c.key")
+    expect((sql.match(/'own', coalesce\(r\.campaign_key = c\.key, false\)/g) ?? []).length).toBe(2)
+  })
+
+  it('parses a null own flag instead of dropping the campaign', () => {
+    const parsed = activeCampaignSchema.parse(row)
+    expect(parsed.rules[0]?.own).toBe(false)
+    expect(parsed.rules[0]?.effectiveAmount).toBe(80)
+  })
+})
