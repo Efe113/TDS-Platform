@@ -2,6 +2,108 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.6] — 2026-10-27
+
+### Yeniden yapıldı: profil temaları artık **beş yüzey**, dört sabit span değil
+
+`aurum / slate / onyx / nebula / abyss` vitrina temaları, çerçevelerin 0049'da aldığı sözleşmeye geçti:
+her tema registry'de **beş bildirimsel yüzey** taşır (TR + EN adlarıyla), boyacı listeyi yürür, raf aynı
+beş kelimeyi satılır. Eski yapıda boyacı dört sabit span çıkarıp beşinciyi yalnız `nebula` için
+ekliyordu — yani bir tema, JSX'te kaç span varsa ancak o kadar yüzeye sahip olabilirdi; arduvaz fiilen
+bir yıkamanın üstünden geçen tek parlamaydı ve "beş tema aynı tasarım" gözlemi doğruydu.
+
+| Tema | Önder yüzey (imza şekli) | Beş yüzey |
+|---|---|---|
+| Aurum (VIP) | `fan` — kartın altından açan kazınmış yelpaze | yelpaze · yükselen kıvılcım · avatar halesi · üzerinden geçen parlama · erimiş altın dikiş |
+| Arduvaz (doğrulanmış) | `brush` — fırçalanmış metal bandı | bant · yürüyen doğrulama rayı · yavaş tek parlama · dişli alt hizası · mat tane |
+| Oniks (kurumsal) | `facet` — taş kesiti | kesit · altın baskı çizgisi · yörüngede altın tozu · geniş düşük parlama · kalın alt hıza |
+| Nebula (1400) | `cloud` — iki katman bulut | bulut · ters yönde gaz perdesi · çekirdek parlaması · seyrek yıldız · film greni |
+| Abiss (2200) | `depth` — derinlik ufku | ufuk · bant bant su ışığı · süzülen zerreler · soğuk yıldız · soğuk kenar hizası |
+
+Renk change edilmedi, **silüet** değişti: onsekiz yüzey tarifinin beş imza zemini birbirinden ayrı, ve
+renkleri registry'den gelen custom-property'ler taşıyor. Maliyet kuralı aynı: hareketli yüzey yalnız
+`transform`/`opacity` animasyonu yapar; blur, `backdrop-filter` ve animasyonlu `background-position` yok;
+yürüyen desenler (su bandı, doğrulama rayı) bir periyot kadar ötelenen taşmış levhalardır. Kademe bütçesi
+yalnız hareketli yüzeyleri sayar; vitrin önizlemesi ekran dışına çıkınca durur.
+
+- Market rafında her tema kutusu artık **vitrin**: sol tarafta kart örneği, sağda beş yüzeyin adı.
+- `0050_profile_theme_layers.sql` beş `theme_*` satırının `perks`'ını bu beş etiketle yeniler.
+  Aurum/slate/onyx **kademe bağışı** olarak 0 fiyatta ve kendi etiketinde (`vip`/`verified`/`corporate`)
+  kalır — `renewed` çipi kasanın fayda listesinden satırı düşürürdü; yalnız nebula (1400) ve
+  abyss (2200) `renewed`a geçer.
+
+### Yeni: **etkinlik sistemi** — kazanım kuralları artık tarih penceresiyle ödüyor
+
+`currency_rules`da tarih alanı yoktu; "bu hafta sonu çift coin" kampanyası ya elle her kuralı
+düzenleyip sonra geri almayı ya da birinin `flat_once` kuralını elle ateşlemesini gerektiriyordu, ve
+`award_currency()` kuralda ne yazıysa **sonsuza dek** ödüyordu.
+
+- `campaigns`: ad + kısa satır TR/EN, opsiyonel uzun gövde, **başlangıç/bitiş**, yüzey (bant | modal),
+  vurgu rengi, görsel, bağlantı. Pencere CHECK'i, `#rrggbb` CHECK'i ve bağlantı şeması CHECK'i
+  veritabanında (`https://` ve `tdsapp://` yalnız).
+- `campaign_rules`: mevcut kurala **çarpan** (0.1–5'te sınırlı) ya da **sabit miktar** ya da ayrı günlük
+  tavan. Kural kimliğini korur; defter geçmişi ve cüzdan listesi çalışmaya devam eder.
+- `currency_rules.campaign_key`: o etkinlik için doğmuş kural. Pencere dışında **sessiz** — 0 döner,
+  `UNKNOWN_RULE` vermez (çağıranlar kullanım ve inceleme tetikleyicileri, insan değil).
+- `app.campaign_overlay_for_rule()` tek karar yeri: kuralın kendi kampanyası başkasını ezer; eşitler
+  arasında en erken başlangıç kazanır, böylece çakışan iki kampanya ×4'e çıkmaz.
+- **Tavan yine kuralla gelir:** `p_amount` üyenin hak ettiği, kural (ya da çarpanı) tek olayın tavanıdır.
+  Haftalık tavan ve `decay_after_sessions` aynen duruyor — çift hafta sonu, sonsuz hafta sonu olmaz.
+- Uygulama üstünde **bant**: ad, canlı/yakında çipi, ilk yükseltilmiş kural + çarpan, mutlak tarihler ve
+  kalan süre, ayrıntı düğmesi, kapatma. Modal yüzeyi seçilen etkinlik açılışta kendisi gelir (kampanya
+  başına bir kez).
+- **Cüzdan** kazanım listesini aynı etkinlikten okur: çarpanlı kurallarda efektif miktar, üstü çizili
+  temel miktar ve kampanyanın tavanı gösterilir. Temel tavanı göstermek, sunucu hâlâ öderken üyeye
+  "hakkın bitti" demek olurdu.
+- **Düzeltme:** `admin_upsert_rule` (0038) olduğu gibi bırakıldı — tür/birim/tavan doğrulamaları iki
+  kopyaya bölünmesin; bağlama işi ayrı kol `admin_set_rule_campaign`. Bir etkinlik silinince kendi
+  kuralları **kapatılır**, silinmez (defter o kodları zaten referans alıyor).
+- `0051_campaigns.sql`. Ad çakışması bilinçli: `public.events` TDS'nin oyun içi etkinlik kataloğu
+  (0001) ve `strategies.event_key` ona bağlı; bu bir promosyon, harita modifier'ı değil.
+
+### Yeni: **duyuru sistemi** — uygulama artık konuşmadan önce de sözü var
+
+Platformun tek sesi bakımdı ve o yalnız "yazımlar kapalı" diyebiliyordu. Bakiye onarımı, moderasyon
+gecikmesi, yeni bir kural ya da cumartesi açılacak etkinlik anlatılacak yer bulamıyordu.
+
+- Tür: **bilgi / uyarı / kritik**. Görünüm: **bant** (kısa bilgi + tür çipi + kapama) ya da **modal**
+  (resim + ayrıntılı metin). Başlık ve bant satırı TR/EN, uzun metin opsiyonel, tarih aralığı ve
+  opsiyonel bağlantı.
+- Modal, uzun metin ya da resim yoksa **kaydedilmez**: ikisi de yoksa bu zaten bir banttır ve editör
+  bunu yüzüne söyler.
+- **Kapatma hesapta durur** (`announcement_reads`: `read` | `dismissed`); yeniden kurma ya da başka
+  makine sonrası aynı bant baştan gelmez. Hesap yoksa (ziyaretçi) istemci yerel düşer.
+- `ackRequired`: kritik duyurunun köşe çarpısı yoktur, yalnız **"Anladım"** ile kapanır. Onay istenen
+  bir şeyi çarpıyla kapamak kapamak değildir.
+- `updated_at` kapatmanın damgasıdır: düzenlenen duyuru farklı bir duyurudur ve yeniden gösterilir.
+- **Öncelik tek kuraldır:** bakım → duyuru bandı → etkinlik bandı; aynı anda tek bant, tek modal. Duyuru
+  etkinliğe ağır basar çünkü ilki üyenin hesabıyla, ikincisi mağazayla ilgili.
+- Etkinlikle bilinçli olarak birleştirilmedi: duyuru kazanım kuralı taşımaz, kampanya da üyeye hikâye
+  anlatmaz. İkisini birleştirmek bir "bilgi" notunun ekonomiye dokunabilmesi demekti.
+- `0052_announcements.sql`.
+
+### Admin
+
+Kenar rayına iki bölüm: **Etkinlikler** ve **Duyurular**. JSON yok — tarih alanları (giriş/çıkış
+çevirimi bakım editörüyle aynı yardımcılara indi), dil çiftleri, tür/yüzey seçimleri, kural satırları
+listeden seçilir, görsel yükleme tek nesne üzerine yazar. Her iki editörün önizlemesi çizim değil:
+üyenin gördüğü `CampaignBand` / `NoticeBand` bileşenlerinin kendisi. Hatalar sunucuya gitmeden
+adlandırılır (`campaignDraftErrors`, `noticeDraftErrors` RPC'nin reddettiği her şeyi aynı anahtarlarla
+söyler).
+
+### Testler ve araçlar
+
+- **260 test** (23 dosya), `npm run verify` temiz. Yeni: `campaign.test.ts` (20: `campaignStateOf` ile
+  `app.campaign_state()` aynı açılış/kapanış anını sayar, taslak doğrulayıcı RPC'nin reddettiğini
+  önceden adlandırır, para yolu pencereden geçmeden geçemez), `announcements.test.ts` (26: pencere,
+  ağırlık sırası, tek-bant kuralı, kapama sözü, kabuk sırası).
+- Profil teması sözleşmesi 8 yeni testle kilitli: beş yüzey zorunlu, önder yüzeyler birbirinden farklı,
+  her CSS tarifi gerçekten kullanılıyor ve hiçbir tarif sahipsiz değil, `perks` = registry etiketleri,
+  kademe bağışlarına `renewed` dokunamıyor.
+- `scripts/check-sql.mjs` blok yorumları atlamıyordu: "kampanyanın kazanç sayfası" gibi düz yazıdaki bir
+  kesme işaretini string başlangıcı sayıyordu. Yorumlar artık dolar gövdeleri dışında boşlukla
+  nötrlense de satır numaraları korunuyor (54 dosya temiz).
+
 ## [0.3.5] — 2026-10-27
 
 ### Yenilendi: **Boşluk (Void)** — dördüncüsü ve sonuncusu

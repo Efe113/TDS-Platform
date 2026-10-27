@@ -249,3 +249,34 @@ describe('the announcement server contract (0052)', () => {
     expect(sql).toContain("raise notice '0052 ok:")
   })
 })
+
+/**
+ * The precedence rule lives in the shell's JSX, so it is the one thing a refactor can quietly break:
+ * a second band, or a campaign modal opening on top of a critical notice. This reads the shell the way
+ * the session-persistence test reads the auth manager — the arrangement is the contract.
+ */
+describe('the shell band order', () => {
+  const app = readFileSync(join(here, '../../../apps/desktop/src/renderer/src/features/shell/App.tsx'), 'utf8')
+
+  it('draws maintenance, then a notice, then a campaign — one band only', () => {
+    const maintenance = app.indexOf('<MaintenanceBanner')
+    const notice = app.indexOf('<NoticeBand')
+    const campaign = app.indexOf('<CampaignBand')
+    expect(maintenance).toBeGreaterThan(-1)
+    expect(notice).toBeGreaterThan(maintenance)
+    expect(campaign).toBeGreaterThan(notice)
+    // The campaign band is the else-branch of the notice band, so the two cannot be stacked.
+    expect(app).toContain(') : campaign !== null && !campaignDismissed && campaign.surface === \'banner\' && noticeModal === null ? (')
+  })
+
+  it('lets a notice own the interruption', () => {
+    expect(app).toContain('openNotice === null ? (')
+    expect(app.indexOf('<NoticeModal')).toBeLessThan(app.indexOf('<CampaignModal'))
+  })
+
+  it('polls both readers on the same minute the banner already lives on', () => {
+    const keys = ['queryKey: [\'notices\']', 'queryKey: [\'campaigns\']', 'queryKey: [\'maintenance\']']
+    for (const key of keys) expect(app).toContain(key)
+    expect((app.match(/refetchInterval: 60_000/g) ?? []).length).toBe(3)
+  })
+})

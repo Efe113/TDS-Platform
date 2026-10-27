@@ -1,6 +1,6 @@
 {
   "name": "@tds/desktop",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "private": true,
   "description": "Desktop strategy companion for Roblox Tower Defense Simulator",
   "license": "MIT",
