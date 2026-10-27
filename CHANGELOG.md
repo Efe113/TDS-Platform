@@ -2,6 +2,95 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.9] — 2026-10-27
+
+İki şey "yarıda kalmış" gibi görünüyordu: İngilizce arayüzde hâlâ Türkçe sözleşme açılması ve Keşfet'in
+harita filtresinin 134 satırlık düz bir liste olması. Bu turda ikisi de kapatıldı, üzerine beş özellik
+eklendi.
+
+### Önce göçler: 0056 ve 0057 — 0053 ve 0054 hâlâ bekliyor
+
+Bu sürüm iki göç istiyor; 0.3.8'den kalan ikisi de duruyor:
+
+1. `supabase/migrations/0053_badge_catalog.sql` (çalıştırılmadıysa rozet kataloğu boş kalır)
+2. `supabase/migrations/0054_creator_watch_and_discover_filters.sql` (yazar takibi ve derin keşif
+   filtreleri buna bağlı; 0037/0040 gibi eski `search_strategies` imzasını düşürüp yenisini kurar)
+3. `supabase/migrations/0056_consent_locale.sql` — onay kaydı okunan dili (tr/en) taşıyor
+4. `supabase/migrations/0057_product_waitlist.sql` — bekleme listesi tablosu ve dört fonksiyonu
+
+Hiçbiri çalıştırılmadığında uygulama çökmüyor: ilgili yüzey ya kendini kapatıyor ya da kilitli kalıyor.
+0056 eski üç argüanlı `accept_consent` imzasını düşürüp dördüncü argümanlısını kuruyor (PostgREST aynı
+isimde iki overload arasında seçim yapamıyor).
+
+### Politika metni artık markdown demeti değil, iki dilli bir kayıt
+
+Eski modelde üç uzun metin tek Türkçe markdown dizisiydi. Bu tek seçim üç yere birden zarar veriyordu:
+İngilizce arayüz Türkçe sözleşme gösteriyordu, arayüz ikon bulmak için başlık kelimesi eşleştirmek
+zorundaydı ("yapmaz" geçmezse ikon düşüyordu) ve onay satırı herkese `tr` yazıyordu.
+
+- Gövde artık `{ tr, en }` çiftlerinden oluşan yapısal bir kayıt: 16 gizlilik maddesi, 15 koşul maddesi,
+  9 hakkında bölümü ve 6 sık sorulan. Madde numaraları iki dilde aynı, id'ler sabit.
+- Üslup kurumsallaştırıldı: kapsam/tanımlar, veri sorumlusu, hukuki dayanak, saklama süresi,
+  kimliksizleştirme, haklar ve başvuru yolu, yaş, üçüncü taraf aktarımları; koşul tarafında kabul
+  edilebilir kullanım, sanal ekonomi, içerik lisansı ve künye/takedown, ban garantisi vermeme, hizmet
+  seviyesi, sorumluluk sınırı, sonlandırma ve uygulanacak hukuk.
+- Metin iddiaları kodda doğrulandı: oturum tokenının `safeStorage` ile şifrelenmesi, Sentry'ye yalnız
+  hesap id'si gitmesi, içe aktarmada ham belgenin yüklenmemesi (sha256 + kaynak + eşleşmeyen etiketler),
+  yayında adım orijinal metninin sürüm kaydına girmesi, Ayarlar'daki gerçek anahtar adları.
+- **POLICY_VERSION 2026.10.1 → 2026.11.1.** Metin yeniden yazıldı, bu yüzden her üye bir kez yeniden
+  onay görecek — bu bir kaza değil, sözleşme değişikliğinin kendisi.
+
+### Okuma yüzeyi
+
+Madde dizini kaydırımı takip ediyor (okuduğun madde üstten geçerken dizinde işaretleniyor), her madde
+tek tuşla kopyalanıyor, belge Markdown olarak diske yazılabiliyor (`app:saveFile`), sürüm numarasının
+yanında yürürlük tarihi duruyor. Dil: belge arayüz diliyle açılıyor, sayfa içi TR/EN anahtarından
+seçilen cihazda hatırlanıyor ve onay kaydına işleniyor. Üst bar kırıntısı `terms` yerine
+"Kullanım Koşulları" yazıyor. Hakkında ekranı da aynı motoru kullanıyor; ikonlar başlıktan değil madde
+id'sinden geliyor, çünkü aynı sayfa artık iki dilde.
+
+### Keşfet: harita filtresi ve panel düzeni
+
+- Harita faceti kendi aramasıyla geliyor; önce **sonucu olan** haritalar (sayı sırasıyla), kataloğun
+  stratejisiz kalanları ayrı bir grubun içinde kapalı, listenin yüksekliği sınırlı. 134 satırlık düz
+  liste paneli ekranın dışına taşırdı ve diğer tüm filtreleri görünmez kılıyordu.
+- Oyuncu sayısı / dalga aralığı / en az kullanım katlanır "Koşu detayları" bölmesine geçti; seçili
+  filtre sayısı rozette duruyor, açılıp kapanması cihazda hatırlanıyor.
+- Sıralama şeridi kaydırmada yapışık kalıyor ve "görünen / toplam" sayısını taşıyor; panel kendi
+  yüksekliğine sığmıyorsa içinde kayıyor.
+- Geniş ekranda ızgara üç sütuna çıkıyor; kartın sol kenarı zorluk rengini taşıyor.
+
+### Beş yeni yüzey
+
+1. **Adım sayacı.** Belgenin yazdığı süre (`seconds`, 0.3.8) artık geriye sayıyor — overlay kartında ve
+   sağ rayda, duraklat/sıfırla ile birlikte. Sayaç adım değiştiğinde baştan başlıyor; çubuk opaklıkla
+   yürüyor, genişlik animasyonu yok.
+2. **Karttan izleme.** `is_watched` iki sürümdür satırda geliyordu ama düğmesi yoktu: zil artık kartta,
+   karşılaştırma tablosunda da "İzlemede" satırı var.
+3. **Tam metrik vitrini.** Rollup on bir sayı üretiyor, profil dörtünü gösteriyordu; hepsi görünüyor,
+   her metriğin kendi ikonu var, en iyi sıralama hiç yoksa `—`.
+4. **Cüzdan makbuzu.** Harcama satırı artık ne aldığını ve ne ödediğini yazıyor. Yeni SQL gerekmedi:
+   defter satırındaki `−delta` zaten gerçek ödeme, katalog satırı da alınan ürün — süslü bir alan
+   uydurmak yerine mevcut iki gerçek birleştirildi.
+5. **Bekleme listesi (0057).** Etiketi `soon` olan ürün için "Gelince haber ver": tek (kişi, sku) satırı,
+   coin yok, bildirim sözü yok. Kart taleple birlikte "Şu an N kişi bekliyor" yazıyor; admin panelinde
+   ürün başına talep sayısı, son kayıt ve bekleyenlerin kullanıcı adları görünüyor. Raftaki ürüne kuyruk
+   sunucu tarafında reddediliyor (`NOT_UPCOMING`).
+
+### Bilinçli olarak bu turda yok
+
+Overlay penceresinin kendi sözlüğü `tr + extraTr` okuyor: ana pencere ve ray İngilizce açılabiliyor ama
+kartın metni hâlâ Türkçe. Bu ayrı bir iş (overlay sözlüğünün i18next'siz iki dilli hale getirilmesi).
+Ayrıca kuyruk yalnız `soon` etiketli üründe duruyor — etiketi olmayan üründe düğme de yok.
+
+### Testler ve doğrulama
+
+27 dosya / 291 test geçiyor; `check:ipc`, `check:sql` (58 dosya) ve `check:sql:drift` dahil. Yeni:
+`policies.test.ts` (9 — iki dilin eşleşmesi, madde numaralarının kaymaması, id'lerin çapaksız ve
+benzersiz olması, İngilizce metinde Türkçe harf kalmaması, Markdown dışa aktarımın doğru dili yazması),
+`product-waitlist.test.ts` (5) ve profil metriği parite testi. **Arayüz elle açılıp denenmedi** — bu
+oturumda GUI/CDP turu yapılmadı; görsel doğrulama kurulumda yapılacak.
+
 ## [0.3.8] — 2026-10-27
 
 Para tarafında üç sürüm geçirdik; bu turda odak özellik. On madde kodda doğrulanarak seçildi:
