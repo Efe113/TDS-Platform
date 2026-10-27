@@ -104,6 +104,17 @@ söyler).
   kesme işaretini string başlangıcı sayıyordu. Yorumlar artık dolar gövdeleri dışında boşlukla
   nötrlense de satır numaraları korunuyor (54 dosya temiz).
 
+### Düzeltildi: 0051 kendi kanıt bloğunda takıldı
+
+İlk sürümde `app.rule_payable_now()` şu biçimde yazılmıştı: `select coalesce(case ... end, false)
+from currency_rules where code = ?`. Eşleşen satır yoksa sorgu **satır döndürmez**; satır döndürmeyen
+bir sorgunun sonucu NULL'dır ve `coalesce` hiç ulaşılamaz, çünkü birleştirilecek satır yoktur. 0051'in
+kendi kanıt bloğu bunu yakaladı (`0051 failed: an unknown rule should not read as payable`) — kanıt
+haklıydı, fonksiyon bozuktu. `bool_or` boş kümede NULL verir ve dıştaki `coalesce` onu görür; cevap
+artık gerçekten `false`. Ödeme yolu etkilenmiyordu (`award_currency` önce `UNKNOWN_RULE` ile çıkıyor),
+ama `app.campaign_live`'ın doğru yazılmış haliyle düz yazının üstündeki bu ifade aynı görünüp farklı
+sonuç veren tek ikiliydi. Test sözleşmeyi metinden bağlıyor.
+
 ## [0.3.5] — 2026-10-27
 
 ### Yenilendi: **Boşluk (Void)** — dördüncüsü ve sonuncusu
