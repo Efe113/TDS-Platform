@@ -77,6 +77,12 @@ const CRUMB_KEYS: Record<string, MessageKey> = {
   admin: 'nav.admin'
 }
 
+/** `/legal/terms` is the only second route segment a breadcrumb should show, and never as a raw slug. */
+const LEGAL_CRUMB_KEYS: Record<string, MessageKey> = {
+  privacy: 'legal.tabPrivacy',
+  terms: 'legal.tabTerms'
+}
+
 type Tone = 'good' | 'warn' | 'danger' | 'idle'
 
 const DOT_CLASS: Record<Tone, string> = {
@@ -193,9 +199,10 @@ export function TitleBar({ skin }: { skin: ThemeSkin }): ReactNode {
 
   const segments = routeSegments(path)
   const head = segments[0] ?? 'home'
-  // A detail route carries an id, and an id in the breadcrumb is noise. `/legal/terms` is the one
-  // second segment that means something to the user.
-  const crumbs = segments[1] && head === 'legal' ? [t(CRUMB_KEYS[head] ?? 'nav.home'), segments[1]] : [t(CRUMB_KEYS[head] ?? 'nav.home')]
+  // A detail route carries an id, and an id in the breadcrumb is noise. Only the legal sub-routes mean
+  // something to the user, and they mean it as a label, not as the slug in the address bar.
+  const legalCrumb = head === 'legal' && segments[1] !== undefined ? LEGAL_CRUMB_KEYS[segments[1]] : undefined
+  const crumbs = legalCrumb ? [t(CRUMB_KEYS[head] ?? 'nav.home'), t(legalCrumb)] : [t(CRUMB_KEYS[head] ?? 'nav.home')]
 
   const hook = hookState(hookQuery.data)
   const pending = usage.data?.pending ?? 0

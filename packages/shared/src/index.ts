@@ -29,4 +29,27 @@ export * from './import/unmatched'
 export { tr, type TranslationKey } from './i18n/tr'
 export { en } from './i18n/en'
 export * from './supabase/client'
-export { POLICY_VERSION, SUPPORT_EMAIL, ABOUT_MD, PRIVACY_MD, TERMS_MD, LEGAL_DOCUMENTS, POLICY_DOCUMENTS, DEFAULT_POLICY_DOCUMENT, type PolicyKind } from './legal/policies'
+export {
+  POLICY_VERSION,
+  POLICY_EFFECTIVE_DATE,
+  SUPPORT_EMAIL,
+  POLICY_LANGUAGES,
+  POLICY_KINDS,
+  ABOUT_DOCUMENT,
+  PRIVACY_DOCUMENT,
+  TERMS_DOCUMENT,
+  ABOUT_FAQ,
+  LEGAL_DOCUMENTS,
+  POLICY_DOCUMENTS,
+  DEFAULT_POLICY_DOCUMENT,
+  pickLanguage,
+  text,
+  policyDocument,
+  policyToMarkdown,
+  type PolicyKind,
+  type PolicyLanguage,
+  type PolicyDocument,
+  type PolicySection,
+  type LocalizedText,
+  type FaqEntry
+} from './legal/policies'

@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ShieldCheck } from 'lucide-react'
 import { Banner, Button } from '../../components/ui'
 import { Chip } from '../../components/ui/system'
 import { StateError } from '../../components/ui/states'
 import { SkeletonCard } from '../../motion/primitives/Shimmer'
-import { POLICY_VERSION } from '@tds/shared'
+import { POLICY_VERSION, pickLanguage } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { navigate } from '../../lib/router'
 import { supabase } from '../../lib/supabase'
@@ -51,6 +52,7 @@ function describeErrorKey(error: unknown): 'common.errorNetwork' | 'auth.errorUn
  */
 export function ConsentGate({ children }: { children: ReactNode }): ReactNode {
   const t = useT()
+  const { i18n } = useTranslation()
   const signedIn = useAuth(selectSignedIn)
   const queryClient = useQueryClient()
 
@@ -68,7 +70,10 @@ export function ConsentGate({ children }: { children: ReactNode }): ReactNode {
         const { error } = await supabase.rpc('accept_consent', {
           p_kind: kind,
           p_policy_version: POLICY_VERSION,
-          p_client_version: 'desktop-dev'
+          p_client_version: 'desktop-dev',
+          // 0056: the row has to say which language of the text was accepted, or the record is a
+          // signature next to an unnamed document.
+          p_locale: pickLanguage(i18n.language)
         })
         // 409/23505 means the row already exists: the user accepted on another machine, or a double
         // click raced this call. That is success, not an error to show.
