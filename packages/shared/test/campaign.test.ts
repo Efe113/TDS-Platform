@@ -254,6 +254,20 @@ describe('campaign server contract (0051)', () => {
     expect(sql).toContain('public.campaigns')
   })
 
+  it('answers false — not NULL — for a rule that does not exist', () => {
+    // The first version of `app.rule_payable_now` wrote `select coalesce(case ... end, false)
+    // from currency_rules where code = ?`. An unknown code returns *no rows*, and a query that
+    // returns no rows returns NULL: the coalesce is never reached because there is no row to
+    // coalesce. The migration's own proof block caught it (`an unknown rule should not read as
+    // payable`), and `bool_or` over the empty set is what actually yields false.
+    const helper = sql.slice(sql.indexOf('create or replace function app.rule_payable_now'))
+    const body = helper.slice(0, helper.indexOf('$$;\n'))
+    expect(body).toContain('coalesce(')
+    expect(body).toContain('bool_or(')
+    expect(body).toContain('false')
+    expect(sql).toContain("raise exception '0051 failed: an unknown rule should not read as payable'")
+  })
+
   it('proves its own money path before it claims success', () => {
     expect(sql).toContain("raise exception '0051 failed: award_currency still ignores campaign windows'")
     expect(sql).toContain("raise notice '0051 ok:")

@@ -189,6 +189,12 @@ $$;
  * A rule minted for a campaign is dormant outside its window. This answers through it instead of
  * raising, because the callers are triggers on a usage flush and a review decision — not a human
  * waiting for an error message.
+ *
+ * `bool_or` is not a flourish: written as a bare `select case ... from currency_rules where code = ?`,
+ * an unknown code returns **no rows**, and a query that returns no rows returns NULL — the
+ * `coalesce(...)` wrapped around the CASE would never be reached, because there is no row to
+ * coalesce. `false` is the answer the caller needs, and `COALESCE(bool_or(...))` on the empty set is
+ * what actually produces it.
  */
 create or replace function app.rule_payable_now(p_rule_code text)
 returns boolean
@@ -198,10 +204,12 @@ security definer
 set search_path = public, pg_temp
 as $$
   select coalesce(
-    case
-      when r.campaign_key is null then true
-      else app.campaign_live(r.campaign_key)
-    end,
+    bool_or(
+      case
+        when r.campaign_key is null then true
+        else app.campaign_live(r.campaign_key)
+      end
+    ),
     false
   )
   from public.currency_rules r
