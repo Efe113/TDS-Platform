@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   Bookmark,
   Check,
+  ChevronDown,
   Copy,
   GitCompareArrows,
   LayoutGrid,
@@ -36,6 +37,7 @@ import { StateEmpty, StateError, StateLoading } from '../../components/ui/states
 import { RevealItem, RevealList } from '../../motion/primitives/Reveal'
 import { StrategyCard } from './StrategyCard'
 import { ComparePanel } from './ComparePanel'
+import { MapFacet } from './MapFacet'
 
 type EventChoice = 'any' | 'only' | 'normal'
 type ViewMode = 'grid' | 'list'
@@ -75,6 +77,7 @@ const DIFFICULTY_OPTIONS: readonly string[] = ['easy', 'medium', 'hard', 'nightm
 const PLAYER_OPTIONS: readonly string[] = ['solo', 'duo', 'trio', 'quad']
 const MIN_USE_OPTIONS: readonly number[] = [1, 10, 50, 100]
 const VIEW_KEY = 'tds.discover.view'
+const DEEP_KEY = 'tds.discover.deep'
 const SAVED_KEY = 'tds.discover.saved'
 
 /**
@@ -147,30 +150,32 @@ function readSaved(): SavedSearch[] {
   }
 }
 
-function FacetRow({
+function Disclosure({
   label,
-  count,
   active,
-  onClick
+  open,
+  onToggle,
+  children
 }: {
   label: string
-  count: number
-  active: boolean
-  onClick: () => void
+  active: number
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
 }): ReactNode {
   return (
-    <button
-      type="button"
-      data-press
-      onClick={onClick}
-      className={cn(
-        'no-drag flex w-full items-center justify-between gap-2 rounded-md px-2 py-1 text-left text-[12px] transition-colors',
-        active ? 'bg-brand/15 text-ink' : 'text-mute hover:bg-panel-soft hover:text-ink'
-      )}
-    >
-      <span className="truncate">{label}</span>
-      <span className="hud-num shrink-0 text-[10px] text-mute/80">{String(count)}</span>
-    </button>
+    <div className="border-t border-line/70 pt-1.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="no-drag flex w-full items-center gap-1.5 px-1 py-1 text-[10px] font-semibold uppercase tracking-widest text-mute/70 transition-colors hover:text-ink"
+      >
+        <ChevronDown size={11} className={cn('shrink-0 transition-transform duration-200', !open && '-rotate-90')} />
+        {label}
+        {active > 0 ? <span className="hud-num ml-auto rounded bg-brand/20 px-1.5 text-[10px] text-brand">{String(active)}</span> : null}
+      </button>
+      {open ? <div className="space-y-2 pt-1.5">{children}</div> : null}
+    </div>
   )
 }
 
@@ -195,6 +200,13 @@ export function DiscoverPage(): ReactNode {
   const [compareOpen, setCompareOpen] = useState(false)
   const [saved, setSaved] = useState<SavedSearch[]>(readSaved)
   const [copied, setCopied] = useState(false)
+  const [deep, setDeep] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(DEEP_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -222,6 +234,14 @@ export function DiscoverPage(): ReactNode {
       // A blocked storage only means the preference is not remembered.
     }
   }, [view])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DEEP_KEY, deep ? '1' : '0')
+    } catch {
+      // Same: the disclosure just starts closed again.
+    }
+  }, [deep])
 
   // "/" jumps to the search unless the user is already typing somewhere.
   useEffect(() => {
@@ -468,7 +488,7 @@ export function DiscoverPage(): ReactNode {
       />
 
       <div className="grid gap-4 xl:grid-cols-[286px_minmax(0,1fr)]">
-        <aside className="space-y-3 self-start xl:sticky xl:top-4">
+        <aside className="space-y-3 self-start xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1">
           <Section title={t('discover.facets')} hint={t('discover.facetsHint')}>
             <div className="space-y-3">
               <div className="relative">
@@ -497,33 +517,14 @@ export function DiscoverPage(): ReactNode {
                 {mapsQuery.isPending ? (
                   <p className="text-[11px] text-mute">{t('common.loading')}</p>
                 ) : (
-                  <div className="space-y-0.5">
-                    <FacetRow
-                      label={t('discover.allMaps')}
-                      count={facets?.total ?? total}
-                      active={filters.map === null}
-                      onClick={() => patch({ map: null })}
-                    />
-                    {mapFacets.length > 0
-                      ? mapFacets.map((bucket) => (
-                          <FacetRow
-                            key={bucket.key}
-                            label={mapNames.get(bucket.key) ?? bucket.key}
-                            count={bucket.count}
-                            active={filters.map === bucket.key}
-                            onClick={() => patch({ map: filters.map === bucket.key ? null : bucket.key })}
-                          />
-                        ))
-                      : (mapsQuery.data ?? []).map((option) => (
-                          <FacetRow
-                            key={option.key}
-                            label={catalogName(option, language) ?? option.key}
-                            count={0}
-                            active={filters.map === option.key}
-                            onClick={() => patch({ map: filters.map === option.key ? null : option.key })}
-                          />
-                        ))}
-                  </div>
+                  <MapFacet
+                    keys={(mapsQuery.data ?? []).map((option) => option.key)}
+                    names={mapNames}
+                    buckets={mapFacets}
+                    selected={filters.map}
+                    total={facets?.total ?? total}
+                    onSelect={(next) => patch({ map: next })}
+                  />
                 )}
               </div>
 
@@ -592,8 +593,14 @@ export function DiscoverPage(): ReactNode {
                 />
               </div>
 
-              {/* 0054: the three questions a run is chosen with that the old search could not answer. */}
-              <div className="space-y-2 border-t border-line/70 pt-2">
+              {/* 0054: the three questions a run is chosen with that the old search could not answer.
+                  They are the last thing a scroller needs, so they start folded and carry their own count. */}
+              <Disclosure
+                label={t('discover.deepFilters')}
+                active={(filters.players !== null ? 1 : 0) + (filters.waveFrom !== null || filters.waveTo !== null ? 1 : 0) + (filters.minUses !== null ? 1 : 0)}
+                open={deep}
+                onToggle={() => setDeep((current) => !current)}
+              >
                 <div>
                   <p className="hud-label mb-1">{t('discover.players')}</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -655,7 +662,7 @@ export function DiscoverPage(): ReactNode {
                     ))}
                   </div>
                 </div>
-              </div>
+              </Disclosure>
 
               <div className="flex flex-wrap gap-1.5 pt-1">
                 <Button size="sm" variant={filters.favorites ? 'primary' : 'ghost'} disabled={!signedIn} onClick={() => patch({ favorites: !filters.favorites })}>
@@ -732,14 +739,21 @@ export function DiscoverPage(): ReactNode {
         </aside>
 
         <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* The bar that answers "how am I looking at this" follows the scroll: on a 200-result board the
+              sort is the control you come back to most, and the page header is long gone by then. */}
+          <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-2 bg-base/96 px-1 py-1.5">
             <Segmented
               size="sm"
               value={filters.sort}
               onChange={(value) => patch({ sort: value })}
               options={DISCOVERY_SORTS.map((value) => ({ value, label: t(SORT_KEYS[value]) }))}
             />
-            {searchQuery.isFetching ? <Badge tone="neutral">{t('common.loading')}</Badge> : null}
+            <div className="flex items-center gap-2">
+              {rows.length > 0 ? (
+                <span className="hud-num text-[11px] text-mute">{t('discover.resultCountTotal', { shown: String(rows.length), total: String(total) })}</span>
+              ) : null}
+              {searchQuery.isFetching ? <Badge tone="neutral">{t('common.loading')}</Badge> : null}
+            </div>
           </div>
 
           {favoriteMutation.isError ? <StateError detail={rawMessage(favoriteMutation.error)} /> : null}
@@ -793,7 +807,7 @@ export function DiscoverPage(): ReactNode {
                 ))}
               </RevealList>
             ) : (
-              <RevealList className="grid gap-2.5 sm:grid-cols-2" count={Math.min(rows.length, 8)}>
+              <RevealList className="grid gap-2.5 sm:grid-cols-2 2xl:grid-cols-3" count={Math.min(rows.length, 8)}>
                 {rows.map((row) => (
                   <RevealItem key={row.id} className="h-full">
                     <StrategyCard

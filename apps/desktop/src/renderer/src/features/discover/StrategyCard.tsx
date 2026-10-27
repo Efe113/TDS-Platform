@@ -7,6 +7,7 @@ import { difficultyEntry, playerCountKey, useCatalogLanguage } from '../../lib/c
 import { relativeTime } from '../../lib/text'
 import { Badge, Button, Card, Row, cn } from '../../components/ui'
 import { VerifiedBadge } from '../../components/brand/verified-badge'
+import type { BadgeTone } from '../../lib/catalog-labels'
 
 export interface StrategyCardProps {
   row: SearchRow
@@ -21,6 +22,18 @@ export interface StrategyCardProps {
   selected?: boolean
   onToggleCompare?: (row: SearchRow) => void
   compareDisabled?: boolean
+}
+
+/**
+ * The difficulty tone drawn on the card edge. A board is scanned by colour first and by text second, and
+ * the badge rail only says the word when the reader already stopped to look.
+ */
+const TONE_RAIL: Record<BadgeTone, string> = {
+  neutral: 'bg-line',
+  accent: 'bg-brand',
+  warn: 'bg-warn/80',
+  danger: 'bg-danger/80',
+  good: 'bg-good/80'
 }
 
 function RatingBar({ average, count }: { average: number; count: number }): ReactNode {
@@ -155,9 +168,12 @@ export function StrategyCard({
     </button>
   )
 
+  const rail = <span aria-hidden className={cn('pointer-events-none absolute inset-y-0 left-0 w-[2px]', TONE_RAIL[difficulty.tone])} />
+
   if (list) {
     return (
-      <Card lift className={cn('flex-row items-center gap-4 py-3', selected && 'ring-1 ring-inset ring-brand/60')}>
+      <Card lift className={cn('relative flex-row items-center gap-4 overflow-hidden py-3 pl-5', selected && 'ring-1 ring-inset ring-brand/60')}>
+        {rail}
         {title}
         <div className="hidden shrink-0 flex-col items-end gap-1 lg:flex">
           {chips}
@@ -170,7 +186,8 @@ export function StrategyCard({
   }
 
   return (
-    <Card lift className={cn('flex h-full flex-col gap-2', selected && 'ring-1 ring-inset ring-brand/60')}>
+    <Card lift className={cn('relative flex h-full flex-col gap-2 overflow-hidden pl-5', selected && 'ring-1 ring-inset ring-brand/60')}>
+      {rail}
       <div className="flex items-start justify-between gap-2">
         {title}
         <div className="flex shrink-0 items-center gap-1.5">
