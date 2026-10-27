@@ -110,7 +110,7 @@ export function OverlayCard({ state, dimmed, interactive, prefs, onHover, onStep
       style={{ fontSize: `calc(1em * var(--ov-font-scale, 1))` }}
       onPointerEnter={() => onHover(true)}
       onPointerLeave={() => onHover(false)}
-      className="overlay-card relative max-h-full overflow-hidden rounded-xl border border-brand/30 bg-panel/85 p-3 shadow-2xl backdrop-blur-sm"
+      className="overlay-card relative max-h-full overflow-hidden rounded-xl border border-brand/30 bg-panel/92 p-3 shadow-2xl"
     >
       {dimmed ? (
         <span className="absolute -top-2 right-2 rounded-full border border-line bg-panel px-1.5 py-0.5 text-[10px] text-mute">

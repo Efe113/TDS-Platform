@@ -90,7 +90,7 @@ export function MaintenanceGate({ state, staff }: { state: MaintenanceState; sta
   if (staff) return null
 
   return (
-    <div className="maintenance-gate absolute inset-0 z-40 grid place-items-center bg-base/92 px-6 backdrop-blur-md">
+    <div className="maintenance-gate absolute inset-0 z-40 grid place-items-center bg-base/96 px-6">
       <div className="hud-panel w-full max-w-md p-5">
         <span className="hud-label flex items-center gap-1.5">
           <AlertTriangle size={12} className="text-warn" />

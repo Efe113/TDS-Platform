@@ -2,6 +2,82 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.5] — 2026-10-27
+
+### Yenilendi: **Boşluk (Void)** — dördüncüsü ve sonuncusu
+
+Üç katmanlı mor yıkama + tek yıldız alanı yerine **bir yerçekimi kuyusu**:
+
+- **Birikim diski (accretion):** eğik duran, kendi içinde dönen bir disk; üstünde sıcak bir halka
+  yürüyor. Disk `transform: rotate()` ile dönüyor — açı animasyonu değil.
+- **Kara çekirdek (singularity):** ışığı yutan olay ufku ve onun üstünde nefes alan bir foton
+  çizgisi; diskin ortasındaki delik ilk kez gerçek bir delik.
+- **Üç derinlikte gaz (nebula):** üç bulut aynı hızda hareket etmiyor, bu yüzden uzaklık okunuyor;
+  tek bir yıkama yerine katmanlı gökyüzü.
+- **Yörüngeler (orbits):** üç elips, her birinde bir gövde — farklı hızlarda dönen bir güneş saati.
+- **Yırtık (rift):** çapraz sızan ışık; `opacity` + `transform` ile açılıp kapanıyor.
+- **İki alan, bir tuval:** yıldız alanına karşı toz alanı. Yıldızlar küçük, hızlı ve kırpıyor; toz
+  iri, yavaş ve sabit. İkisi de düşmüyor — düşme işini diskin kendisi yapıyor.
+- `mesh + grain + vignette` altında sekiz katman, 20 px paralaks, `renewed: true`. Accent `#9d7bff`
+  registry brand'iyle eşit; anahtar `void`, fiyat 420 — sahiplik korunuyor.
+
+Kampanya burada bitiyor: **Varsayılan** bilinçli olarak sakin kalacak.
+
+### Optimize edildi: kastırmanın dört sebebi de kapatıldı
+
+Önizlemeler dahil her tema artık aynı kurallara tabi. Ölçülen değil, **yapısal** düzeltmeler:
+
+- **Tek animasyon döngüsü:** her tuval kendi `requestAnimationFrame` zincirini çalıştırıyordu; artık
+  hepsi `motion/ticker.ts` içindeki tek tick'e abone oluyor ve kademe başına kare tavanı alıyor
+  (low 24 / medium 30 / high 60). Sekme görünmüyorken döngü tamamen duruyor.
+- **Parça başına iş kaldırıldı:** renkler ve alfa değerleri tohumlamada önbelleğe alınıyor, palet
+  başına sprite bir kez üretiliyor, `shadowBlur` çizim döngüsünden çıktı (yerini önceden çizilmiş
+  parlama sprite'ı aldı), DPR 1.5'te sınırlı.
+- **Yeniden rasterize eden hiçbir şey yok:** kartlarda ve üst barda `backdrop-filter`, hareketli
+  katmanlarda `filter: blur()` ve `mix-blend-mode` kaldırıldı; yumuşaklik gradyan duraklarıyla
+  ifade ediliyor. Modal perdeleri ve overlay kartı artık blur yerine opaklık kullanıyor.
+- **Yeniden boyayan animasyon yok:** `background-position` / `top` / `box-shadow` ile ilerleyen
+  tüm büyük yüzeyler `translate3d` veya `scaleX` taşımasına çevrildi (dikiş, köpük, tarama, perde,
+  indirim halkası, profil süpürmesi). `@property --frame-angle` ve `--edge-angle` silindi — açı
+  animasyonu, altı çerçeve ve bir liderlik satırı dolusu avataru saniyede altmış kez yeniden
+  rasterize ediyordu.
+- **Bütçe artık hareket eden katmanları sayıyor:** `vignette`, `grain` ve `grid` duran yüzeyler;
+  düşük kademede kesilmiyorlar, çünkü kontrastı tam da ona ihtiyaç duyan kullanıcı koruyor.
+- **Önizlemeler ekrandayken çalışıyor:** `useAmbientActive` kapısı ile vitrinden çıkan tema sahnesi
+  duruyor; minyatür önizleme 30 kare ve dört hareketli katmanla sınırlı.
+- `data-motion='low'` kademe işareti MotionProvider tarafından kök elemana yazılıyor ve CSS tüm
+  dönüşleri orada park ediyor.
+
+### Sıfırdan: çerçeveler — hepsi beş katman
+
+Altı çerçeve tek bir makine: **hale · çekirdek · dönüş · kıvılcım · işaret**
+(`halo | core | spin | spark | mark`). Tip düzeyinde beşi zorunlu; eksik katman derlenmiyor.
+
+- Halka artık **sabit bir maskenin içinde dönen dairesel gradyan levhası** — altı yüzeyin hepsi
+  kompozitörde, hiçbiri yeniden rasterize etmiyor.
+- Her efektin kendi hareket imzası ve kendi dönüş süresi var (Ocak 5.2s · Toksik 7.6s · Kutup 8.4s ·
+  Gökkuşağı 10s · Boşluk 12s · Altın 16s); Altın ve Gökkuşağı da dahil **altısının da animasyonlu**.
+- **`FrameVitrine`:** raftaki her çerçeve artık beş katmanını canlı örneklerle ve **isimleriyle**
+  listeliyor; katalog satırındaki `perks` alanı da aynı beş etiketi taşıyor, böylece vitrin ile
+  müşteri istemcisi aynı sözlüğü okuyor.
+- **Düzeltme:** `frame_aurora` kaydı hiçbir zaman eklenmemişti — registry'de 0031'den beri duruyor,
+  rafta görünüyor ama satın alınamıyordu (`equip_cosmetic` NOT_FOUND). 0049 ile gerçek satır: 540.
+
+### SQL
+
+- **`0049_void_theme_and_five_layer_frames.sql`** — Boşluk yenilemesi (ad/fiyat/anahtar korunuyor,
+  accent `#9d7bff`), altı çerçevenin beş katmanlı satırı ve `frame_aurora`'nın eklenmesi. Kendi
+  kendini doğruluyor: altı satır, `jsonb_array_length(perks) = 5`, Gökkuşağı hâlâ `vip`/0. Etiket
+  sözlüğü 0045 ile birebir aynı. İki kez çalıştırılabilir.
+
+### Testler
+
+- **`render-performance.test.ts` (9 yeni test):** kare başına maliyet sözleşmesi artık yazılı — animasyon
+  öznitelikleri yalnızca `transform`/`opacity` (+ tek tek listelenmiş ince şeritler), CSS'te blur ve
+  `backdrop-filter` yok, renderer'da tek rAF sahibi var, çerçeve motorunun beş yüzeyi ve kademe kapısı
+  yerinde.
+- Toplam **206 test**, 21 dosya — `npm run verify` temiz.
+
 ## [0.3.4] — 2026-10-26
 
 ### Yenilendi: **Kutup (Aurora)** — üçüncüsü

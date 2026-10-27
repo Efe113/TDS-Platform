@@ -74,7 +74,9 @@ export function routeSwap(budget: MotionBudget): RouteSwap {
 
 /** Ambient drift for a skin layer; returns `null` when the budget says stand still. */
 export function drift(budget: MotionBudget, distance: number): { animate: Record<string, number[]>; transition: Transition } | null {
-  if (budget.parallax === 0 && budget.ambientLayers <= 1) return null
+  // Zero parallax means the keyframes would all be `0`, and a player animating a constant is still a
+  // player: the layer should mount without an animation at all on that machine.
+  if (budget.parallax === 0) return null
   const scale = budget.parallax / 14
   return {
     animate: { x: [0, distance * scale, -distance * 0.4 * scale, 0], y: [0, -distance * 0.6 * scale, distance * 0.3 * scale, 0] },

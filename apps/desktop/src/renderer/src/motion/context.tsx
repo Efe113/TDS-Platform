@@ -82,7 +82,10 @@ export function MotionProvider({ setting, children }: { setting: MotionSetting; 
     document.documentElement.style.setProperty('--stagger-ms', `${String(value.budget.staggerMs)}ms`)
     document.documentElement.style.setProperty('--enter-ms', `${String(value.budget.enterMs)}ms`)
     document.documentElement.style.setProperty('--press-scale', String(value.budget.pressScale))
-  }, [value.budget])
+    // The ring rotations live in the stylesheet, and they are the one decoration whose cost scales
+    // with painted area, so the tier has to reach them without every component importing the budget.
+    document.documentElement.dataset.motion = value.tier
+  }, [value.budget, value.tier])
 
   return <MotionContext.Provider value={value}>{children}</MotionContext.Provider>
 }

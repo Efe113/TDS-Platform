@@ -204,7 +204,7 @@ export function TitleBar({ skin }: { skin: ThemeSkin }): ReactNode {
   return (
     <header
       data-skin-part="header"
-      className="drag-region relative z-30 flex h-11 shrink-0 items-stretch gap-1 border-b border-line/70 bg-panel/60 pl-1.5 backdrop-blur-xl"
+      className="drag-region relative z-30 flex h-11 shrink-0 items-stretch gap-1 border-b border-line/70 bg-panel/94 pl-1.5"
     >
       <span aria-hidden className="hud-scan" />
       <Menu>

@@ -195,8 +195,7 @@ export function MenuSubmenu({
       </DropdownMenuSubTrigger>
       {/*
         The generated SubContent is not portalled, so without this the submenu stays a DOM child of the
-        parent panel - and the panel's own backdrop-blur makes it the containing block for the submenu's
-        fixed position, which clips it to the panel.
+        parent panel - and the panel's own clip-path clips the submenu, however it is positioned.
       */}
       <DropdownMenuPortal>
         <DropdownMenuSubContent className="hud-panel w-72 bg-popover p-1.5">

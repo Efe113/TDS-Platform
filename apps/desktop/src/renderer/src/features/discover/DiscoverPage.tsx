@@ -723,7 +723,7 @@ export function DiscoverPage(): ReactNode {
       </div>
 
       {selected.length > 0 ? (
-        <div className="sticky bottom-3 z-20 mx-auto flex w-fit max-w-full items-center gap-2 rounded-xl border border-brand/40 bg-panel/95 px-3 py-2 shadow-[0_20px_50px_-24px_rgb(0_0_0/0.9)] backdrop-blur-xl">
+        <div className="sticky bottom-3 z-20 mx-auto flex w-fit max-w-full items-center gap-2 rounded-xl border border-brand/40 bg-panel/97 px-3 py-2 shadow-[0_20px_50px_-24px_rgb(0_0_0/0.9)]">
           <span className="hud-label flex items-center gap-1.5 text-brand">
             <GitCompareArrows size={12} />
             {t('discover.compareTitle')}

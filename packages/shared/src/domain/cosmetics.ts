@@ -4,7 +4,23 @@
  * frame later is one entry rather than a migration plus a switch statement.
  */
 
-export type FrameEffect = 'heat' | 'rainbow' | 'aurora' | 'void' | 'toxic'
+export type FrameEffect = 'heat' | 'rainbow' | 'aurora' | 'void' | 'toxic' | 'gold'
+
+/**
+ * The five surfaces every frame is built from, painted in that order.
+ *
+ * Five is the product rule (0.3.5): `halo` is the light the frame throws onto the page, `core` is the
+ * body of the ring, `spin` is the light that travels around it, `spark` is the particulate that lives
+ * on the ring, and `mark` is the one thing only this frame does. A frame with four layers is a ring
+ * with decorations; a frame with five is a small machine, and the shelf lists them by name.
+ */
+export type FrameLayerKey = 'halo' | 'core' | 'spin' | 'spark' | 'mark'
+
+export interface FrameLayer {
+  key: FrameLayerKey
+  labelTr: string
+  labelEn: string
+}
 
 export interface FrameSkin {
   key: string
@@ -13,17 +29,132 @@ export interface FrameSkin {
   /** Ring colour and its glow, written as CSS colours so the profile can paint them directly. */
   ring: string
   glow: string
-  /** Animated ring painted by the stylesheet. Absent means a static glow ring. */
-  effect?: FrameEffect
+  effect: FrameEffect
+  /** Seconds for one revolution of the travelling light, so no two frames share a tempo. */
+  turnSeconds: number
+  layers: readonly FrameLayer[]
+}
+
+/**
+ * Five name pairs, one per layer, in paint order. A tuple rather than an array so a frame written
+ * with four layers or six is a type error rather than a runtime surprise - the five-layer rule is a
+ * product promise, and the shelf lists the layers by name.
+ */
+type LayerNames = readonly [
+  readonly [string, string],
+  readonly [string, string],
+  readonly [string, string],
+  readonly [string, string],
+  readonly [string, string]
+]
+
+function frameLayers([halo, core, spin, spark, mark]: LayerNames): readonly FrameLayer[] {
+  return [
+    { key: 'halo', labelTr: halo[0], labelEn: halo[1] },
+    { key: 'core', labelTr: core[0], labelEn: core[1] },
+    { key: 'spin', labelTr: spin[0], labelEn: spin[1] },
+    { key: 'spark', labelTr: spark[0], labelEn: spark[1] },
+    { key: 'mark', labelTr: mark[0], labelEn: mark[1] }
+  ]
 }
 
 export const FRAME_SKINS: FrameSkin[] = [
-  { key: 'ember', labelTr: 'Kor çerçevesi', labelEn: 'Ember frame', ring: '#ff7a45', glow: 'rgba(255, 106, 43, 0.62)', effect: 'heat' },
-  { key: 'void', labelTr: 'Boşluk çerçevesi', labelEn: 'Void frame', ring: '#7c3aed', glow: 'rgba(91, 33, 182, 0.6)', effect: 'void' },
-  { key: 'aurora', labelTr: 'Kutup çerçevesi', labelEn: 'Aurora frame', ring: '#38bdf8', glow: 'rgba(56, 189, 248, 0.6)', effect: 'aurora' },
-  { key: 'gold', labelTr: 'Altın çerçevesi', labelEn: 'Gold frame', ring: '#e6c15a', glow: 'rgba(230, 193, 90, 0.55)' },
-  { key: 'rainbow', labelTr: 'Gökkuşağı çerçevesi', labelEn: 'Rainbow frame', ring: '#f472b6', glow: 'rgba(244, 114, 182, 0.6)', effect: 'rainbow' },
-  { key: 'toxic', labelTr: 'Toksik çerçevesi', labelEn: 'Toxic frame', ring: '#7ed957', glow: 'rgba(126, 217, 87, 0.6)', effect: 'toxic' }
+  {
+    key: 'ember',
+    labelTr: 'Ocak çerçevesi',
+    labelEn: 'Forge frame',
+    ring: '#ff8a3d',
+    glow: 'rgba(255, 122, 47, 0.62)',
+    effect: 'heat',
+    turnSeconds: 5.2,
+    layers: frameLayers([
+      ['Kor halesi', 'Ember halo'],
+      ['Erimiş halka', 'Molten band'],
+      ['Dikiş gibi yürüyen ışık', 'Seam of travelling light'],
+      ['Yükselen kıvılcımlar', 'Rising sparks'],
+      ['Tutuşan kömür patlaması', 'Coal flare pop']
+    ])
+  },
+  {
+    key: 'void',
+    labelTr: 'Boşluk çerçevesi',
+    labelEn: 'Void frame',
+    ring: '#9d7bff',
+    glow: 'rgba(124, 58, 237, 0.6)',
+    effect: 'void',
+    turnSeconds: 12,
+    layers: frameLayers([
+      ['Lens halesi', 'Lensing halo'],
+      ['Olay ufku', 'Event horizon'],
+      ['Dönen birikim diski', 'Turning accretion disc'],
+      ['İçe düşen yıldız tozu', 'Infalling dust'],
+      ['Yırtıktan sızan ışık', 'Light leaking from the rift']
+    ])
+  },
+  {
+    key: 'aurora',
+    labelTr: 'Kutup çerçevesi',
+    labelEn: 'Aurora frame',
+    ring: '#4fd2ff',
+    glow: 'rgba(79, 210, 255, 0.6)',
+    effect: 'aurora',
+    turnSeconds: 8.4,
+    layers: frameLayers([
+      ['Kutup parıltısı', 'Polar bloom'],
+      ['Buz bandı', 'Ice band'],
+      ['Işık perdesi taraması', 'Curtain sweep'],
+      ['Kutup yıldızları', 'Polar stars'],
+      ['Ters akan şerit', 'Counter ribbon']
+    ])
+  },
+  {
+    key: 'gold',
+    labelTr: 'Altın çerçevesi',
+    labelEn: 'Gold frame',
+    ring: '#e6c15a',
+    glow: 'rgba(230, 193, 90, 0.55)',
+    effect: 'gold',
+    turnSeconds: 16,
+    layers: frameLayers([
+      ['Sıcak hale', 'Warm aura'],
+      ['Fırçalanmış metal', 'Brushed metal'],
+      ['Ölçülü parlama', 'Specular sweep'],
+      ['Altın tozu', 'Gold dust'],
+      ['Kazınmış kılcal çizgi', 'Engraved hairline']
+    ])
+  },
+  {
+    key: 'rainbow',
+    labelTr: 'Gökkuşağı çerçevesi',
+    labelEn: 'Rainbow frame',
+    ring: '#f472b6',
+    glow: 'rgba(244, 114, 182, 0.6)',
+    effect: 'rainbow',
+    turnSeconds: 10,
+    layers: frameLayers([
+      ['Spektrum halesi', 'Spectrum aura'],
+      ['Tam spektrum bandı', 'Full spectrum band'],
+      ['Prizma taraması', 'Prism sweep'],
+      ['Yörüngedeki kıvılcımlar', 'Orbiting sparks'],
+      ['İç kılcal halka', 'Inner hairline ring']
+    ])
+  },
+  {
+    key: 'toxic',
+    labelTr: 'Toksik çerçevesi',
+    labelEn: 'Toxic frame',
+    ring: '#84f95c',
+    glow: 'rgba(132, 249, 92, 0.6)',
+    effect: 'toxic',
+    turnSeconds: 7.6,
+    layers: frameLayers([
+      ['Asit buğusu', 'Acid fume'],
+      ['Kayan asit bandı', 'Boiling acid band'],
+      ['Yüzeyde yürüyen köpük', 'Foam running on the surface'],
+      ['Zehir kabarcıkları', 'Toxic bubbles'],
+      ['Sarkan damla', 'Oozing drip']
+    ])
+  }
 ]
 
 export function frameSkin(key: string | null | undefined): FrameSkin | null {

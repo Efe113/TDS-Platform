@@ -434,7 +434,7 @@ export function SideNav(): ReactNode {
         data-skin-part="nav"
         animate={{ width: collapsed ? RAIL_WIDTH : EXPANDED_WIDTH }}
         transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-        className="relative z-10 flex h-full shrink-0 flex-col overflow-hidden border-r border-line bg-panel/70 py-3 backdrop-blur-2xl"
+        className="relative z-10 flex h-full shrink-0 flex-col overflow-hidden border-r border-line bg-panel/94 py-3"
       >
         <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-brand/10 blur-3xl" />
 

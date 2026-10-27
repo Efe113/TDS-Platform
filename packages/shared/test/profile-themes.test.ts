@@ -67,6 +67,37 @@ describe('profile themes (0043)', () => {
     }
   })
 
+  /**
+   * 0049 sells the five layers *by name*: the tile lists `perks` straight from the database while the
+   * ring paints whatever the registry declares. If those two lists drift, the shelf promises a surface
+   * the client never draws - so the row must carry exactly the five registry labels, in order.
+   */
+  it('sells exactly the five layers the client paints, in the registry order', () => {
+    const frames = readFileSync(join(migrationsDir, '0049_void_theme_and_five_layer_frames.sql'), 'utf8')
+    for (const frame of FRAME_SKINS) {
+      const start = frames.indexOf(`('${frame.key === 'ember' ? 'frame_ember' : 'frame_' + frame.key}', 'frame'`)
+      expect(start, `frame_${frame.key} row`).toBeGreaterThan(-1)
+      const end = frames.indexOf("'::jsonb", start)
+      const block = frames.slice(start, end)
+      const labels = frame.layers.map((layer) => layer.labelTr)
+      expect(block, `frame_${frame.key} perks`).toContain(`["${labels.join('","')}"]`)
+      expect((block.match(/"/g) ?? []).length, `frame_${frame.key} has exactly five perks`).toBe(10)
+    }
+  })
+
+  it('keeps the VIP frame a benefit rather than a renewed product', () => {
+    // 'renewed' is a marketing chip. On the rainbow it would take the row out of the tier grant and
+    // put a free entitlement behind the till (the same trap 0042 closed for the membership itself).
+    const frames = readFileSync(join(migrationsDir, '0049_void_theme_and_five_layer_frames.sql'), 'utf8')
+    const start = frames.indexOf("('frame_rainbow'")
+    // The rainbow is the last row of the block, so its text runs up to the conflict clause.
+    const row = frames.slice(start, frames.indexOf('on conflict', start))
+    expect(start).toBeGreaterThan(-1)
+    expect(row).toContain("'frame_rainbow', 'frame', 0, 'rainbow'")
+    expect(row).toContain("'vip'")
+    expect(row).not.toContain("'renewed'")
+  })
+
   it('parses a showcase from a database that has not run 0043', () => {
     const parsed = profileShowcaseSchema.parse({
       userId: '7c1a6a1e-6d0d-4a71-8f0e-2f2b4c1d9a10',

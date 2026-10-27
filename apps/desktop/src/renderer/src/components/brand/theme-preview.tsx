@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { TOKEN_VARS, themeSkin, type ThemeSkin } from '@tds/shared'
 import { cn } from '../../lib/utils'
+import { useAmbientActive } from '../../motion/useAmbientActive'
 import { SkinLayers } from './theme-backdrop'
 
 /**
@@ -9,6 +10,9 @@ import { SkinLayers } from './theme-backdrop'
  * only, so the preview shows its own palette even while a different theme is active - and the scene
  * inside it is the real one, clamped to this machine's budget. On a low tier a paid scene shows as
  * still, which is the honest answer to "should I buy this for this computer".
+ *
+ * A shelf of these is the heaviest thing the app can ask a machine to draw, so a miniature runs at 30
+ * frames, paints one moving surface per layer, and stops entirely once it has scrolled out of view.
  */
 export function skinStyle(skin: ThemeSkin): CSSProperties {
   const vars: Record<string, string> = {}
@@ -72,7 +76,7 @@ function CardAccent({ skin }: { skin: ThemeSkin }): ReactNode {
   return null
 }
 
-function DetailedPreview({ skin }: { skin: ThemeSkin }): ReactNode {
+function DetailedPreview({ skin, active }: { skin: ThemeSkin; active?: boolean }): ReactNode {
   const brand = skin.tokens.brand
   const ink = skin.tokens.ink
 
@@ -81,7 +85,7 @@ function DetailedPreview({ skin }: { skin: ThemeSkin }): ReactNode {
       <div aria-hidden className="absolute inset-0 overflow-hidden">
         {/* A renewed skin is judged by its stack, so the miniature paints the stack rather than a
             two-layer taste of it. */}
-        <SkinLayers skin={skin} cap={skin.renewed ? 4 : 2} />
+        <SkinLayers skin={skin} cap={skin.renewed ? 4 : 2} active={active !== false} />
       </div>
       <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-base/65 via-base/5 to-base/25" />
       {skin.signature === 'pulse' ? <span aria-hidden className="theme-preview-scan" /> : null}
@@ -145,11 +149,13 @@ function DetailedPreview({ skin }: { skin: ThemeSkin }): ReactNode {
 
           <span className="flex items-center gap-1 rounded-md border border-line/50 bg-panel/80 px-1.5 py-1">
             <span className="h-1 flex-1 overflow-hidden rounded-full bg-panel-soft">
+              {/* The bar fills on transform, not on `width`: a miniature that lays out every frame it
+                  animates is the one thing a shelf of previews must never do. */}
               <motion.span
-                className="block h-full rounded-full"
+                className="block h-full w-full origin-left rounded-full"
                 style={{ background: brand }}
-                initial={{ width: '24%' }}
-                animate={{ width: ['24%', '78%', '24%'] }}
+                initial={{ scaleX: 0.24 }}
+                animate={active === false ? undefined : { scaleX: [0.24, 0.78, 0.24] }}
                 transition={{ duration: skin.motion.cycleSeconds / 3, repeat: Infinity, ease: 'easeInOut' }}
               />
             </span>
@@ -212,9 +218,11 @@ export function ThemePreview({
 }): ReactNode {
   const skin = themeSkin(value)
   const full = detailed !== false
+  const [shellRef, onScreen] = useAmbientActive<HTMLDivElement>()
 
   return (
     <div
+      ref={shellRef}
       className={cn(
         'relative overflow-hidden border bg-base',
         full ? 'h-24 rounded-xl' : 'h-9 rounded-lg',
@@ -224,7 +232,7 @@ export function ThemePreview({
       )}
       style={skinStyle(skin)}
     >
-      {full ? <DetailedPreview skin={skin} /> : <CompactPreview skin={skin} />}
+      {full ? <DetailedPreview skin={skin} active={onScreen} /> : <CompactPreview skin={skin} />}
     </div>
   )
 }

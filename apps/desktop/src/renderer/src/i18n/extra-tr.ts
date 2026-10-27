@@ -1292,7 +1292,7 @@ export const extraTr = {
   'theme.feat.toxic2': 'Nabız gibi atan aktif öğe',
   'theme.feat.toxic3': 'Tehlike şeridi doku',
   'theme.moodAurora': 'Kutup · ışık perdesi',
-  'theme.moodVoid': 'Boşluk · derinlik',
+  'theme.moodVoid': 'Boşluk · yerçekimi kuyusu',
   'theme.feat.aurora1': 'Akan kurdele katmanları',
   'theme.feat.aurora2': 'Kart kenarında konik parlama',
   'theme.feat.aurora3': 'İmleçle yumuşak derinlik kayması',

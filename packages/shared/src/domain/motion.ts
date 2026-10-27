@@ -17,9 +17,11 @@ export type MotionSetting = (typeof MOTION_SETTINGS)[number]
 export interface MotionBudget {
   /** Particles in the skin's canvas field. 0 means the canvas is never mounted. */
   particles: number
-  /** backdrop-filter and blur() layers. Expensive on integrated GPUs at large window sizes. */
-  blur: boolean
-  /** How many ambient gradient layers drift behind the content. */
+  /**
+   * How many *moving* ambient layers the machine affords. Layers that only paint - the vignette, the
+   * grain, the grid - are not counted anywhere: they cost nothing per frame and cutting them would
+   * take legibility away from exactly the machines that need it most.
+   */
   ambientLayers: number
   /** Pixels of pointer parallax travel; 0 disables the pointer listener entirely. */
   parallax: number
@@ -31,17 +33,33 @@ export interface MotionBudget {
   pressScale: number
   /** Glow shadows on active/hover surfaces. */
   glow: boolean
+  /**
+   * Ceiling on the canvas field, in frames per second. The window runs at whatever the display gives;
+   * a preview inside a grid does not need 60 and costs the rest of the page for it.
+   */
+  frameRate: number
+  /** Whether anything may turn. Off on the low tier, where a rotating ring is the most expensive
+   *  decoration available and the app is already sharing the GPU with a game. */
+  spin: boolean
 }
 
 /**
- * Layer headroom, not layer count: a skin declares the stack it wants and the tier cuts the tail.
- * A renewed skin (0.3.2's `ember`) names six or seven layers, so the ladder has to have room for them
- * or the flagship would render the same three as the free skin.
+ * Layer headroom, not layer count: a skin declares the stack it wants and the tier cuts the tail -
+ * and only the *moving* tail, since a still gradient costs nothing per frame. A renewed skin names six
+ * moving layers, so the ladder has room for them or the flagship renders the same two as the free skin.
+ *
+ * Every tier number buys back frames somewhere: the frame-rate ceiling stops a miniature from running
+ * at the display's rate, and `spin` lets the stylesheet park the ring rotations, which are the only
+ * decorations whose cost scales with the size of the surface they paint.
+ *
+ * There is deliberately no blur budget any more. A `filter: blur()` on an animating surface re-rasterizes
+ * on the GPU every frame it moves, and that is the frame the game next door wanted. Every soft edge in
+ * the skin engine is now a gradient stop, which costs the same moving or still.
  */
 export const TIER_BUDGETS: Record<MotionTier, MotionBudget> = {
-  low: { particles: 0, blur: false, ambientLayers: 2, parallax: 0, staggerMs: 0, enterMs: 140, pressScale: 1, glow: false },
-  medium: { particles: 44, blur: true, ambientLayers: 4, parallax: 6, staggerMs: 26, enterMs: 240, pressScale: 0.985, glow: false },
-  high: { particles: 130, blur: true, ambientLayers: 6, parallax: 14, staggerMs: 40, enterMs: 320, pressScale: 0.97, glow: true }
+  low: { particles: 0, ambientLayers: 2, parallax: 0, staggerMs: 0, enterMs: 140, pressScale: 1, glow: false, frameRate: 24, spin: false },
+  medium: { particles: 44, ambientLayers: 4, parallax: 6, staggerMs: 26, enterMs: 240, pressScale: 0.985, glow: false, frameRate: 30, spin: true },
+  high: { particles: 130, ambientLayers: 6, parallax: 14, staggerMs: 40, enterMs: 320, pressScale: 0.97, glow: true, frameRate: 60, spin: true }
 }
 
 export interface HardwareHints {

@@ -329,7 +329,7 @@ function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: ()
       aria-modal="true"
       aria-label={alt}
       onClick={onClose}
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-6"
     >
       <button
         type="button"

@@ -49,7 +49,7 @@ function MediaLightbox({ item, onClose }: { item: MediaRef; onClose: () => void 
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-base/80 p-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 grid place-items-center bg-base/88 p-6"
       onClick={onClose}
     >
       <div

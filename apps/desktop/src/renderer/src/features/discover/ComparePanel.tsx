@@ -62,7 +62,7 @@ export function ComparePanel({
       aria-modal="true"
       aria-label={t('discover.compareTitle')}
       onClick={onClose}
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/78 p-4 sm:items-center"
     >
       <div
         onClick={(event) => event.stopPropagation()}

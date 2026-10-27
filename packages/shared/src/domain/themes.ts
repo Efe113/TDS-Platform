@@ -9,12 +9,18 @@ import type { MotionTier, ParticleScene } from './motion'
  * and a stored string inside a custom property would let database content restyle the app.
  *
  * A skin is judged by what it *does*, not its hue: `ember` moves heat upward, `toxic` scans and
- * pulses, `aurora` flows in ribbons, `void` has depth parallax. That is also why the prices differ.
+ * pulses, `aurora` flows in curtains, `void` bends light around a hole. That is also why the prices
+ * differ.
  *
- * `renewed` marks a skin that has been rebuilt to the flagship standard (0.3.2 starts with `ember`,
- * which is renamed Ocak/Forge at the same time). A renewed skin declares a much longer layer stack and
- * a second particle field, and the shelf says so with the `renewed` tag — which is a marketing chip,
- * never an entitlement, so the till must keep ignoring it.
+ * `renewed` marks a skin that has been rebuilt to the flagship standard (0.3.2 `ember`, renamed
+ * Ocak/Forge; 0.3.3 `toxic`; 0.3.4 `aurora`; 0.3.5 `void`). A renewed skin declares a much longer
+ * layer stack and a second particle field, and the shelf says so with the `renewed` tag — which is a
+ * marketing chip, never an entitlement, so the till must keep ignoring it. `default` stays unrenewed
+ * on purpose: it is the free skin and it has to remain the calm one.
+ *
+ * Nothing a renewed skin declares may cost a repaint per frame. The layer stacks are written so every
+ * moving part is a transform or an opacity; a `filter: blur()` or an animated `background-position`
+ * would re-rasterize a full-window layer sixty times a second, and this app sits over a game.
  */
 
 export const THEME_KEYS = ['default', 'ember', 'toxic', 'aurora', 'void'] as const
@@ -46,6 +52,16 @@ export type AmbientLayer =
   | 'curtain'
   /** A cold horizon line with light pollution welling up from below it. */
   | 'horizon'
+  /** The turning disc that feeds a void: a bright seam drawn round a dark centre. */
+  | 'accretion'
+  /** The hole itself - a dark core with a photon hairline that breathes. */
+  | 'singularity'
+  /** Soft gas clouds at three depths, drifting apart so the sky has parallax, not a wash. */
+  | 'nebula'
+  /** Elliptical paths with one body each, revolving at three different rates. */
+  | 'orbits'
+  /** A diagonal tear with light spilling out of its seam and a slow drift along it. */
+  | 'rift'
 export type CardEdge = 'none' | 'heat' | 'acid' | 'conic' | 'star'
 
 export interface ThemeTokens {
@@ -218,37 +234,58 @@ export const THEME_SKINS: Record<ThemeKey, ThemeSkin> = {
     },
     motion: { cycleSeconds: 18, spring: { stiffness: 240, damping: 22 }, travel: 12 }
   },
+  // Boşluk (0.3.5). The old skin was a purple gradient with dots in it. This is a gravity well: an
+  // accretion disc turning round a dark core with a photon hairline that breathes, gas clouds at three
+  // depths so the sky has parallax, three elliptical orbits carrying one body each, a diagonal rift
+  // leaking light, and a star field with dust that never twinkles so the two depths read differently.
+  // Eight layers deep, so a weak machine still gets the disc and the hole.
   void: {
     key: 'void',
     moodKey: 'theme.moodVoid',
     signature: 'bloom',
     ambient: 'aurora',
-    glow: ['rgba(148, 163, 255, 0.16)', 'rgba(88, 28, 135, 0.22)'],
-    layers: ['grain', 'vignette', 'mesh'],
+    glow: ['rgba(157, 123, 255, 0.26)', 'rgba(240, 171, 252, 0.18)'],
+    layers: ['accretion', 'singularity', 'nebula', 'orbits', 'rift', 'mesh', 'grain', 'vignette'],
     cardEdge: 'star',
-    parallax: 18,
-    scene: { kind: 'star', density: 140, palette: ['#e2e8ff', '#a78bfa'], speed: 0.25, size: 1.5, gravity: 0, twinkle: true },
-    sceneAlt: null,
-    renewed: false,
+    parallax: 20,
+    scene: { kind: 'star', density: 170, palette: ['#efe9ff', '#9d7bff'], speed: 0.22, size: 1.4, gravity: 0, twinkle: true },
+    sceneAlt: { kind: 'dust', density: 80, palette: ['#c4b5fd', '#3b2a6b'], speed: 0.12, size: 2.6, gravity: 0, twinkle: false },
+    renewed: true,
     minimumTierForScene: 'medium',
     tokens: {
-      base: '#04050a',
-      panel: '#0a0b14',
-      panelSoft: '#11131f',
-      line: '#232536',
-      ink: '#eef0ff',
-      mute: '#8d90ab',
-      brand: '#a78bfa',
-      brandSoft: '#2a1c4a',
-      danger: '#f87171',
-      warn: '#fbbf24',
-      good: '#5eead4'
+      base: '#020209',
+      panel: '#080714',
+      panelSoft: '#100d20',
+      line: '#251f42',
+      ink: '#f1edff',
+      mute: '#948dbb',
+      brand: '#9d7bff',
+      brandSoft: '#241748',
+      danger: '#ff7a9c',
+      warn: '#f0abfc',
+      good: '#6ee7d8'
     },
-    motion: { cycleSeconds: 26, spring: { stiffness: 300, damping: 28 }, travel: 8 }
+    motion: { cycleSeconds: 22, spring: { stiffness: 300, damping: 28 }, travel: 9 }
   }
 }
 
 export const DEFAULT_THEME_KEY: ThemeKey = 'default'
+
+/**
+ * The layers that only paint. They cost nothing per frame, so the tier's moving-layer budget never
+ * cuts them: a machine that can only afford two moving layers still gets its vignette and its grain,
+ * which is exactly what keeps text readable over a moving floor.
+ */
+export const STILL_AMBIENT_LAYERS: readonly AmbientLayer[] = ['vignette', 'grain', 'grid']
+
+export function isStillLayer(layer: AmbientLayer): boolean {
+  return STILL_AMBIENT_LAYERS.includes(layer)
+}
+
+/** What a skin asks the machine to animate, which is the only number the tier has to cover. */
+export function movingLayerCount(skin: ThemeSkin): number {
+  return skin.layers.filter((layer) => !isStillLayer(layer)).length
+}
 
 /** Anything the database holds that is not a known skin falls back instead of half-applying. */
 export function resolveThemeKey(value: string | null | undefined): ThemeKey {

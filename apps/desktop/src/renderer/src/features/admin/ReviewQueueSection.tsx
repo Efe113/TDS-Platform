@@ -285,7 +285,7 @@ export function ReviewQueueSection(): ReactNode {
       {!queueQuery.isPending && !queueQuery.isError && rows.length === 0 ? <EmptyState title={t('admin.queueEmpty')} /> : null}
 
       {selected.length > 0 ? (
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-brand/40 bg-panel/95 px-3 py-2 backdrop-blur">
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-brand/40 bg-panel/95 px-3 py-2">
           <span className="hud-label text-brand">{t('admin.bulkSelected', { count: String(selected.length) })}</span>
           <input
             className={cn(INPUT_CLASS, 'no-drag h-7 min-w-40 flex-1 py-0 text-[11px]')}

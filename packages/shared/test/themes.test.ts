@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_THEME_KEY, THEME_KEYS, THEME_SKINS, TOKEN_VARS, resolveThemeKey, themeSkin } from '../src/domain/themes'
+import { DEFAULT_THEME_KEY, THEME_KEYS, THEME_SKINS, TOKEN_VARS, isStillLayer, movingLayerCount, resolveThemeKey, themeSkin } from '../src/domain/themes'
 import { TIER_BUDGETS } from '../src/domain/motion'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -56,7 +56,7 @@ describe('theme skins', () => {
 
   it('keeps the new skin keys and their accent pairs', () => {
     expect(THEME_SKINS.aurora.tokens.brand).toBe('#4fd2ff')
-    expect(THEME_SKINS.void.tokens.brand).toBe('#a78bfa')
+    expect(THEME_SKINS.void.tokens.brand).toBe('#9d7bff')
     expect(THEME_SKINS.aurora.layers).toContain('ribbons')
     expect(THEME_SKINS.void.layers).toContain('grain')
     expect(THEME_SKINS.toxic.layers).toContain('bubbles')
@@ -103,9 +103,15 @@ describe('the renewed forge skin (0045)', () => {
   })
 
   it('has a tier ladder that can actually show the stack', () => {
-    // Declaring seven layers means nothing if the top budget still cuts them to three.
+    // Declaring eight layers means nothing if the top budget still cuts them to three. Only the
+    // *moving* layers count against the budget: a still gradient costs nothing per frame, and cutting
+    // the vignette from a weak machine would take contrast away from exactly the users who need it.
     expect(TIER_BUDGETS.high.ambientLayers).toBeGreaterThanOrEqual(6)
     expect(TIER_BUDGETS.medium.ambientLayers).toBeGreaterThanOrEqual(4)
+    for (const key of THEME_KEYS) {
+      const moving = THEME_SKINS[key].layers.filter((layer) => !isStillLayer(layer)).length
+      expect(TIER_BUDGETS.high.ambientLayers, `${key} needs headroom`).toBeGreaterThanOrEqual(moving)
+    }
   })
 
   it('renames the display name in both languages and keeps the key', () => {
@@ -151,12 +157,12 @@ describe('the renewed toxic skin (0047)', () => {
 
   it('meets the same renewal bar as the forge', () => {
     const renewed = THEME_KEYS.filter((key) => THEME_SKINS[key].renewed)
-    expect(renewed).toEqual(['ember', 'toxic', 'aurora'])
+    expect(renewed).toEqual(['ember', 'toxic', 'aurora', 'void'])
     for (const key of renewed) {
       const entry = THEME_SKINS[key]
       expect(entry.layers.length, `${key} stack`).toBeGreaterThanOrEqual(6)
       // A renewal that cannot survive its own layer list is just CSS with a new name.
-      expect(TIER_BUDGETS.high.ambientLayers, `${key} needs headroom`).toBeGreaterThanOrEqual(entry.layers.length - 1)
+      expect(TIER_BUDGETS.high.ambientLayers, `${key} needs headroom`).toBeGreaterThanOrEqual(movingLayerCount(entry))
       expect(entry.sceneAlt, `${key} needs a second field`).not.toBeNull()
     }
   })
@@ -226,11 +232,74 @@ describe('the renewed aurora skin (0048)', () => {
   })
 
   it('carries the same chip vocabulary as every other renewal file', () => {
-    const lists = ['0045_forge_theme_renewal.sql', '0047_toxic_theme_renewal.sql', '0048_aurora_theme_renewal.sql'].map((name) => {
+    const lists = [
+      '0045_forge_theme_renewal.sql',
+      '0047_toxic_theme_renewal.sql',
+      '0048_aurora_theme_renewal.sql',
+      '0049_void_theme_and_five_layer_frames.sql'
+    ].map((name) => {
       const text = readFileSync(join(migrationsDir, name), 'utf8')
       return text.match(/check \(tag in \(([^)]*)\)/)?.[1] ?? ''
     })
     expect(new Set(lists).size).toBe(1)
     expect(lists[0]).toContain("'renewed'")
+  })
+})
+
+/**
+ * Renewal #4 (0.3.5, void). A gravity well has a specific shape too: mass turning around a hole that
+ * makes no sound. The test holds the shape — the disc leads and the horizon sits under it, the two
+ * fields differ in speed and size rather than in colour only, and nothing the renewal declares is a
+ * layer the top budget cannot afford.
+ */
+describe('the renewed void skin (0049)', () => {
+  const well = readFileSync(join(migrationsDir, '0049_void_theme_and_five_layer_frames.sql'), 'utf8')
+  const skin = THEME_SKINS.void
+
+  it('turns a disc over a hole instead of washing a sky', () => {
+    expect(skin.renewed).toBe(true)
+    expect(skin.layers.slice(0, 5)).toEqual(['accretion', 'singularity', 'nebula', 'orbits', 'rift'])
+    expect(skin.layers.filter(isStillLayer)).toEqual(['grain', 'vignette'])
+    expect(skin.parallax).toBeGreaterThanOrEqual(18)
+    expect(movingLayerCount(skin)).toBeLessThanOrEqual(TIER_BUDGETS.high.ambientLayers)
+  })
+
+  it('separates its two fields by depth, not by hue', () => {
+    expect(skin.scene?.kind).toBe('star')
+    expect(skin.sceneAlt?.kind).toBe('dust')
+    // Nearby stars are small, fast and blink; far dust is large, slow and steady. Two fields with the
+    // same speed and size would read as one field with two colours.
+    expect((skin.scene?.speed ?? 0)).toBeGreaterThan(skin.sceneAlt?.speed ?? 0)
+    expect((skin.scene?.size ?? 0)).toBeLessThan(skin.sceneAlt?.size ?? 0)
+    expect(skin.scene?.twinkle).toBe(true)
+    expect(skin.sceneAlt?.twinkle).toBe(false)
+    // Nothing falls in a gravity well: the disc is where the falling happens, and it does it on transform.
+    expect(skin.scene?.gravity).toBe(0)
+    expect(skin.sceneAlt?.gravity).toBe(0)
+  })
+
+  it('keeps the name and the price an owner bought', () => {
+    expect(well).toContain("'Boşluk', 'Void',")
+    expect(well).toContain("'theme_void', 'theme', 420, 'void'")
+    expect(well).toContain("where key = 'void'")
+  })
+
+  it('matches the registry brand in the database accent', () => {
+    expect(well).toContain(`"${skin.tokens.brand}"`)
+  })
+
+  it('sells the six frames it can paint, at the prices already paid', () => {
+    // frame_aurora existed only in the registry until this file: painted on the shelf, never buyable.
+    for (const [sku, price] of [
+      ['frame_ember', 320],
+      ['frame_void', 480],
+      ['frame_aurora', 540],
+      ['frame_toxic', 360],
+      ['frame_gold', 800]
+    ] as const) {
+      expect(well).toContain(`'${sku}', 'frame', ${String(price)}, `)
+    }
+    expect(well).toContain("'frame_rainbow', 'frame', 0, 'rainbow'")
+    expect(well).toContain("'vip'")
   })
 })

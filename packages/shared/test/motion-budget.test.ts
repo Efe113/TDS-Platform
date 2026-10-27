@@ -16,8 +16,22 @@ describe('motion tiers', () => {
   it('orders the budgets so a higher tier is always the heavier one', () => {
     expect(TIER_BUDGETS.low.particles).toBe(0)
     expect(TIER_BUDGETS.medium.particles).toBeLessThan(TIER_BUDGETS.high.particles)
-    expect(TIER_BUDGETS.low.blur).toBe(false)
     expect(TIER_BUDGETS.low.enterMs).toBeLessThan(TIER_BUDGETS.high.enterMs)
+  })
+
+  /**
+   * 0.3.5 gave the tiers two more numbers, both bought with frames: a ceiling on the canvas field and
+   * a permission to turn anything. A miniature that runs at the display's rate costs the whole page,
+   * and a ring that turns re-rasterizes the gradient inside it - which is what made the app stutter.
+   */
+  it('spends less the weaker the machine is, on the two new dials too', () => {
+    expect(TIER_BUDGETS.low.spin).toBe(false)
+    expect(TIER_BUDGETS.medium.spin).toBe(true)
+    expect(TIER_BUDGETS.high.spin).toBe(true)
+    expect(TIER_BUDGETS.low.frameRate).toBeLessThan(TIER_BUDGETS.medium.frameRate)
+    expect(TIER_BUDGETS.medium.frameRate).toBeLessThan(TIER_BUDGETS.high.frameRate)
+    expect(budgetFor('high', true).spin).toBe(false)
+    expect(budgetFor('high', true).frameRate).toBeLessThanOrEqual(TIER_BUDGETS.low.frameRate)
   })
 
   it('reads weak hardware as low and does not guess when deviceMemory is missing', () => {

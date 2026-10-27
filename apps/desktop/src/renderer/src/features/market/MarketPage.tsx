@@ -32,7 +32,7 @@ import { skinRows, SKIN_NAME_KEYS } from '../../lib/skins'
 import { showcaseQueryKey } from '../../lib/identity'
 import { selectSignedIn, selectUserId, useAuth } from '../../store/auth-store'
 import { CoinAmount, CoinIcon } from '../../components/brand/coin'
-import { FrameSample, frameHalo } from '../../components/brand/frame'
+import { FrameSample, FrameVitrine } from '../../components/brand/frame'
 import { TitleBadge } from '../../components/brand/title-badge'
 import { ProfileThemeSky } from '../../components/brand/profile-theme'
 import { Button, Banner, cn } from '../../components/ui'
@@ -228,6 +228,7 @@ function ProductCard({
         soon && 'opacity-80'
       )}
     >
+      {sale ? <span aria-hidden className="market-discount-ring" /> : null}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <TagChip tag={item.tag} />
@@ -246,14 +247,7 @@ function ProductCard({
       ) : null}
 
       {item.kind === 'frame' ? (
-        <div className="relative flex items-center justify-center overflow-hidden rounded-lg border border-line/70 bg-base/50 py-4">
-          <span
-            aria-hidden
-            className="absolute inset-0 opacity-70"
-            style={{ background: frameHalo(item.refCode) }}
-          />
-          <FrameSample value={item.refCode} size="lg" className="relative" />
-        </div>
+        <FrameVitrine value={item.refCode} language={language === 'en' ? 'en' : 'tr'} />
       ) : null}
 
       {item.kind === 'title' ? (
@@ -762,6 +756,7 @@ export function MarketPage(): ReactNode {
             return (
               <RevealItem key={row.key} className="h-full">
                 <div className={cn('hud-panel flex h-full flex-col gap-2 p-2.5', active && 'ring-1 ring-inset ring-brand/50', sale && 'market-discount')}>
+                  {sale ? <span aria-hidden className="market-discount-ring" /> : null}
                   <div className="flex items-center justify-between gap-1">
                     <TagChip tag={item?.tag ?? 'none'} />
                     {skin.renewed ? (
@@ -840,6 +835,7 @@ export function MarketPage(): ReactNode {
               return (
                 <RevealItem key={item.sku} className="h-full">
                   <div className={cn('hud-panel flex h-full flex-col gap-2 p-3', sale && 'market-discount', soon && 'opacity-80')}>
+                    {sale ? <span aria-hidden className="market-discount-ring" /> : null}
                     <div className="flex items-center justify-between gap-1">
                       <span className="grid size-7 place-items-center rounded-lg border border-warn/35 bg-warn/12 text-warn">
                         <Flame size={13} />

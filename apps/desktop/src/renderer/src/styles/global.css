@@ -140,8 +140,10 @@ html.overlay-root ::-webkit-scrollbar {
   color: var(--color-ink);
 }
 
+/* No backdrop-filter on cards. The surface behind a card is the animated skin, and blurring it means
+   re-rasterizing every card on the page every frame - the single most expensive rule in the app, paid
+   by every theme. The panel is simply more opaque instead. */
 [data-theme] [data-slot='card'] {
-  backdrop-filter: blur(16px) saturate(1.1);
   box-shadow:
     inset 0 1px 0 0 color-mix(in oklab, var(--color-ink) 8%, transparent),
     0 20px 44px -28px rgb(0 0 0 / 0.75);
@@ -384,27 +386,24 @@ html.overlay-root ::-webkit-scrollbar {
 
 /* The bright seam that runs along the top of the molten bath. */
 @keyframes forge-seam-run {
-  from { background-position: 0% 0; }
-  to { background-position: -220% 0; }
+  from { transform: translate3d(-130%, 0, 0); }
+  to { transform: translate3d(300%, 0, 0); }
 }
 
 .forge-seam {
+  height: 2px;
+  width: 56%;
   background-image: linear-gradient(
     90deg,
-    transparent 0%,
-    color-mix(in oklab, var(--color-brand) 70%, transparent) 8%,
-    var(--color-warn) 15%,
-    color-mix(in oklab, #fff 55%, var(--color-warn)) 19%,
-    var(--color-brand) 27%,
-    transparent 46%,
-    color-mix(in oklab, var(--color-brand) 60%, transparent) 60%,
-    var(--color-warn) 71%,
-    color-mix(in oklab, var(--color-brand) 55%, transparent) 84%,
-    transparent 100%
+    transparent,
+    color-mix(in oklab, var(--color-brand) 70%, transparent) 22%,
+    var(--color-warn) 46%,
+    color-mix(in oklab, #fff 55%, var(--color-warn)) 54%,
+    color-mix(in oklab, var(--color-brand) 55%, transparent) 78%,
+    transparent
   );
-  background-size: 220% 100%;
   opacity: 0.8;
-  filter: blur(0.4px);
+  will-change: transform;
   animation: forge-seam-run calc(var(--skin-cycle, 12s) * 1.4) linear infinite;
 }
 
@@ -451,7 +450,7 @@ html.overlay-root ::-webkit-scrollbar {
   border-radius: inherit;
   padding: 1px;
   background: conic-gradient(
-    from var(--edge-angle, 0deg),
+    from 160deg,
     transparent 0 58%,
     color-mix(in oklab, var(--color-brand) 60%, transparent) 70%,
     color-mix(in oklab, var(--color-warn) 85%, var(--color-brand)) 78%,
@@ -461,7 +460,6 @@ html.overlay-root ::-webkit-scrollbar {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0.85;
-  animation: skin-edge-turn 9s linear infinite;
   pointer-events: none;
 }
 
@@ -539,21 +537,23 @@ html.overlay-root ::-webkit-scrollbar {
  * detach on their own clocks. Token-driven like the forge chrome, so a skin renewing later inherits
  * these rules in its own colors instead of getting a second copy of every surface.
  */
+/* One period of the pattern is 34px, so one period of travel is a perfect loop. */
 @keyframes toxic-foam-run {
-  from { background-position: 0% 0; }
-  to { background-position: 220% 0; }
+  to { transform: translate3d(-34px, 0, 0); }
 }
 
 .toxic-foam {
+  height: 2px;
+  left: -12%;
+  width: 124%;
   background-image: repeating-linear-gradient(
     90deg,
     color-mix(in oklab, var(--color-warn) 80%, transparent) 0 10px,
     color-mix(in oklab, var(--color-brand) 45%, transparent) 10px 15px,
     transparent 15px 34px
   );
-  background-size: 220% 100%;
   opacity: 0.55;
-  filter: blur(0.6px);
+  will-change: transform;
   animation: toxic-foam-run 7s linear infinite;
 }
 
@@ -581,7 +581,6 @@ html.overlay-root ::-webkit-scrollbar {
   top: 100%;
   left: -22%;
   border-radius: 999px 999px 62% 62%;
-  filter: blur(0.3px);
   animation: toxic-drop-fall var(--drop-duration, 4s) cubic-bezier(0.4, 0, 0.8, 0.45) var(--drop-delay, 0s) infinite;
 }
 
@@ -589,12 +588,10 @@ html.overlay-root ::-webkit-scrollbar {
  * The polar renewal (0.3.4). Striations running *along* each curtain, faded toward the bottom by a
  * mask: that grain is the difference between an aurora and a blob of cyan. The hue rides in on a custom
  * property set by the layer, so the same rule serves both gases.
+ *
+ * The grain is a texture, not an animation. It used to crawl on its own clock, which repainted a third
+ * of the window per curtain; the wave the curtains carry is the moving part, and it is a transform.
  */
-@keyframes aurora-curtain-shimmer {
-  from { background-position: 0% 0%; }
-  to { background-position: 0% -240%; }
-}
-
 .aurora-curtain {
   border-radius: 46% 54% 10% 10% / 26% 26% 8% 8%;
 }
@@ -608,11 +605,9 @@ html.overlay-root ::-webkit-scrollbar {
     color-mix(in oklab, var(--aurora-hue, var(--color-brand)) 55%, transparent) 0 2px,
     transparent 2px 12px
   );
-  background-size: 100% 240%;
   -webkit-mask-image: linear-gradient(to bottom, #000 6%, transparent 80%);
   mask-image: linear-gradient(to bottom, #000 6%, transparent 80%);
   opacity: 0.5;
-  animation: aurora-curtain-shimmer var(--curtain-duration, 16s) linear var(--curtain-delay, 0s) infinite;
   pointer-events: none;
 }
 
@@ -623,7 +618,6 @@ html.overlay-root ::-webkit-scrollbar {
   .toxic-foam,
   .toxic-strand,
   .toxic-drop,
-  .aurora-curtain::after,
   [data-renewed='on'] [data-slot='card']::after,
   [data-renewed='on'] .hud-panel::after,
   [data-renewed='on'] [data-skin-part='active-pill']::after,
@@ -738,29 +732,26 @@ html.overlay-root ::-webkit-scrollbar {
   border-color: color-mix(in oklab, var(--color-brand) 20%, var(--color-line));
 }
 
+/* One lit corner per card, drawn by the mask and steadied by a breathe - not a beam that turns,
+   * because turning it meant re-rasterizing every card on the page every frame. */
 [data-edge='conic'] [data-slot='card']::before {
   content: '';
   position: absolute;
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: conic-gradient(from var(--edge-angle, 0deg), transparent 0 55%, color-mix(in oklab, var(--color-brand) 55%, transparent) 72%, transparent 88%);
+  background: conic-gradient(from 210deg, transparent 0 55%, color-mix(in oklab, var(--color-brand) 55%, transparent) 72%, transparent 88%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0.75;
-  animation: skin-edge-turn 12s linear infinite;
+  animation: skin-edge-breathe 7.5s ease-in-out infinite;
   pointer-events: none;
 }
 
-@property --edge-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes skin-edge-turn {
-  to { --edge-angle: 360deg; }
+@keyframes skin-edge-breathe {
+  0%, 100% { opacity: 0.42; }
+  50% { opacity: 0.82; }
 }
 
 [data-edge='star'] [data-slot='card'] {
@@ -836,6 +827,10 @@ html.overlay-root ::-webkit-scrollbar {
   animation: skin-ember-breathe 5.6s ease-in-out infinite;
 }
 
+/* The engine's own promise, written down: a decoration that is running may only change transform,
+ * opacity or a cached filter. A filter: blur() and an animated background-position on a moving
+ * surface are the two ways this file used to buy a stutter, and the frame engine, the seam, the
+ * foam, the tapes, the scan bands and the sheens now all move on transform instead. */
 [data-signature='flow'] [data-skin-part='header']::after {
   content: '';
   position: absolute;
@@ -847,24 +842,26 @@ html.overlay-root ::-webkit-scrollbar {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-edge='conic'] [data-slot='card']::before,
   [data-signature] [data-skin-part='progress'] {
     animation: none;
   }
 }
 
 /* --- cosmetic frames -------------------------------------------------------
-   The base ring and glow come from the registry as an inline box-shadow. These rules add the part a
-   colour cannot express: `heat` is a banked ember ring, `rainbow` turns the full spectrum. The angle
-   is a registered custom property, so the ring rotates its colours instead of rotating its shape -
-   a squared profile avatar must never spin.
-*/
-@property --frame-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
+   Since 0.3.5 every frame is the same machine with five surfaces, painted back to front:
 
+     halo  - the light the frame throws onto the page (a gradient, never a filter)
+     core  - the body of the ring: a static conic gradient inside a static annulus mask
+     spin  - the travelling light: a circular sheet that rotates inside its own annulus mask
+     spark - three bodies that live on the ring, moved by the effect's own signature
+     mark  - the one thing only this frame does
+
+   The angle is not animated any more. `@property --frame-angle` made the browser re-rasterize the
+   conic gradient on every frame, on every layer that used it - six frames on a shelf and a leaderboard
+   row of avatars, all repainting sixty times a second. A rotating sheet inside a static mask costs one
+   rasterization when it is built and a compositor transform after that, and the mask - not the
+   gradient - draws the shape, so a squared profile avatar still never spins.
+*/
 .frame-sample {
   position: relative;
   display: inline-grid;
@@ -883,28 +880,73 @@ html.overlay-root ::-webkit-scrollbar {
   pointer-events: none;
 }
 
-.frame-ring-band,
-.frame-ring-haze,
-.frame-ring-glint,
-.frame-ring-inner,
-.frame-aurora-ribbon,
-.frame-void-arc,
-.frame-toxic-hazard {
+.frame-halo,
+.frame-core,
+.frame-spin,
+.frame-spark,
+.frame-mark {
   position: absolute;
-  inset: 0;
   border-radius: inherit;
+  pointer-events: none;
+}
+
+/* 1. halo - the frame lights the page around it. Soft stops, no filter, so it costs nothing to move. */
+.frame-halo {
+  inset: -34%;
+  background: radial-gradient(circle at 50% 50%, var(--frame-glow), transparent 62%);
+  opacity: 0.42;
+  animation: frame-halo-breathe 6.5s ease-in-out infinite;
+}
+
+/* 2+3. the two masked surfaces. One mask recipe, shared: the annulus is what the eye reads as a ring. */
+.frame-core,
+.frame-spin {
+  inset: 0;
   padding: 2px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
 
-/* The gradient must be declared on the animated element itself: a custom property computed on the
-   parent would resolve `--frame-angle` once at 0deg and inherit a frozen image. */
-.frame-ring[data-frame-effect='heat'] .frame-ring-band,
-.frame-ring[data-frame-effect='heat'] .frame-ring-haze {
+.frame-core {
+  opacity: 0.94;
+}
+
+.frame-spin {
+  padding: 3px;
+}
+
+.frame-spin-disc {
+  position: absolute;
+  inset: -60%;
+  border-radius: 50%;
+  will-change: transform;
+  animation: frame-disc-turn var(--frame-turn, 8s) linear infinite;
+}
+
+/* 4. spark - three bodies. Where they sit and how they travel is the effect's own signature. */
+.frame-spark {
+  inset: -6px;
+}
+
+.frame-spark > i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--frame-ring);
+  box-shadow: 0 0 6px 1px var(--frame-glow);
+  opacity: 0.9;
+}
+
+/* 5. mark - the signature surface, whose shape is the only thing that differs per frame. */
+.frame-mark {
+  opacity: 0.9;
+}
+
+/* --- Ocak / heat: a molten band, a hot seam that runs round it, embers lifting off, one coal that catches */
+[data-frame-effect='heat'] .frame-core {
   background: conic-gradient(
-    from var(--frame-angle),
     #8f2a08,
     #ff4d0f 14%,
     #ff9a3c 28%,
@@ -917,324 +959,230 @@ html.overlay-root ::-webkit-scrollbar {
   );
 }
 
-.frame-ring[data-frame-effect='heat'] .frame-ring-band {
-  animation: frame-heat-turn 5.6s linear infinite, frame-ember-flicker 3.8s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='heat'] .frame-ring-haze {
-  inset: -4px;
-  padding: 5px;
-  opacity: 0.55;
-  filter: blur(7px);
-  animation: frame-heat-turn 8.4s linear infinite reverse, frame-haze-pulse 4.2s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='heat'] .frame-ring-glint {
+[data-frame-effect='heat'] .frame-spin-disc {
   background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 70%,
-    rgba(255, 245, 214, 0.92) 82%,
-    rgba(255, 176, 71, 0.45) 87%,
-    transparent 93%
+    transparent 0 56%,
+    rgba(255, 209, 102, 0.55) 68%,
+    #fff7e6 76%,
+    rgba(255, 90, 31, 0.4) 84%,
+    transparent 92%
   );
-  mix-blend-mode: screen;
-  animation: frame-heat-turn 4.4s linear infinite;
 }
 
-/* Embers drift off the hot spots instead of orbiting, so fire and rainbow never share a signature. */
-.frame-ember-sparks {
-  position: absolute;
-  inset: -8px;
-  border-radius: inherit;
-}
-
-.frame-ember-sparks > span {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  opacity: 0;
-  animation: frame-ember-float 3.6s ease-in-out infinite;
-}
-
-.frame-ember-sparks > span:nth-child(1) {
-  bottom: 14%;
-  left: 6%;
+[data-frame-effect='heat'] .frame-spark > i {
   background: #ffd166;
-  box-shadow: 0 0 7px 1px rgba(255, 209, 102, 0.9);
+  box-shadow: 0 0 7px 1px rgba(255, 122, 69, 0.9);
+  animation: frame-ember-rise 3.4s ease-in-out infinite;
 }
 
-.frame-ember-sparks > span:nth-child(2) {
-  bottom: 36%;
-  right: 5%;
-  background: #ff7a45;
-  box-shadow: 0 0 7px 1px rgba(255, 122, 69, 0.9);
-  animation-delay: 1.3s;
+[data-frame-effect='heat'] .frame-spark > i:nth-child(1) {
+  left: 8%;
+  bottom: 12%;
+}
+
+[data-frame-effect='heat'] .frame-spark > i:nth-child(2) {
+  right: 6%;
+  bottom: 34%;
+  animation-delay: 1.2s;
   animation-duration: 4.2s;
 }
 
-.frame-ember-sparks > span:nth-child(3) {
-  top: 16%;
-  left: 24%;
+[data-frame-effect='heat'] .frame-spark > i:nth-child(3) {
+  left: 26%;
+  top: 14%;
   background: #fff1cf;
-  box-shadow: 0 0 7px 1px rgba(255, 241, 207, 0.9);
-  animation-delay: 2.4s;
-  animation-duration: 3.2s;
+  animation-delay: 2.3s;
+  animation-duration: 3s;
 }
 
-/* Aurora: a cold spectrum band under two counter-turning light ribbons, with fixed twinkling stars.
-   The stars do not orbit, so the polar frame does not borrow the rainbow's or the ember's motion. */
-.frame-ring[data-frame-effect='aurora'] .frame-ring-band,
-.frame-ring[data-frame-effect='aurora'] .frame-ring-haze {
+[data-frame-effect='heat'] .frame-mark {
+  left: 62%;
+  top: -4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff7e6;
+  box-shadow: 0 0 10px 2px rgba(255, 209, 102, 0.95);
+  animation: frame-heat-flare 6.2s ease-out infinite;
+}
+
+/* --- Boşluk / void: an event horizon with a disc turning over it, dust falling in, a rift leaking */
+[data-frame-effect='void'] .frame-core {
   background: conic-gradient(
-    from var(--frame-angle),
+    #03000a,
+    #120627 20%,
+    #2e1065 32%,
+    #9d7bff 42%,
+    #d8caff 47%,
+    #3b0764 54%,
+    #090214 64%,
+    #4c1d95 74%,
+    #9d7bff 80%,
+    #1e1b4b 88%,
+    #03000a
+  );
+}
+
+[data-frame-effect='void'] .frame-halo {
+  /* A void has to read as a hole: the halo darkens the middle instead of lighting it. */
+  background: radial-gradient(circle at 50% 50%, rgba(4, 1, 12, 0.92) 0%, rgba(76, 29, 149, 0.34) 46%, transparent 70%);
+}
+
+[data-frame-effect='void'] .frame-spin-disc {
+  background: conic-gradient(
+    transparent 0 44%,
+    rgba(157, 123, 255, 0.4) 58%,
+    rgba(216, 202, 255, 0.9) 66%,
+    rgba(240, 171, 252, 0.5) 72%,
+    transparent 84%
+  );
+  animation-duration: calc(var(--frame-turn, 8s) * 1.4);
+}
+
+[data-frame-effect='void'] .frame-spark > i {
+  background: #d8caff;
+  box-shadow: 0 0 6px 1px rgba(157, 123, 255, 0.85);
+  animation: frame-void-pull 4.4s ease-in infinite;
+}
+
+[data-frame-effect='void'] .frame-spark > i:nth-child(1) {
+  top: 2%;
+  left: 40%;
+  --pull-x: 0px;
+  --pull-y: 10px;
+}
+
+[data-frame-effect='void'] .frame-spark > i:nth-child(2) {
+  top: 38%;
+  right: 1%;
+  --pull-x: -10px;
+  --pull-y: 2px;
+  animation-delay: 1.4s;
+}
+
+[data-frame-effect='void'] .frame-spark > i:nth-child(3) {
+  bottom: 4%;
+  right: 34%;
+  --pull-x: -2px;
+  --pull-y: -10px;
+  animation-delay: 2.7s;
+  animation-duration: 5.2s;
+}
+
+[data-frame-effect='void'] .frame-mark {
+  left: -10%;
+  right: -10%;
+  top: 46%;
+  height: 1px;
+  border-radius: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(157, 123, 255, 0.45) 28%,
+    rgba(240, 171, 252, 0.7) 50%,
+    rgba(157, 123, 255, 0.4) 72%,
+    transparent
+  );
+  transform: rotate(-14deg);
+}
+
+[data-frame-effect='void'] .frame-mark::after {
+  content: '';
+  position: absolute;
+  inset-block: -1px;
+  left: 0;
+  width: 26%;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 250, 255, 0.95), transparent 70%);
+  will-change: transform;
+  animation: frame-rift-leak 9s ease-in-out infinite;
+}
+
+/* --- Kutup / aurora: a cold band, a curtain sweeping it, stars that only twinkle, one counter ribbon */
+[data-frame-effect='aurora'] .frame-core {
+  background: conic-gradient(
     #0ea5e9,
     #38bdf8 14%,
     #67e8f9 28%,
     #2dd4bf 42%,
     #818cf8 58%,
-    #6366f1 72%,
-    #38bdf8 86%,
+    #4fd2ff 76%,
     #0ea5e9
   );
 }
 
-.frame-ring[data-frame-effect='aurora'] .frame-ring-band {
-  animation: frame-aurora-turn 8.6s linear infinite, frame-aurora-breathe 4.4s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='aurora'] .frame-ring-haze {
-  inset: -4px;
-  padding: 5px;
-  opacity: 0.5;
-  filter: blur(8px);
-  animation: frame-aurora-turn 11.5s linear infinite reverse, frame-haze-pulse 5.2s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='aurora'] .frame-ring-glint {
+[data-frame-effect='aurora'] .frame-spin-disc {
+  /* A curtain, not a ray: a wide soft sheet with a brighter leading edge. */
   background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 74%,
-    rgba(224, 250, 255, 0.9) 84%,
-    rgba(129, 140, 248, 0.35) 89%,
-    transparent 94%
+    transparent 0 40%,
+    rgba(79, 210, 255, 0.22) 50%,
+    rgba(165, 243, 252, 0.85) 64%,
+    rgba(129, 140, 248, 0.35) 74%,
+    transparent 84%
   );
-  mix-blend-mode: screen;
-  animation: frame-aurora-turn 5.4s linear infinite;
 }
 
-.frame-aurora-ribbon {
-  inset: -2px;
-  padding: 3px;
-  background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 56%,
-    rgba(56, 189, 248, 0.9) 66%,
-    rgba(165, 243, 252, 0.95) 72%,
-    transparent 80%
-  );
-  filter: blur(2px);
-  mix-blend-mode: screen;
-  animation: frame-aurora-turn 6.8s linear infinite;
+[data-frame-effect='aurora'] .frame-spark {
+  /* The polar field does not orbit - that is the rainbow's motion - it only shines. */
+  animation: none;
 }
 
-.frame-aurora-ribbon--counter {
-  inset: -5px;
-  padding: 2px;
-  background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 26%,
-    rgba(129, 140, 248, 0.85) 36%,
-    rgba(45, 212, 191, 0.8) 44%,
-    transparent 54%
-  );
-  opacity: 0.75;
-  animation: frame-aurora-turn 9.6s linear infinite reverse;
-}
-
-.frame-aurora-stars {
-  position: absolute;
-  inset: -6px;
-  border-radius: inherit;
-}
-
-.frame-aurora-stars > span {
-  position: absolute;
-  width: 2.5px;
-  height: 2.5px;
-  border-radius: 50%;
+[data-frame-effect='aurora'] .frame-spark > i {
   background: #e0f2fe;
   box-shadow: 0 0 6px 1px rgba(186, 230, 253, 0.9);
   animation: frame-star-twinkle 3.2s ease-in-out infinite;
 }
 
-.frame-aurora-stars > span:nth-child(1) {
-  top: 8%;
+[data-frame-effect='aurora'] .frame-spark > i:nth-child(1) {
+  top: 6%;
   right: 22%;
 }
 
-.frame-aurora-stars > span:nth-child(2) {
-  bottom: 18%;
+[data-frame-effect='aurora'] .frame-spark > i:nth-child(2) {
+  bottom: 14%;
   left: 6%;
   background: #a5f3fc;
   animation-delay: 1.1s;
 }
 
-.frame-aurora-stars > span:nth-child(3) {
-  top: 40%;
-  left: 2%;
+[data-frame-effect='aurora'] .frame-spark > i:nth-child(3) {
+  top: 42%;
+  left: 1%;
   background: #c7d2fe;
   animation-delay: 2.1s;
 }
 
-/* Void: a black accretion band, two lensing arcs turning against each other, and dust falling inward.
-   The well layer darkens the gap between the avatar and the rim, so the frame reads as a hole in the
-   surface rather than a purple circle. */
-.frame-ring[data-frame-effect='void'] .frame-ring-band,
-.frame-ring[data-frame-effect='void'] .frame-ring-haze {
-  background: conic-gradient(
-    from var(--frame-angle),
-    #03000a,
-    #120627 22%,
-    #2e1065 34%,
-    #7c3aed 42%,
-    #c4b5fd 46%,
-    #3b0764 52%,
-    #090214 62%,
-    #4c1d95 72%,
-    #a78bfa 76%,
-    #1e1b4b 82%,
-    #03000a 94%,
-    #03000a
-  );
-}
-
-.frame-ring[data-frame-effect='void'] .frame-ring-band {
-  animation: frame-void-turn 16s linear infinite, frame-void-pulse 5.6s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='void'] .frame-ring-haze {
-  inset: -4px;
-  padding: 5px;
-  opacity: 0.75;
-  filter: blur(9px);
-  animation: frame-void-turn 22s linear infinite reverse, frame-haze-pulse 6.4s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='void'] .frame-ring-glint {
-  background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 66%,
-    rgba(233, 213, 255, 0.9) 78%,
-    rgba(124, 58, 237, 0.35) 84%,
-    transparent 90%
-  );
-  mix-blend-mode: screen;
-  animation: frame-void-turn 7.8s linear infinite;
-}
-
-.frame-void-well {
-  position: absolute;
-  inset: 1px;
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow: inset 0 0 12px 4px rgba(3, 0, 10, 0.92);
-}
-
-.frame-void-arc {
+[data-frame-effect='aurora'] .frame-mark {
   inset: -3px;
-  padding: 2px;
-  background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 58%,
-    rgba(196, 181, 253, 0.8) 68%,
-    rgba(124, 58, 237, 0.7) 72%,
-    transparent 78%
-  );
-  filter: blur(1.5px);
-  mix-blend-mode: screen;
-  animation: frame-void-turn 9.8s linear infinite;
-}
-
-.frame-void-arc--counter {
-  inset: -7px;
   padding: 1px;
-  background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 16%,
-    rgba(139, 92, 246, 0.65) 26%,
-    transparent 34%
-  );
-  opacity: 0.7;
-  animation: frame-void-turn 13.6s linear infinite reverse;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
-.frame-void-dust {
+[data-frame-effect='aurora'] .frame-mark::after {
+  content: '';
   position: absolute;
-  inset: -7px;
-  border-radius: inherit;
-}
-
-.frame-void-dust > span {
-  position: absolute;
-  width: 2px;
-  height: 2px;
+  inset: -60%;
   border-radius: 50%;
-  opacity: 0;
-  animation: frame-void-pull 4.4s ease-in infinite;
-}
-
-.frame-void-dust > span:nth-child(1) {
-  top: 5%;
-  left: 34%;
-  background: #e9d5ff;
-  box-shadow: 0 0 6px 1px rgba(233, 213, 255, 0.8);
-  --pull-x: 0px;
-  --pull-y: 9px;
-}
-
-.frame-void-dust > span:nth-child(2) {
-  top: 34%;
-  right: 4%;
-  background: #a78bfa;
-  box-shadow: 0 0 6px 1px rgba(167, 139, 250, 0.8);
-  --pull-x: -9px;
-  --pull-y: 0px;
-  animation-delay: 1.2s;
-}
-
-.frame-void-dust > span:nth-child(3) {
-  bottom: 6%;
-  right: 30%;
-  background: #c4b5fd;
-  box-shadow: 0 0 6px 1px rgba(196, 181, 253, 0.8);
-  --pull-x: 0px;
-  --pull-y: -9px;
-  animation-delay: 2.3s;
-}
-
-.frame-void-dust > span:nth-child(4) {
-  bottom: 30%;
-  left: 5%;
-  background: #7c3aed;
-  box-shadow: 0 0 6px 1px rgba(124, 58, 237, 0.9);
-  --pull-x: 9px;
-  --pull-y: 0px;
-  animation-delay: 3.4s;
-  animation-duration: 5.2s;
-}
-
-/* Toxic: a boiling acid band, a hazard-segmented ring, rising bubbles and two slow drips. The
-   bubbles are hollow and grow as they pop, which keeps the motion distinct from ember sparks. */
-.frame-ring[data-frame-effect='toxic'] .frame-ring-band,
-.frame-ring[data-frame-effect='toxic'] .frame-ring-haze {
+  will-change: transform;
   background: conic-gradient(
-    from var(--frame-angle),
+    transparent 0 24%,
+    rgba(45, 212, 191, 0.85) 34%,
+    rgba(129, 140, 248, 0.7) 42%,
+    transparent 52%
+  );
+  animation: frame-disc-turn-reverse calc(var(--frame-turn, 8s) * 1.6) linear infinite;
+}
+
+/* --- Toksik / toxic: a boiling acid band, foam crawling along it, bubbles that burst, one drip */
+[data-frame-effect='toxic'] .frame-core {
+  background: conic-gradient(
     #0b1a04,
     #1f3a06 18%,
     #4d7c0f 32%,
-    #7ed957 44%,
-    #d9f99d 50%,
+    #84f95c 44%,
+    #eaff5a 50%,
     #65a30d 58%,
     #14532d 70%,
     #a3e635 80%,
@@ -1243,69 +1191,30 @@ html.overlay-root ::-webkit-scrollbar {
   );
 }
 
-.frame-ring[data-frame-effect='toxic'] .frame-ring-band {
-  animation: frame-toxic-turn 9.2s linear infinite, frame-toxic-breathe 3.4s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='toxic'] .frame-ring-haze {
-  inset: -4px;
-  padding: 5px;
-  opacity: 0.55;
-  filter: blur(8px);
-  animation: frame-toxic-turn 13s linear infinite reverse, frame-haze-pulse 4.8s ease-in-out infinite;
-}
-
-.frame-ring[data-frame-effect='toxic'] .frame-ring-glint {
-  background: conic-gradient(
-    from var(--frame-angle),
-    transparent 0 68%,
-    rgba(236, 252, 203, 0.9) 80%,
-    rgba(163, 230, 53, 0.4) 86%,
-    transparent 92%
-  );
-  mix-blend-mode: screen;
-  animation: frame-toxic-turn 4.6s linear infinite;
-}
-
-.frame-toxic-hazard {
-  inset: -3px;
-  padding: 1px;
+[data-frame-effect='toxic'] .frame-spin-disc {
+  /* Contamination segments crawling round the ring: the hazard tape, bent into a circle. */
   background: repeating-conic-gradient(
-    from var(--frame-angle),
-    rgba(190, 242, 100, 0.45) 0deg 3deg,
+    rgba(190, 242, 100, 0.5) 0deg 3deg,
     transparent 3deg 9deg
   );
-  opacity: 0.5;
-  mix-blend-mode: screen;
-  animation: frame-toxic-turn 14s linear infinite reverse;
+  animation-duration: calc(var(--frame-turn, 8s) * 1.8);
 }
 
-.frame-toxic-spores {
-  position: absolute;
-  inset: -8px;
-  border-radius: inherit;
-}
-
-.frame-toxic-spores > span {
-  position: absolute;
+[data-frame-effect='toxic'] .frame-spark > i {
   width: 4px;
   height: 4px;
-  border-radius: 50%;
   border: 1px solid rgba(190, 242, 100, 0.85);
-  background: rgba(126, 217, 87, 0.25);
-  box-shadow:
-    0 0 6px 1px rgba(126, 217, 87, 0.55),
-    inset 0 0 2px rgba(217, 249, 157, 0.8);
-  opacity: 0;
+  background: rgba(132, 249, 92, 0.25);
+  box-shadow: 0 0 6px 1px rgba(132, 249, 92, 0.55);
   animation: frame-toxic-bubble 4.6s ease-in infinite;
 }
 
-.frame-toxic-spores > span:nth-child(1) {
+[data-frame-effect='toxic'] .frame-spark > i:nth-child(1) {
   bottom: 10%;
   left: 12%;
 }
 
-.frame-toxic-spores > span:nth-child(2) {
+[data-frame-effect='toxic'] .frame-spark > i:nth-child(2) {
   bottom: 26%;
   right: 8%;
   width: 3px;
@@ -1314,7 +1223,7 @@ html.overlay-root ::-webkit-scrollbar {
   animation-duration: 5.4s;
 }
 
-.frame-toxic-spores > span:nth-child(3) {
+[data-frame-effect='toxic'] .frame-spark > i:nth-child(3) {
   top: 12%;
   right: 24%;
   width: 3px;
@@ -1322,48 +1231,89 @@ html.overlay-root ::-webkit-scrollbar {
   animation-delay: 2.8s;
 }
 
-.frame-toxic-spores > span:nth-child(4) {
-  bottom: 16%;
-  right: 34%;
-  animation-delay: 3.6s;
-  animation-duration: 4s;
-}
-
-.frame-toxic-drip {
-  position: absolute;
-  inset: -6px;
-  border-radius: inherit;
-}
-
-.frame-toxic-drip > span {
-  position: absolute;
+[data-frame-effect='toxic'] .frame-mark {
+  left: 34%;
   top: 4%;
   width: 2px;
+  height: 8px;
   border-radius: 999px;
-  background: linear-gradient(to bottom, rgba(190, 242, 100, 0.95), rgba(126, 217, 87, 0));
-  opacity: 0;
+  background: linear-gradient(to bottom, rgba(190, 242, 100, 0.95), rgba(132, 249, 92, 0));
   animation: frame-toxic-drip 5.6s ease-in infinite;
 }
 
-.frame-toxic-drip > span:nth-child(1) {
-  left: 26%;
-  height: 7px;
-  animation-delay: 0.4s;
-}
-
-.frame-toxic-drip > span:nth-child(2) {
-  right: 30%;
-  height: 10px;
-  animation-delay: 2.6s;
-  animation-duration: 6.4s;
-}
-
-/* Rainbow: one repainting spectrum band, while the aura, inner hairline, glint and orbits animate
-   only opacity or transform. The previous version rotated three conic gradients every frame; this
-   keeps the depth without the paint storm, so the ring stays smooth next to a running game. */
-.frame-ring[data-frame-effect='rainbow'] .frame-ring-band {
+/* --- Altın / gold: brushed metal, one measured specular sweep, slow dust, an engraved hairline */
+[data-frame-effect='gold'] .frame-core {
   background: conic-gradient(
-    from var(--frame-angle),
+    #8a6a17,
+    #e6c15a 6%,
+    #fff4d1 12%,
+    #c9a227 20%,
+    #7a5a12 28%,
+    #e6c15a 38%,
+    #ffe9a8 46%,
+    #b8860b 56%,
+    #e6c15a 66%,
+    #fff4d1 74%,
+    #a97d18 84%,
+    #8a6a17
+  );
+}
+
+[data-frame-effect='gold'] .frame-spin-disc {
+  background: conic-gradient(
+    transparent 0 62%,
+    rgba(255, 244, 209, 0.35) 72%,
+    rgba(255, 252, 240, 0.95) 78%,
+    rgba(230, 193, 90, 0.35) 84%,
+    transparent 92%
+  );
+}
+
+[data-frame-effect='gold'] .frame-spark {
+  animation: frame-disc-turn calc(var(--frame-turn, 8s) * 1.3) linear infinite;
+}
+
+[data-frame-effect='gold'] .frame-spark > i {
+  width: 2px;
+  height: 2px;
+  background: #ffe9a8;
+  box-shadow: 0 0 5px 1px rgba(230, 193, 90, 0.8);
+  animation: frame-spark-pulse 2.4s ease-in-out infinite alternate;
+}
+
+[data-frame-effect='gold'] .frame-spark > i:nth-child(1) {
+  top: 2%;
+  left: calc(50% - 1px);
+}
+
+[data-frame-effect='gold'] .frame-spark > i:nth-child(2) {
+  bottom: 6%;
+  right: 8%;
+  animation-delay: 0.8s;
+}
+
+[data-frame-effect='gold'] .frame-spark > i:nth-child(3) {
+  bottom: 10%;
+  left: 10%;
+  animation-delay: 1.6s;
+}
+
+[data-frame-effect='gold'] .frame-mark {
+  inset: 3px;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  background: repeating-conic-gradient(
+    rgba(255, 244, 209, 0.5) 0deg 1deg,
+    rgba(122, 90, 18, 0.5) 1deg 4deg
+  );
+  animation: frame-engrave-breathe 7.2s ease-in-out infinite;
+}
+
+/* --- Gökkuşağı / rainbow: the full spectrum, a prism sweeping it, an orbit ring, an inner hairline */
+[data-frame-effect='rainbow'] .frame-core {
+  background: conic-gradient(
     #ff2d55,
     #ff9f1c 12%,
     #ffe66d 26%,
@@ -1374,32 +1324,56 @@ html.overlay-root ::-webkit-scrollbar {
     #fb7185 92%,
     #ff2d55
   );
-  animation: frame-rainbow-turn 10s linear infinite;
 }
 
-.frame-ring[data-frame-effect='rainbow'] .frame-ring-haze {
-  inset: -5px;
-  padding: 5px;
+[data-frame-effect='rainbow'] .frame-spin-disc {
   background: conic-gradient(
-    from 210deg,
-    #ff2d55,
-    #ff9f1c 12%,
-    #ffe66d 26%,
-    #6ee7b7 40%,
-    #38bdf8 54%,
-    #8b5cf6 68%,
-    #e879f9 82%,
-    #fb7185 92%,
-    #ff2d55
+    transparent 0 66%,
+    rgba(255, 255, 255, 0.9) 78%,
+    rgba(255, 255, 255, 0.35) 84%,
+    transparent 90%
   );
-  opacity: 0.5;
-  filter: blur(7px) saturate(1.12);
-  animation: frame-aura-breathe 5.4s ease-in-out infinite;
 }
 
-.frame-ring-inner {
+[data-frame-effect='rainbow'] .frame-spark {
+  animation: frame-disc-turn calc(var(--frame-turn, 8s) * 0.76) linear infinite;
+}
+
+[data-frame-effect='rainbow'] .frame-spark > i {
+  width: 3px;
+  height: 3px;
+  animation: frame-spark-pulse 1.6s ease-in-out infinite alternate;
+}
+
+[data-frame-effect='rainbow'] .frame-spark > i:nth-child(1) {
+  top: 1%;
+  left: calc(50% - 1.5px);
+  background: #ff8fab;
+  box-shadow: 0 0 7px 1px rgba(255, 143, 171, 0.9);
+}
+
+[data-frame-effect='rainbow'] .frame-spark > i:nth-child(2) {
+  bottom: 1%;
+  left: calc(50% - 1.5px);
+  background: #4cc9f0;
+  box-shadow: 0 0 7px 1px rgba(76, 201, 240, 0.9);
+  animation-delay: 0.55s;
+}
+
+[data-frame-effect='rainbow'] .frame-spark > i:nth-child(3) {
+  top: calc(50% - 1.5px);
+  right: 1%;
+  background: #ffd166;
+  box-shadow: 0 0 7px 1px rgba(255, 209, 102, 0.9);
+  animation-delay: 1.1s;
+}
+
+[data-frame-effect='rainbow'] .frame-mark {
   inset: 2px;
   padding: 1px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
   background: conic-gradient(
     from 140deg,
     #ff2d55,
@@ -1412,115 +1386,21 @@ html.overlay-root ::-webkit-scrollbar {
     #ff9f1c 92%,
     #ff2d55
   );
-  opacity: 0.65;
   animation: frame-inner-breathe 6.8s ease-in-out infinite;
 }
 
-.frame-ring[data-frame-effect='rainbow'] .frame-ring-glint {
-  background: conic-gradient(
-    from 220deg,
-    transparent 0 70%,
-    rgba(255, 255, 255, 0.95) 82%,
-    rgba(255, 255, 255, 0.35) 88%,
-    transparent 94%
-  );
-  opacity: 0.6;
-  animation: frame-glint-breathe 4.2s ease-in-out infinite;
-}
-
-.frame-ring-orbit {
-  position: absolute;
-  inset: -7px;
-  border-radius: inherit;
-  will-change: transform;
-  animation: frame-rainbow-orbit 7.6s linear infinite;
-}
-
-.frame-ring-orbit > span {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  animation: frame-spark-pulse 1.6s ease-in-out infinite alternate;
-}
-
-.frame-ring-orbit > span:nth-child(1) {
-  top: 1%;
-  left: calc(50% - 2px);
-  background: #ff8fab;
-  box-shadow: 0 0 7px 1px rgba(255, 143, 171, 0.9);
-}
-
-.frame-ring-orbit > span:nth-child(2) {
-  bottom: 1%;
-  left: calc(50% - 2px);
-  background: #4cc9f0;
-  box-shadow: 0 0 7px 1px rgba(76, 201, 240, 0.9);
-  animation-delay: 0.55s;
-}
-
-.frame-ring-orbit > span:nth-child(3) {
-  top: calc(50% - 2px);
-  right: 1%;
-  background: #ffd166;
-  box-shadow: 0 0 7px 1px rgba(255, 209, 102, 0.9);
-  animation-delay: 1.1s;
-}
-
-.frame-ring-orbit--counter {
-  inset: -11px;
-  opacity: 0.9;
-  animation: frame-rainbow-orbit 12.4s linear infinite reverse;
-}
-
-.frame-ring-orbit--counter > span {
-  width: 2.5px;
-  height: 2.5px;
-}
-
-.frame-ring-orbit--counter > span:nth-child(1) {
-  top: calc(50% - 1.25px);
-  left: 2%;
-  background: #c4b5fd;
-  box-shadow: 0 0 6px 1px rgba(196, 181, 253, 0.9);
-  animation-delay: 0.2s;
-}
-
-.frame-ring-orbit--counter > span:nth-child(2) {
-  top: auto;
-  bottom: 8%;
-  right: 20%;
-  left: auto;
-  background: #a5f3fc;
-  box-shadow: 0 0 6px 1px rgba(165, 243, 252, 0.9);
-  animation-delay: 0.9s;
-}
-
-@keyframes frame-heat-turn {
-  to { --frame-angle: 360deg; }
-}
-
-@keyframes frame-rainbow-turn {
-  to { --frame-angle: -360deg; }
-}
-
-@keyframes frame-rainbow-orbit {
+/* The motions themselves: one turn, one breathe, one pulse, and four signatures. */
+@keyframes frame-disc-turn {
   to { transform: rotate(360deg); }
 }
 
-@keyframes frame-aura-breathe {
-  0%, 100% { opacity: 0.34; }
-  50% { opacity: 0.62; }
+@keyframes frame-disc-turn-reverse {
+  to { transform: rotate(-360deg); }
 }
 
-@keyframes frame-inner-breathe {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-}
-
-@keyframes frame-glint-breathe {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.95; }
+@keyframes frame-halo-breathe {
+  0%, 100% { opacity: 0.28; transform: scale(0.94); }
+  50% { opacity: 0.55; transform: scale(1.05); }
 }
 
 @keyframes frame-spark-pulse {
@@ -1528,45 +1408,27 @@ html.overlay-root ::-webkit-scrollbar {
   to { opacity: 1; transform: scale(1.15); }
 }
 
-@keyframes frame-ember-flicker {
-  0%, 100% { opacity: 0.85; }
-  45% { opacity: 1; }
-  70% { opacity: 0.72; }
+@keyframes frame-inner-breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
 }
 
-@keyframes frame-haze-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.035); }
+@keyframes frame-engrave-breathe {
+  0%, 100% { opacity: 0.22; }
+  50% { opacity: 0.5; }
 }
 
-@keyframes frame-ember-float {
-  0% { transform: translateY(5px) scale(0.6); opacity: 0; }
+@keyframes frame-ember-rise {
+  0% { transform: translateY(6px) scale(0.6); opacity: 0; }
   28% { opacity: 0.95; }
   70% { opacity: 0.55; }
-  100% { transform: translateY(-17px) scale(1.15); opacity: 0; }
+  100% { transform: translateY(-18px) scale(1.15); opacity: 0; }
 }
 
-@keyframes frame-aurora-turn {
-  to { --frame-angle: 360deg; }
-}
-
-@keyframes frame-aurora-breathe {
-  0%, 100% { opacity: 0.88; }
-  50% { opacity: 1; }
-}
-
-@keyframes frame-star-twinkle {
-  0%, 100% { opacity: 0.25; transform: scale(0.7); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
-
-@keyframes frame-void-turn {
-  to { --frame-angle: 360deg; }
-}
-
-@keyframes frame-void-pulse {
-  0%, 100% { opacity: 0.88; }
-  50% { opacity: 1; }
+@keyframes frame-heat-flare {
+  0%, 80%, 100% { opacity: 0; transform: scale(0.4); }
+  86% { opacity: 1; transform: scale(2.4); }
+  93% { opacity: 0.3; transform: scale(1.2); }
 }
 
 @keyframes frame-void-pull {
@@ -1575,13 +1437,15 @@ html.overlay-root ::-webkit-scrollbar {
   100% { transform: translate(var(--pull-x), var(--pull-y)) scale(0.2); opacity: 0; }
 }
 
-@keyframes frame-toxic-turn {
-  to { --frame-angle: 360deg; }
+@keyframes frame-rift-leak {
+  0%, 62%, 100% { transform: translateX(-10%); opacity: 0; }
+  70% { opacity: 0.9; }
+  92% { transform: translateX(300%); opacity: 0; }
 }
 
-@keyframes frame-toxic-breathe {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 1; }
+@keyframes frame-star-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 @keyframes frame-toxic-bubble {
@@ -1594,27 +1458,210 @@ html.overlay-root ::-webkit-scrollbar {
 @keyframes frame-toxic-drip {
   0% { transform: translateY(-4px) scaleY(0.4); opacity: 0; }
   22% { opacity: 0.9; }
-  100% { transform: translateY(12px) scaleY(1.4); opacity: 0; }
+  100% { transform: translateY(14px) scaleY(1.4); opacity: 0; }
+}
+
+/* The shelf that lists them, so "five layers" is shown rather than claimed. */
+.frame-vitrine {
+  border: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  border-radius: 12px;
+  padding: 0.6rem;
+}
+
+/*
+ * Two gates for every looping decoration in the skin and frame engine: the machine (data-motion,
+ * published by MotionProvider from the measured tier) and the user (prefers-reduced-motion). A low
+ * tier keeps the rings coloured and still - a frame's identity is its palette and its particulate, and
+ * both survive - and gives back every frame it used to spend turning them.
+ */
+[data-motion='low'] .frame-spin-disc,
+[data-motion='low'] .frame-spark,
+[data-motion='low'] .frame-spark > i,
+[data-motion='low'] .frame-mark,
+[data-motion='low'] .frame-mark::after,
+[data-motion='low'] .frame-halo,
+[data-motion='low'] .forge-seam,
+[data-motion='low'] .toxic-foam,
+[data-motion='low'] .toxic-strand,
+[data-motion='low'] .toxic-drop,
+[data-motion='low'] .toxic-tape,
+[data-motion='low'] .toxic-scan,
+[data-motion='low'] .aurora-curtain::after,
+[data-motion='low'] .void-accretion-disc,
+[data-motion='low'] .void-orbit-body,
+[data-motion='low'] .rift-leak {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .frame-ring-band,
-  .frame-ring-haze,
-  .frame-ring-glint,
-  .frame-ring-inner,
-  .frame-aurora-ribbon,
-  .frame-aurora-stars > span,
-  .frame-void-arc,
-  .frame-void-dust > span,
-  .frame-toxic-hazard,
-  .frame-toxic-spores > span,
-  .frame-toxic-drip > span,
-  .frame-ring-orbit,
-  .frame-ring-orbit > span,
-  .frame-ember-sparks,
-  .frame-ember-sparks > span {
+  .frame-spin-disc,
+  .frame-spark,
+  .frame-spark > i,
+  .frame-mark,
+  .frame-mark::after,
+  .frame-halo,
+  .void-accretion-disc,
+  .void-orbit-body,
+  .rift-leak,
+  .toxic-tape,
+  .toxic-scan {
     animation: none;
   }
+}
+
+/*
+ * Skin layers that used to crawl a background-position (a repaint) now translate a sheet by exactly
+ * one period of their own pattern, which the compositor does without touching the raster. The
+ * hazard tape is two rotated sheets crossing; the scan bands travel on transform, never on `top`.
+ */
+.toxic-tape {
+  position: absolute;
+  inset: -40%;
+  will-change: transform;
+  animation: toxic-tape-crawl 7s linear infinite;
+}
+
+.toxic-tape--a {
+  background-image: repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-brand) 55%, transparent) 0 2px, transparent 2px 34px);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 100% 0%, #000, transparent 68%);
+  mask-image: radial-gradient(ellipse 70% 60% at 100% 0%, #000, transparent 68%);
+  opacity: 0.1;
+}
+
+.toxic-tape--b {
+  background-image: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--color-warn) 50%, transparent) 0 2px, transparent 2px 44px);
+  -webkit-mask-image: radial-gradient(ellipse 62% 52% at 0% 100%, #000, transparent 66%);
+  mask-image: radial-gradient(ellipse 62% 52% at 0% 100%, #000, transparent 66%);
+  opacity: 0.07;
+  animation-duration: 9s;
+  animation-direction: reverse;
+}
+
+@keyframes toxic-tape-crawl {
+  to { transform: translate3d(0, -48px, 0); }
+}
+
+.toxic-scan {
+  position: absolute;
+  inset-inline: 0;
+  will-change: transform;
+  animation-name: toxic-scan-travel;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.toxic-scan--broad {
+  top: 0;
+  height: 40%;
+  opacity: 0.3;
+}
+
+.toxic-scan--hair {
+  top: 0;
+  height: 1px;
+  opacity: 0.34;
+  animation-direction: reverse;
+  animation-duration: 16s;
+}
+
+@keyframes toxic-scan-travel {
+  from { transform: translate3d(0, -120%, 0); }
+  to { transform: translate3d(0, 320%, 0); }
+}
+
+/* --- the polar renewal's floor and the void's well -------------------------------- */
+.void-accretion {
+  overflow: hidden;
+  transform: rotate(-16deg) scaleY(0.46);
+  opacity: 0.5;
+  -webkit-mask: radial-gradient(circle, #000 34%, transparent 72%);
+  mask: radial-gradient(circle, #000 34%, transparent 72%);
+}
+
+.void-accretion-disc {
+  position: absolute;
+  inset: -20%;
+  border-radius: 50%;
+  will-change: transform;
+  background: conic-gradient(
+    from 90deg,
+    transparent 0 8%,
+    var(--void-a) 18%,
+    var(--void-b) 26%,
+    transparent 38% 58%,
+    color-mix(in oklab, var(--void-c) 60%, transparent) 68%,
+    var(--void-a) 76%,
+    transparent 88%
+  );
+  animation: frame-disc-turn 34s linear infinite;
+}
+
+.void-orbits {
+  position: absolute;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+.void-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--orbit-tone) 26%, transparent);
+  transform: scaleY(var(--orbit-squash, 0.3));
+}
+
+.void-orbit-body {
+  position: absolute;
+  inset: -50%;
+  border-radius: 50%;
+  will-change: transform;
+  animation-name: frame-disc-turn;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.void-orbit-body::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: var(--orbit-tone);
+  box-shadow: 0 0 8px 1px color-mix(in oklab, var(--orbit-tone) 70%, transparent);
+}
+
+.rift {
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  top: 26%;
+  height: 2px;
+  transform: rotate(-18deg);
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--rift-tone) 40%, transparent) 30%,
+    color-mix(in oklab, var(--rift-edge) 65%, transparent) 52%,
+    transparent 78%
+  );
+  opacity: 0.45;
+}
+
+.rift-leak {
+  position: absolute;
+  inset-block: -3px;
+  left: 0;
+  width: 22%;
+  will-change: transform;
+  background: radial-gradient(circle at 50% 50%, color-mix(in oklab, #fff 45%, var(--rift-tone)), transparent 70%);
+  animation: frame-rift-leak 18s ease-in-out infinite;
 }
 
 /* --- theme preview ---------------------------------------------------------
@@ -1632,6 +1679,7 @@ html.overlay-root ::-webkit-scrollbar {
   inset-inline: 0;
   top: -18%;
   height: 22%;
+  will-change: transform;
   background: linear-gradient(to bottom, transparent, color-mix(in oklab, var(--color-brand) 22%, transparent), transparent);
   pointer-events: none;
   animation: theme-preview-scan 5.2s ease-in-out infinite;
@@ -1761,19 +1809,13 @@ html.overlay-root ::-webkit-scrollbar {
    compose them and never invent their own chrome.
 */
 
-@property --hud-glow {
-  syntax: '<color>';
-  inherits: false;
-  initial-value: transparent;
-}
-
 .hud-panel {
   position: relative;
   border: 1px solid transparent;
   border-radius: 2px;
   clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
   background:
-    linear-gradient(180deg, color-mix(in oklab, var(--color-panel) 92%, transparent), color-mix(in oklab, var(--color-panel) 80%, transparent)) padding-box,
+    linear-gradient(180deg, color-mix(in oklab, var(--color-panel) 96%, transparent), color-mix(in oklab, var(--color-panel) 88%, transparent)) padding-box,
     linear-gradient(150deg, color-mix(in oklab, var(--color-line) 90%, transparent), color-mix(in oklab, var(--color-brand) 35%, var(--color-line))) border-box;
   box-shadow:
     inset 0 1px 0 color-mix(in oklab, var(--color-ink) 7%, transparent),
@@ -1879,27 +1921,36 @@ html.overlay-root ::-webkit-scrollbar {
 
 /* A real price cut gets a golden, breathing edge. It is a box-shadow pulse rather than a border so it
    can coexist with the panel's clipped gradient frame. */
+/* A real price cut gets a golden, breathing edge. It is a child sheet with a static shadow whose
+   * opacity breathes, because animating the shadow itself re-rasterizes the tile every frame - and the
+   * market shelf is a wall of them. Inset rather than outset: the panel's clip-path cuts anything that
+   * tries to leave the tile. */
 .market-discount {
-  animation: market-discount-pulse 2.6s ease-in-out infinite;
+  position: relative;
 }
 
-@keyframes market-discount-pulse {
-  0%, 100% {
-    box-shadow:
-      0 0 0 1px color-mix(in oklab, #ffc85a 28%, transparent),
-      0 0 18px -6px color-mix(in oklab, #ffc85a 45%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px color-mix(in oklab, #ffc85a 65%, transparent),
-      0 0 30px -4px color-mix(in oklab, #ffc85a 80%, transparent);
-  }
+.market-discount-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, #ffc85a 55%, transparent),
+    inset 0 0 26px -6px color-mix(in oklab, #ffc85a 75%, transparent);
+  opacity: 0.45;
+  will-change: opacity;
+  animation: market-discount-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes market-discount-breathe {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 0.9; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .market-discount {
+  .market-discount-ring {
     animation: none;
-    box-shadow: 0 0 0 1px color-mix(in oklab, #ffc85a 55%, transparent);
+    opacity: 0.8;
   }
 }
 
@@ -1946,18 +1997,14 @@ html.overlay-root ::-webkit-scrollbar {
 
 /* Maintenance band: the dot is the status, so a glance says frozen-or-not without reading. */
 @keyframes maintenance-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-warn) 55%, transparent); }
-  55% { box-shadow: 0 0 0 5px transparent; }
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  55% { opacity: 1; transform: scale(1.18); }
 }
 
 .maintenance-pulse {
   animation: maintenance-pulse 2.4s ease-out infinite;
 }
 
-.maintenance-banner,
-.maintenance-gate {
-  backdrop-filter: blur(10px);
-}
 
 @media (prefers-reduced-motion: reduce) {
   .market-tag-renewed,
@@ -2135,6 +2182,7 @@ html.overlay-root ::-webkit-scrollbar {
 
 .title-badge[data-effect='vip-rainbow'] .title-badge__icon {
   color: #ffd166;
+  filter: drop-shadow(0 0 6px rgb(255 209 102 / 0.8));
   animation: title-badge-crown 2.8s ease-in-out infinite;
 }
 
@@ -2155,8 +2203,8 @@ html.overlay-root ::-webkit-scrollbar {
 }
 
 @keyframes title-badge-crown {
-  0%, 100% { filter: drop-shadow(0 0 4px rgb(255 209 102 / 0.55)); transform: translateY(0); }
-  50% { filter: drop-shadow(0 0 10px rgb(255 209 102 / 0.95)); transform: translateY(-1px); }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2439,7 +2487,11 @@ html.overlay-root ::-webkit-scrollbar {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(104deg, transparent 34%, rgb(255 236 190 / 0.18) 47%, transparent 58%) 0 0 / 260% 100%;
+  inset-block: 0;
+  left: -80%;
+  width: 260%;
+  background: linear-gradient(104deg, transparent 34%, rgb(255 236 190 / 0.18) 47%, transparent 58%);
+  will-change: transform;
   animation: profile-theme-sweep 9s ease-in-out infinite;
 }
 
@@ -2456,7 +2508,11 @@ html.overlay-root ::-webkit-scrollbar {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(96deg, transparent 40%, rgb(143 243 198 / 0.14) 52%, transparent 62%) 0 0 / 300% 100%;
+  inset-block: 0;
+  left: -90%;
+  width: 280%;
+  background: linear-gradient(96deg, transparent 40%, rgb(143 243 198 / 0.14) 52%, transparent 62%);
+  will-change: transform;
   animation: profile-theme-sweep 13s linear infinite;
 }
 
@@ -2481,7 +2537,11 @@ html.overlay-root ::-webkit-scrollbar {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, transparent 30%, rgb(255 240 194 / 0.1) 50%, transparent 68%) 0 0 / 280% 100%;
+  inset-block: 0;
+  left: -85%;
+  width: 270%;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 240 194 / 0.1) 50%, transparent 68%);
+  will-change: transform;
   animation: profile-theme-sweep 16s ease-in-out infinite;
 }
 
@@ -2491,7 +2551,6 @@ html.overlay-root ::-webkit-scrollbar {
   background:
     radial-gradient(38% 30% at 26% 40%, rgb(167 139 250 / 0.4), transparent 70%),
     radial-gradient(30% 26% at 72% 62%, rgb(76 201 240 / 0.32), transparent 72%);
-  filter: blur(6px);
   animation: profile-theme-drift 28s ease-in-out infinite alternate;
 }
 
@@ -2523,8 +2582,8 @@ html.overlay-root ::-webkit-scrollbar {
 }
 
 @keyframes profile-theme-sweep {
-  from { background-position: -60% 0; }
-  to { background-position: 220% 0; }
+  from { transform: translate3d(-60%, 0, 0); }
+  to { transform: translate3d(60%, 0, 0); }
 }
 
 @keyframes profile-theme-drift {
@@ -2548,7 +2607,8 @@ html.overlay-root ::-webkit-scrollbar {
   .profile-theme[data-theme='abyss'] .profile-theme__field {
     animation: none;
   }
+  /* Frozen, the sheet still sits across the card rather than off its left edge. */
   .profile-theme[data-theme='aurum']::after,
   .profile-theme[data-theme='slate']::after,
-  .profile-theme[data-theme='onyx']::after { background-position: 30% 0; }
+  .profile-theme[data-theme='onyx']::after { transform: translate3d(-12%, 0, 0); }
 }
