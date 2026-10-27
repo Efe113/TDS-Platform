@@ -9,6 +9,7 @@ const INVOCABLE = new Set<string>([
   'display:list',
   'app:quit',
   'app:minimizeToTray',
+  'app:saveFile',
   'window:minimize',
   'window:toggleMaximize',
   'window:close',

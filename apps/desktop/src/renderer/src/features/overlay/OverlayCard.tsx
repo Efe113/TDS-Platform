@@ -52,6 +52,40 @@ function StepHealth({ card }: { card: OverlayStepCard }): ReactNode {
   )
 }
 
+/**
+ * The two numbers a step can carry besides "how many towers": how long it runs and how many times.
+ * Both are parsed out of the document (0.3.8) and neither of them belongs in `count`.
+ */
+function StepTiming({ card }: { card: OverlayStepCard }): ReactNode {
+  const seconds = card.seconds
+  const repeat = card.repeat
+  if (seconds === undefined && repeat === undefined) return null
+  return (
+    <span className="mt-1 flex items-center gap-1.5 text-[11px]">
+      {seconds !== undefined ? (
+        <span className="rounded-md border border-brand/40 bg-brand/15 px-1.5 py-0.5 tabular-nums text-brand">
+          {translate('overlay.seconds', { count: seconds })}
+        </span>
+      ) : null}
+      {repeat !== undefined ? (
+        <span className="rounded-md border border-line bg-panel-soft px-1.5 py-0.5 tabular-nums text-mute">
+          {translate('overlay.times', { count: repeat })}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+/** The branch this step sits behind — the overlay is where "soldum mu, sağdan mı?" is answered. */
+function StepCondition({ card }: { card: OverlayStepCard }): ReactNode {
+  if (!card.condition) return null
+  return (
+    <p className="mt-2 rounded-md border border-warn/40 bg-warn/12 px-2 py-1 text-[11px] leading-snug text-warn">
+      {translate('overlay.condition', { condition: card.condition })}
+    </p>
+  )
+}
+
 function Hero({ card }: { card: OverlayStepCard }): ReactNode {
   const tower = card.towerLabelTr ?? card.towerLabel
 
@@ -60,6 +94,8 @@ function Hero({ card }: { card: OverlayStepCard }): ReactNode {
       <div className="mt-2">
         <p className="text-[11px] uppercase tracking-wide text-warn">{translate('overlay.unresolved')}</p>
         <p className="mt-1 text-base leading-snug font-semibold">{card.raw}</p>
+        <StepTiming card={card} />
+        <StepHealth card={card} />
       </div>
     )
   }
@@ -72,6 +108,10 @@ function Hero({ card }: { card: OverlayStepCard }): ReactNode {
         {card.level !== undefined ? <span className="ml-1 text-sm font-normal text-mute">Sv.{card.level}</span> : null}
         {card.count !== undefined ? <span className="ml-1 text-sm font-normal text-mute">×{card.count}</span> : null}
       </p>
+      <StepTiming card={card} />
+      {card.alternatives.length > 0 ? (
+        <p className="mt-1 text-[11px] text-mute">{`${translate('overlay.alternatives')}: ${card.alternatives.join(', ')}`}</p>
+      ) : null}
       {card.spec ? (
         <span className="mt-1 inline-block rounded-md border border-brand/40 bg-brand/15 px-2 py-0.5 text-[11px] text-brand">
           {card.spec}
@@ -195,6 +235,8 @@ export function OverlayCard({ state, dimmed, interactive, prefs, onHover, onStep
             <WaveChip card={card} />
             {state.difficulty ? <span className="text-[11px] text-mute">{state.difficulty}</span> : null}
           </div>
+
+          <StepCondition card={card} />
 
           <Hero card={card} />
 

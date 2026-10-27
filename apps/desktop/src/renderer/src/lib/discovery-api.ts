@@ -3,10 +3,12 @@ import {
   discoverFiltersSchema,
   searchRowSchema,
   strategyDetailSchema,
+  strategyIrSchema,
   type DiscoverFacets,
   type DiscoverySort,
   type SearchRow,
-  type StrategyDetail
+  type StrategyDetail,
+  type StrategyIr
 } from '@tds/shared'
 import { supabase } from './supabase'
 
@@ -207,4 +209,17 @@ export async function fetchStrategyDetail(id: string): Promise<StrategyDetail> {
   const { data, error } = await db.from('strategies').select(DETAIL_SELECT).eq('id', id).single()
   if (error) throw new Error(error.message)
   return strategyDetailSchema.parse(normalizeStrategyPayload(data))
+}
+
+/**
+ * The IR the author published, read from `strategy_versions.content` (0013 keeps it whole). The typed
+ * child tables cannot carry a step's duration, repetition or branch, so this is the only faithful copy
+ * of those — and of the document as the author wrote it, which is what an export should be.
+ */
+export async function fetchVersionIr(versionId: string): Promise<StrategyIr | null> {
+  const db = requireDb()
+  const { data, error } = await db.from('strategy_versions').select('content').eq('id', versionId).maybeSingle()
+  if (error) throw new Error(error.message)
+  const parsed = strategyIrSchema.safeParse(data?.content ?? null)
+  return parsed.success ? parsed.data : null
 }

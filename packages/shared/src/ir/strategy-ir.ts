@@ -81,6 +81,19 @@ export const stepSchema = z.object({
   towerKey: z.string().optional(),
   level: z.number().int().positive().optional(),
   count: z.number().int().positive().optional(),
+  /**
+   * How long the instruction runs for ("Hold 45s", "wait 1 dk"). Deliberately not `count`: three
+   * towers and forty-five seconds must not collide in one number, and the overlay can only count a
+   * duration down if it is a duration.
+   */
+  seconds: z.number().int().positive().max(3600).optional(),
+  /** How many times the same instruction repeats ("×3", "2 kere", "repeat 4"). */
+  repeat: z.number().int().positive().max(99).optional(),
+  /**
+   * The branch this step sits behind: "if the boss walks left", "eğer buff aldıysan". A run is not a
+   * list, it is a tree, and until now the only place a condition could live was inside `raw`.
+   */
+  condition: z.string().optional(),
   alternatives: z.array(z.string()).default([]),
   spec: z.string().optional(),
   note: z.string().optional(),

@@ -48,7 +48,7 @@ import {
   waveSkipKey,
   type CatalogLanguage
 } from '../../lib/catalog-labels'
-import { fetchStrategyDetail, isNotConfigured, readFavorite, toggleFavorite } from '../../lib/discovery-api'
+import { fetchStrategyDetail, fetchVersionIr, isNotConfigured, readFavorite, toggleFavorite } from '../../lib/discovery-api'
 import { useTowerNamesTr } from '../../lib/tower-names'
 import { useTick } from '../../lib/use-tick'
 import { buyBoost, fetchWallet, newPurchaseKey } from '../../lib/wallet-api'
@@ -66,10 +66,11 @@ import { SkeletonCard } from '../../motion/primitives/Shimmer'
 import { StateError, StateLoading, StateNotice } from '../../components/ui/states'
 import { StepList } from '../import/StepList'
 import { DiscussionSection } from './DiscussionSection'
+import { ExportMenu } from './ExportMenu'
 import { JourneyPanel, StatsPanel, WatchButton } from './IntelligencePanel'
 import { fetchStepHealth, fetchStepMarks, rateStep, setStepMark } from '../../lib/intelligence-api'
 import { useOverlayControls } from '../shell/use-overlay'
-import { buildIrInput, describeIrIssues, toIrSteps } from './build-ir'
+import { buildIrInput, describeIrIssues, irStepExtras, toIrSteps } from './build-ir'
 
 /** Carries the readable issue paths of a failed IR build so the banner can list them. */
 class IrValidationError extends Error {
@@ -500,7 +501,24 @@ export function StrategyDetailPage(): ReactNode {
 
   const detail = detailQuery.data
   const version = useMemo(() => (detail ? selectCurrentVersion(detail) : undefined), [detail])
-  const steps = useMemo(() => (version ? toIrSteps(version) : []), [version])
+
+  // A step's duration, repetition and branch live only in the IR the author published (0013 keeps it
+  // whole on the version row), so the typed rows are merged with it rather than used on their own.
+  const irQuery = useQuery({
+    queryKey: ['strategy', strategyId, 'ir', version?.id ?? 'none'],
+    queryFn: () => fetchVersionIr(version?.id ?? ''),
+    enabled: version !== undefined && supabase !== null,
+    retry: 1,
+    staleTime: 300_000
+  })
+  const extras = useMemo(() => irStepExtras(irQuery.data ?? null), [irQuery.data])
+  const steps = useMemo(() => (version ? toIrSteps(version, extras) : []), [version, extras])
+  // An export needs a whole document: the author's IR when it reads, otherwise the published rows rebuilt.
+  const builtIr = useMemo(() => {
+    if (!detail || !version) return null
+    const parsed = strategyIrSchema.safeParse(buildIrInput(detail, version, extras))
+    return parsed.success ? parsed.data : null
+  }, [detail, version, extras])
 
   /** True when the overlay is tracking *this* strategy, which is what turns the step list into a remote. */
   const tracked = activeStrategy?.strategyId === strategyId
@@ -603,7 +621,7 @@ export function StrategyDetailPage(): ReactNode {
       const liveVersion = current ? selectCurrentVersion(current) : undefined
       if (!current || !liveVersion) throw new Error(t('detail.notPublished'))
 
-      const parsed = strategyIrSchema.safeParse(buildIrInput(current, liveVersion))
+      const parsed = strategyIrSchema.safeParse(buildIrInput(current, liveVersion, extras))
       if (!parsed.success) throw new IrValidationError(describeIrIssues(parsed.error))
 
       // The detail row is published by definition, so this run is counted.
@@ -779,6 +797,7 @@ export function StrategyDetailPage(): ReactNode {
                 </MenuContent>
               </Menu>
             ) : null}
+            {published ? <ExportMenu strategyId={strategyId} fileName={detail.name} getIr={() => irQuery.data ?? builtIr} /> : null}
             <WatchButton strategyId={strategyId} />
           </>
         }

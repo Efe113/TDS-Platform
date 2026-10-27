@@ -8,6 +8,7 @@ import {
   type RequirementEntry,
   type StepAction,
   type StrategyDetail,
+  type StrategyIr,
   type StrategyStep,
   type TroubleshootingEntry,
   type VersionDetail,
@@ -34,24 +35,48 @@ function mediaKindOf(kind: string): MediaRef['kind'] {
   return MEDIA_KINDS.includes(kind) ? (kind as MediaRef['kind']) : 'unknown'
 }
 
-export function toIrSteps(version: VersionDetail): StrategyStep[] {
+/**
+ * Duration, repetition and the branch a step sits behind exist only in the IR the author published
+ * (`strategy_versions.content`, 0013) — the typed step table has no column for them. They are merged by
+ * step number instead of replacing the rows, so an edit made directly in the table still wins for
+ * everything the table carries.
+ */
+export type StepExtras = Pick<StrategyStep, 'seconds' | 'repeat' | 'condition'>
+
+export function irStepExtras(ir: StrategyIr | null | undefined): Map<number, StepExtras> {
+  const extras = new Map<number, StepExtras>()
+  for (const step of ir?.steps ?? []) {
+    if (step.seconds === undefined && step.repeat === undefined && step.condition === undefined) continue
+    extras.set(step.stepNo, { seconds: step.seconds, repeat: step.repeat, condition: step.condition })
+  }
+  return extras
+}
+
+export function toIrSteps(version: VersionDetail, extras: ReadonlyMap<number, StepExtras> = new Map()): StrategyStep[] {
   return [...version.strategy_steps]
     .sort((a, b) => a.step_no - b.step_no)
-    .map((row) => ({
-      stepNo: row.step_no,
-      ...(row.wave_from !== null ? { waveFrom: row.wave_from } : {}),
-      ...(row.wave_to !== null ? { waveTo: row.wave_to } : {}),
-      ...(row.phase ? { phase: row.phase } : {}),
-      action: actionOf(row.action),
-      ...(row.tower_key ? { towerKey: row.tower_key } : {}),
-      ...(row.level !== null && row.level > 0 ? { level: row.level } : {}),
-      ...(row.count !== null && row.count > 0 ? { count: row.count } : {}),
-      alternatives: [],
-      ...(row.spec ? { spec: row.spec } : {}),
-      ...(row.note ? { note: row.note } : {}),
-      raw: row.raw_text,
-      unresolved: row.unresolved
-    }))
+    .map((row) => {
+      const extra = extras.get(row.step_no)
+      return {
+        stepNo: row.step_no,
+        ...(row.wave_from !== null ? { waveFrom: row.wave_from } : {}),
+        ...(row.wave_to !== null ? { waveTo: row.wave_to } : {}),
+        ...(row.phase ? { phase: row.phase } : {}),
+        action: actionOf(row.action),
+        ...(row.tower_key ? { towerKey: row.tower_key } : {}),
+        ...(row.level !== null && row.level > 0 ? { level: row.level } : {}),
+        ...(row.count !== null && row.count > 0 ? { count: row.count } : {}),
+        // The jsonb column carried them since 0013; the reader dropped them until now.
+        alternatives: row.spec.alternatives,
+        ...(row.spec.spec ? { spec: row.spec.spec } : {}),
+        ...(row.note ? { note: row.note } : {}),
+        ...(extra?.seconds !== undefined ? { seconds: extra.seconds } : {}),
+        ...(extra?.repeat !== undefined ? { repeat: extra.repeat } : {}),
+        ...(extra?.condition ? { condition: extra.condition } : {}),
+        raw: row.raw_text,
+        unresolved: row.unresolved
+      }
+    })
 }
 
 export function toIrInventory(version: VersionDetail): InventorySlot[] {
@@ -94,7 +119,7 @@ function toIrMedia(version: VersionDetail): MediaRef[] {
  * Builds the tracking record from published rows only. The caller still runs strategyIrSchema, so a
  * row that cannot be mapped faithfully fails loudly instead of being patched with invented values.
  */
-export function buildIrInput(detail: StrategyDetail, version: VersionDetail): Record<string, unknown> {
+export function buildIrInput(detail: StrategyDetail, version: VersionDetail, extras: ReadonlyMap<number, StepExtras> = new Map()): Record<string, unknown> {
   const waveRange =
     detail.wave_from !== null && detail.wave_to !== null ? ([detail.wave_from, detail.wave_to] as [number, number]) : undefined
 
@@ -154,7 +179,7 @@ export function buildIrInput(detail: StrategyDetail, version: VersionDetail): Re
     inventory: toIrInventory(version),
     mutators,
     waveSkip,
-    steps: toIrSteps(version),
+    steps: toIrSteps(version, extras),
     troubleshooting,
     proofs: toIrProofs(version),
     hallOfFame: version.strategy_hof.map((row) => ({

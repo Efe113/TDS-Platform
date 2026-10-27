@@ -15,6 +15,7 @@ function stepHaystack(step: StrategyStep, actionLabel: string): string {
     humanTowerLabel(step.towerKey) ?? '',
     step.towerKey ?? '',
     step.spec ?? '',
+    step.condition ?? '',
     step.note ?? '',
     step.raw
   ]
@@ -175,7 +176,14 @@ export function StepList({
                       </span>
                     ) : null}
                     {step.spec ? <Badge tone="accent">{step.spec}</Badge> : null}
+                    {step.seconds !== undefined ? <Badge tone="accent">{t('overlay.seconds', { count: step.seconds })}</Badge> : null}
+                    {step.repeat !== undefined ? <Badge tone="neutral">{t('overlay.times', { count: step.repeat })}</Badge> : null}
                     {step.unresolved ? <Badge tone="warn">{t('overlay.unresolved')}</Badge> : null}
+                    {step.alternatives.length > 0 ? (
+                      <span className="text-[11px] text-mute">
+                        {`${t('overlay.alternatives')}: ${step.alternatives.map((key) => humanTowerLabel(key) ?? key).join(', ')}`}
+                      </span>
+                    ) : null}
 
                     {onJump ? (
                       <Button
@@ -190,6 +198,11 @@ export function StepList({
                     ) : null}
                   </div>
 
+                  {step.condition ? (
+                    <p className="mt-1 rounded-md border border-warn/40 bg-warn/[0.08] px-2 py-1 text-[11px] text-warn">
+                      {t('overlay.condition', { condition: step.condition })}
+                    </p>
+                  ) : null}
                   {step.note ? <p className="mt-1 text-xs text-mute">{step.note}</p> : null}
                   {step.unresolved && !tower ? (
                     <p className="mt-1 text-xs text-warn">{t('import.unresolvedTower', { value: step.raw })}</p>

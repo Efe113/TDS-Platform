@@ -67,14 +67,30 @@ export const mapSummarySchema = z.object({
   is_event: z.boolean()
 })
 
-/** `strategy_steps.spec` is jsonb: `{"alternatives":[…],"spec":"3 Rifleman"}`. */
-const specFieldSchema = z.preprocess((value) => {
+/**
+ * `strategy_steps.spec` is jsonb: `{"alternatives":[…],"spec":"3 Rifleman"}` (0013 writes both halves,
+ * 0038's editor keeps them there). The pre-0013 shape was a bare string, so both are accepted and the
+ * alternatives the author published are handed back instead of dropped — they were read into nothing at
+ * all for two releases.
+ */
+export const stepSpecSchema = z.object({
+  spec: z.string().nullable(),
+  alternatives: z.array(z.string()).default([])
+})
+
+export type StepSpecColumn = z.infer<typeof stepSpecSchema>
+
+const specColumnSchema = z.preprocess((value) => {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const inner = (value as Record<string, unknown>).spec
-    return typeof inner === 'string' && inner ? inner : null
+    const record = value as Record<string, unknown>
+    const inner = record.spec
+    const alternatives = Array.isArray(record.alternatives)
+      ? record.alternatives.filter((item): item is string => typeof item === 'string')
+      : []
+    return { spec: typeof inner === 'string' && inner.length > 0 ? inner : null, alternatives }
   }
-  return typeof value === 'string' && value ? value : null
-}, z.string().nullable())
+  return { spec: typeof value === 'string' && value.length > 0 ? value : null, alternatives: [] }
+}, stepSpecSchema)
 
 export const stepRowSchema = z.object({
   id: z.string().uuid(),
@@ -86,7 +102,7 @@ export const stepRowSchema = z.object({
   tower_key: z.string().nullable(),
   level: z.number().int().nullable(),
   count: z.number().int().nullable(),
-  spec: specFieldSchema,
+  spec: specColumnSchema,
   note: z.string().nullable(),
   raw_text: z.string(),
   unresolved: z.boolean()

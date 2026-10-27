@@ -23,6 +23,13 @@ const cardFrom = (
     towerLabelTr: localName,
     level: step.level,
     count: step.count,
+    seconds: step.seconds,
+    repeat: step.repeat,
+    condition: step.condition,
+    // Display labels, like every other field on the card: the overlay has no catalog to look keys up in.
+    alternatives: step.alternatives
+      .filter((key) => key.length > 0 && key !== step.towerKey)
+      .map((key) => strategy.towerNamesTr[key] ?? prettifyTowerKey(key) ?? key),
     spec: step.spec,
     note: step.note,
     raw: step.raw,

@@ -86,7 +86,27 @@ export function RunRail(): ReactNode {
               {run.current.towerLabelTr ?? run.current.towerLabel ? (
                 <p className="mt-0.5 text-[11px] text-brand">{run.current.towerLabelTr ?? run.current.towerLabel}</p>
               ) : null}
+              {run.current.alternatives.length > 0 ? (
+                <p className="mt-0.5 text-[10px] text-mute">{`${t('overlay.alternatives')}: ${run.current.alternatives.join(', ')}`}</p>
+              ) : null}
               {run.current.spec ? <p className="mt-0.5 text-[11px] text-mute">{run.current.spec}</p> : null}
+              {/* Duration and repetition are the two numbers a step can carry that are not "how many
+                  towers", and in-game they are the ones that decide whether you are on schedule. */}
+              {run.current.seconds !== undefined || run.current.repeat !== undefined ? (
+                <p className="mt-1 flex items-center gap-1.5">
+                  {run.current.seconds !== undefined ? (
+                    <Chip tone="brand">{t('overlay.seconds', { count: run.current.seconds })}</Chip>
+                  ) : null}
+                  {run.current.repeat !== undefined ? (
+                    <Chip tone="neutral">{t('overlay.times', { count: run.current.repeat })}</Chip>
+                  ) : null}
+                </p>
+              ) : null}
+              {run.current.condition ? (
+                <p className="mt-1 rounded-md border border-warn/40 bg-warn/12 px-1.5 py-0.5 text-[10px] leading-snug text-warn">
+                  {t('overlay.condition', { condition: run.current.condition })}
+                </p>
+              ) : null}
               <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-mute/80">{run.current.raw}</p>
             </div>
           ) : null}

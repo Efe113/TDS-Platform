@@ -49,6 +49,13 @@ export const overlayStepCardSchema = z.object({
   towerLabelTr: z.string().optional(),
   level: z.number().int().optional(),
   count: z.number().int().optional(),
+  /** "45sn" — the step's own duration, and "×3" — how many times it runs. */
+  seconds: z.number().int().positive().max(3600).optional(),
+  repeat: z.number().int().positive().max(99).optional(),
+  /** The branch the step sits behind, shown above the instruction it governs. */
+  condition: z.string().optional(),
+  /** The other towers that step accepts, from the author's document. */
+  alternatives: z.array(z.string()).default([]),
   spec: z.string().optional(),
   note: z.string().optional(),
   raw: z.string(),
@@ -256,6 +263,8 @@ export const IPC_CHANNELS = {
   displayList: 'display:list',
   appQuit: 'app:quit',
   appMinimizeToTray: 'app:minimizeToTray',
+  /** A document the member asked to keep: markdown or JSON out through the native save dialog. */
+  appSaveFile: 'app:saveFile',
   /** A `tdsapp://…` link that arrived while the app was running, already turned into a route. */
   appDeepLink: 'app:deepLink',
 
@@ -435,6 +444,27 @@ export const strategyCacheRowSchema = z.object({
 export type StrategyCacheRow = z.infer<typeof strategyCacheRowSchema>
 
 export const strategyCacheLoadPayloadSchema = z.object({ key: z.string().min(1).max(200) })
+
+/**
+ * Writing a document the member asked for (0.3.8 export). The name is a slug, never a path, and only
+ * three extensions are accepted: this channel writes text a person wants to keep, not anything the
+ * renderer can name.
+ */
+export const saveTextFilePayloadSchema = z.object({
+  fileName: z.string().min(1).max(120),
+  content: z.string().min(1).max(4_000_000)
+})
+
+export type SaveTextFilePayload = z.input<typeof saveTextFilePayloadSchema>
+
+export const saveTextFileResultSchema = z.object({
+  saved: z.boolean(),
+  path: z.string().optional(),
+  /** The member pressed cancel — not a failure, and nothing should be reported as one. */
+  canceled: z.boolean().default(false)
+})
+
+export type SaveTextFileResult = z.infer<typeof saveTextFileResultSchema>
 
 /**
  * What the renderer may show about the usage pipeline. `counted` is false while the tracked

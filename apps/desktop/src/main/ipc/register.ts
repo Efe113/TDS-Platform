@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, screen, shell } from 'electron'
 import { createHash } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { basename, join, resolve } from 'node:path'
+import { basename, extname, join, resolve } from 'node:path'
 import {
   IPC_CHANNELS,
   appMetaSchema,
@@ -14,6 +14,7 @@ import {
   importLinkPayloadSchema,
   importPastePayloadSchema,
   overlayGeometryPatchSchema,
+  saveTextFilePayloadSchema,
   settingsPatchSchema,
   strategyCacheLoadPayloadSchema,
   strategyLoadPayloadSchema,
@@ -272,6 +273,36 @@ export function registerIpc(context: RegisterContext): void {
   handle(IPC_CHANNELS.appMinimizeToTray, () => {
     context.getMainWindow()?.hide()
     return { ok: true }
+  })
+
+  /**
+   * The export path: text out through the native save dialog. The name is slugged here instead of
+   * trusted, and the extension picks the filter, so this channel can only ever write a markdown, JSON
+   * or plain-text file that the member named — not anything the renderer can think of.
+   */
+  handle(IPC_CHANNELS.appSaveFile, saveTextFilePayloadSchema, async (_event, { fileName, content }) => {
+    const safeName = fileName.replace(/[^\w.-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '').slice(0, 100)
+    const extension = extname(safeName).toLocaleLowerCase()
+    if (!['.md', '.markdown', '.json', '.txt'].includes(extension)) {
+      throw new Error('Yalnızca .md, .json veya .txt dosyası yazılabilir.')
+    }
+    const options: Electron.SaveDialogOptions = {
+      title: 'Dışa aktar',
+      defaultPath: join(app.getPath('downloads'), safeName),
+      filters:
+        extension === '.json'
+          ? [{ name: 'JSON', extensions: ['json'] }]
+          : extension === '.txt'
+            ? [{ name: 'Text', extensions: ['txt'] }]
+            : [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+    }
+    // The overlay can be the only window open, and showSaveDialog takes either a window or nothing.
+    const open = context.getMainWindow()
+    const choice = open ? await dialog.showSaveDialog(open, options) : await dialog.showSaveDialog(options)
+    if (choice.canceled || !choice.filePath) return { saved: false, canceled: true }
+    await writeFile(choice.filePath, content, 'utf8')
+    logger.info(`exported ${String(content.length)} characters to ${basename(choice.filePath)}`)
+    return { saved: true, path: choice.filePath }
   })
 
   handle(IPC_CHANNELS.windowMinimize, () => {
