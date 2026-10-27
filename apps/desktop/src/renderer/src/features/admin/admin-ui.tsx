@@ -97,6 +97,25 @@ export function formatDate(value: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
 }
 
+/**
+ * `datetime-local` wants wall-clock text and gives it back without a zone, while everything the server
+ * stores is an absolute instant. Both directions live here because maintenance, campaigns and notices all
+ * edit windows and an hour off the round trip is an outage that starts early.
+ */
+export function toLocalInput(iso: string | null): string {
+  if (iso === null) return ''
+  const parsed = Date.parse(iso)
+  if (Number.isNaN(parsed)) return ''
+  const date = new Date(parsed - new Date(parsed).getTimezoneOffset() * 60_000)
+  return date.toISOString().slice(0, 16)
+}
+
+export function fromLocalInput(value: string): string | null {
+  if (value.trim().length === 0) return null
+  const parsed = Date.parse(value)
+  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString()
+}
+
 interface JsonDetailsProps {
   label: string
   value: unknown

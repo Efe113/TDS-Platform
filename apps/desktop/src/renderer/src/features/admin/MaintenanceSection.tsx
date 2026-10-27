@@ -15,6 +15,7 @@ import { fetchMaintenance, setMaintenance } from './admin-api'
 import { Banner, Button, INPUT_CLASS, cn } from '../../components/ui'
 import { Chip, Section, Segmented } from '../../components/ui/system'
 import { StateLoading } from '../../components/ui/states'
+import { fromLocalInput, toLocalInput } from './admin-ui'
 import { MaintenanceBanner } from '../shell/MaintenanceSurface'
 
 /**
@@ -40,20 +41,6 @@ const FROZEN_TABLES = [
   'account_requests',
   'reports'
 ] as const
-
-function toLocalInput(iso: string | null): string {
-  if (iso === null) return ''
-  const parsed = Date.parse(iso)
-  if (Number.isNaN(parsed)) return ''
-  const date = new Date(parsed - new Date(parsed).getTimezoneOffset() * 60_000)
-  return date.toISOString().slice(0, 16)
-}
-
-function fromLocalInput(value: string): string | null {
-  if (value.trim().length === 0) return null
-  const parsed = Date.parse(value)
-  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString()
-}
 
 function StatusChip({ state }: { state: MaintenanceState }): ReactNode {
   const t = useT()

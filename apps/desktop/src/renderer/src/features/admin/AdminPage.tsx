@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   ClipboardCheck,
   Images,
+  PartyPopper,
   ScrollText,
   ShieldAlert,
   Store,
@@ -33,10 +34,11 @@ import { VerificationSection } from './VerificationSection'
 import { MarketAdminSection } from './MarketAdminSection'
 import { HealthSection, UsersSection } from './ConsoleSections'
 import { MaintenanceSection } from './MaintenanceSection'
+import { CampaignSection } from './CampaignSection'
 import { CATALOG_KINDS, type CatalogKind } from './admin-api'
 import { LoadingBanner, TabBar } from './admin-ui'
 
-type AdminTab = 'health' | 'maintenance' | 'review' | 'moderation' | 'verified' | 'users' | 'market' | 'catalog' | 'currency' | 'badges' | 'gaps' | 'audit'
+type AdminTab = 'health' | 'maintenance' | 'campaigns' | 'review' | 'moderation' | 'verified' | 'users' | 'market' | 'catalog' | 'currency' | 'badges' | 'gaps' | 'audit'
 
 const CATALOG_LABELS: Record<CatalogKind, MessageKey> = {
   maps: 'admin.maps',
@@ -60,6 +62,7 @@ interface SectionItem {
 const SECTIONS: SectionItem[] = [
   { id: 'health', labelKey: 'admin.health', hintKey: 'admin.healthHint', icon: Activity },
   { id: 'maintenance', labelKey: 'admin.maintenance', hintKey: 'admin.maintenanceNavHint', icon: Wrench, adminOnly: true },
+  { id: 'campaigns', labelKey: 'admin.campaign', hintKey: 'admin.campaignNavHint', icon: PartyPopper, adminOnly: true },
   { id: 'review', labelKey: 'admin.review', hintKey: 'admin.reviewHint', icon: ClipboardCheck },
   { id: 'moderation', labelKey: 'admin.moderation', hintKey: 'admin.moderationHint', icon: ShieldAlert },
   { id: 'verified', labelKey: 'admin.accounts', hintKey: 'admin.accountsHint', icon: BadgeCheck, adminOnly: true },
@@ -189,6 +192,7 @@ export function AdminPage(): ReactNode {
 
           {activeTab === 'health' ? <HealthSection /> : null}
           {activeTab === 'maintenance' ? <MaintenanceSection /> : null}
+          {activeTab === 'campaigns' ? <CampaignSection /> : null}
           {activeTab === 'review' ? <ReviewQueueSection /> : null}
           {activeTab === 'users' ? <UsersSection /> : null}
           {activeTab === 'moderation' ? <ModerationSection /> : null}
