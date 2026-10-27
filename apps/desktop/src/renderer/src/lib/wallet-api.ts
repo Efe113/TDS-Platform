@@ -1,7 +1,11 @@
 import {
   buyBoostResultSchema,
+  productWaitlistEntrySchema,
+  productWaitlistResultSchema,
   walletSummarySchema,
   type BuyBoostResult,
+  type ProductWaitlistEntry,
+  type ProductWaitlistResult,
   type WalletSummary
 } from '@tds/shared'
 import { supabase } from './supabase'
@@ -37,6 +41,26 @@ export async function buyBoost(strategyId: string, sku: string, key: string): Pr
   })
   if (error) throw new Error(error.message)
   return buyBoostResultSchema.parse(data ?? {})
+}
+
+/**
+ * 0057: the queue in front of a shelf that is not open yet. Its own read rather than a field on
+ * `wallet_summary`, so the shop's payload did not have to be re-declared for one button.
+ */
+export async function fetchProductWaitlist(): Promise<ProductWaitlistEntry[]> {
+  await whenSessionReady()
+  if (!supabase) throw new NotConfiguredError()
+  const { data, error } = await supabase.rpc('product_waitlist')
+  if (error) throw new Error(error.message)
+  return productWaitlistEntrySchema.array().parse(data ?? [])
+}
+
+/** `joined` decides the direction, so the card is one button rather than two callbacks. */
+export async function toggleProductWaitlist(sku: string, joined: boolean): Promise<ProductWaitlistResult> {
+  if (!supabase) throw new NotConfiguredError()
+  const { data, error } = await supabase.rpc(joined ? 'leave_product_waitlist' : 'join_product_waitlist', { p_sku: sku })
+  if (error) throw new Error(error.message)
+  return productWaitlistResultSchema.parse(data ?? {})
 }
 
 /** Themes and other fixed-catalog items go through spend_currency; boosts do not (they need a target). */

@@ -34,7 +34,7 @@ export const profileMetricsSchema = z.object({
   usage_rank_best: z.number().int().nullable().default(null),
   active_days: z.number().int().default(0),
   streak: z.number().int().default(0),
-  // Owned by M8b; present in the row but not yet computed.
+  // 0020: the discussion triggers move these two, so they are measured, not placeholders.
   comments_count: z.number().int().default(0),
   upvotes_received: z.number().int().default(0)
 })
@@ -94,14 +94,22 @@ export type ProfileShowcase = z.infer<typeof profileShowcaseSchema>
 
 export const PUBLIC_BADGE_SLOTS = 4
 
-/** Metrics worth showing on a profile, in display order, with the copy key for each label. */
+/**
+ * Metrics worth showing on a profile, in display order, with the copy key for each label. Every number
+ * `stat_user_rollup` already computes and the showcase used to hide four of them at a time.
+ */
 export const PROFILE_METRICS = [
   'strategies_published',
-  'sessions_qualified',
+  'approvals_received',
+  'imports_completed',
   'steps_completed',
+  'sessions_qualified',
   'distinct_maps',
+  'usage_rank_best',
   'active_days',
-  'streak'
+  'streak',
+  'comments_count',
+  'upvotes_received'
 ] as const
 
 export type ProfileMetricKey = (typeof PROFILE_METRICS)[number]

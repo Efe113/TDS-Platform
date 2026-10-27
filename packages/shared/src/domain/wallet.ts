@@ -120,6 +120,41 @@ export const buyBoostResultSchema = z.object({
 
 export type BuyBoostResult = z.infer<typeof buyBoostResultSchema>
 
+/**
+ * 0057: the queue in front of a product that is not on the shelf yet. One row per member and sku — a
+ * signal for the roadmap, not a notification promise, and nothing about it costs coins.
+ */
+export const productWaitlistEntrySchema = z.object({
+  sku: z.string(),
+  name: z.string().nullable().default(null),
+  nameEn: z.string().nullable().default(null),
+  joined: z.boolean().default(false),
+  demand: z.number().int().nonnegative().default(0)
+})
+
+export type ProductWaitlistEntry = z.infer<typeof productWaitlistEntrySchema>
+
+export const productWaitlistResultSchema = z.object({
+  sku: z.string(),
+  waiting: z.boolean(),
+  demand: z.number().int().nonnegative().default(0)
+})
+
+export type ProductWaitlistResult = z.infer<typeof productWaitlistResultSchema>
+
+/** The admin read: demand per upcoming product and the handles that are waiting for it. */
+export const adminWaitlistRowSchema = z.object({
+  sku: z.string(),
+  name: z.string().nullable().default(null),
+  nameEn: z.string().nullable().default(null),
+  enabled: z.boolean().default(true),
+  demand: z.number().int().nonnegative().default(0),
+  lastAt: z.string().nullable().default(null),
+  people: z.array(z.object({ handle: z.string(), at: z.string() })).default([])
+})
+
+export type AdminWaitlistRow = z.infer<typeof adminWaitlistRowSchema>
+
 /** Null cap means unlimited; otherwise the headroom left today/this week, never negative. */
 export function capRemaining(earned: number, cap: number | null): number | null {
   if (cap === null) return null
@@ -149,6 +184,7 @@ export type SpendErrorKey =
   | 'wallet.errNotOwner'
   | 'wallet.errNotOwned'
   | 'wallet.errNotFound'
+  | 'wallet.errOnShelf'
   | 'wallet.errGeneric'
 
 export function spendErrorKey(message: string): SpendErrorKey {
@@ -163,5 +199,7 @@ export function spendErrorKey(message: string): SpendErrorKey {
   if (message.startsWith('NOT_PUBLISHED')) return 'wallet.errNotPublished'
   if (message.startsWith('NOT_OWNER')) return 'wallet.errNotOwner'
   if (message.startsWith('NOT_FOUND') || message.startsWith('UNKNOWN_SKU')) return 'wallet.errNotFound'
+  // 0057: the queue only takes a product that is not on the shelf.
+  if (message.startsWith('NOT_UPCOMING')) return 'wallet.errOnShelf'
   return 'wallet.errGeneric'
 }

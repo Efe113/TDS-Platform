@@ -1,5 +1,14 @@
 import type { ReactNode } from 'react'
-import { BookmarkCheck, BookmarkPlus, Check, GitCompareArrows, TrendingUp, Users } from 'lucide-react'
+import {
+  Bell,
+  BellRing,
+  BookmarkCheck,
+  BookmarkPlus,
+  Check,
+  GitCompareArrows,
+  TrendingUp,
+  Users
+} from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatWaveRange, type SearchRow } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
@@ -22,6 +31,9 @@ export interface StrategyCardProps {
   selected?: boolean
   onToggleCompare?: (row: SearchRow) => void
   compareDisabled?: boolean
+  /** Version tracking from the board itself — until now the decision lived only one page deeper. */
+  onToggleWatch?: (row: SearchRow) => void
+  watchBusy?: boolean
 }
 
 /**
@@ -66,7 +78,9 @@ export function StrategyCard({
   layout = 'grid',
   selected = false,
   onToggleCompare,
-  compareDisabled = false
+  compareDisabled = false,
+  onToggleWatch,
+  watchBusy = false
 }: StrategyCardProps): ReactNode {
   const t = useT()
   const language = useCatalogLanguage()
@@ -97,6 +111,30 @@ export function StrategyCard({
       </Button>
     </motion.span>
   )
+
+  // Icon-only on purpose: three columns of cards cannot carry two text buttons each, and the bell state
+  // is a shape (ringing or plain), not a word.
+  const watch = onToggleWatch ? (
+    <motion.span
+      key={row.is_watched ? 'watching' : 'silent'}
+      initial={{ scale: 0.86 }}
+      animate={{ scale: 1 }}
+      transition={{ type: 'spring', stiffness: 460, damping: 22 }}
+      className="inline-flex"
+    >
+      <Button
+        variant={row.is_watched ? 'primary' : 'ghost'}
+        size="sm"
+        busy={watchBusy}
+        disabled={!signedIn}
+        aria-label={row.is_watched ? t('detail.watchOn') : t('detail.watchOff')}
+        title={signedIn ? (row.is_watched ? t('detail.watchOn') : t('detail.watchOff')) : t('discover.needsSignIn')}
+        onClick={() => onToggleWatch(row)}
+      >
+        {row.is_watched ? <BellRing size={14} /> : <Bell size={14} />}
+      </Button>
+    </motion.span>
+  ) : null
 
   const chips = (
     <Row className="gap-1.5">
@@ -180,6 +218,7 @@ export function StrategyCard({
           {facts}
         </div>
         {compareToggle}
+        {watch}
         {favorite}
       </Card>
     )
@@ -201,7 +240,10 @@ export function StrategyCard({
         <p className="truncate text-[11px] text-mute">{`${t('discover.creator')}: ${row.credit_creator}`}</p>
       ) : null}
       <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
-        {favorite}
+        <span className="flex items-center gap-1.5">
+          {watch}
+          {favorite}
+        </span>
         {!signedIn ? <p className="max-w-[11rem] text-[11px] leading-snug text-mute">{t('discover.needsSignIn')}</p> : null}
       </div>
     </Card>

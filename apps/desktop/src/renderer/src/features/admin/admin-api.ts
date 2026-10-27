@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  adminWaitlistRowSchema,
   appFlagRowSchema,
   auditRowSchema,
   badgeDefinitionRowSchema,
@@ -20,6 +21,7 @@ import {
   noticeDraftPayload,
   type AuditRow,
   type AdminAnnouncement,
+  type AdminWaitlistRow,
   type CampaignAdminRow,
   type CampaignDraft,
   type CampaignRuleDraft,
@@ -153,6 +155,14 @@ export async function fetchQueue(): Promise<QueueRow[]> {
     .limit(100)
   if (error) throw new Error(error.message)
   return queueRowSchema.array().parse(data ?? [])
+}
+
+/** 0057: who is waiting for which product that is not on the shelf yet. */
+export async function fetchAdminWaitlist(): Promise<AdminWaitlistRow[]> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_product_waitlist')
+  if (error) throw new Error(error.message)
+  return adminWaitlistRowSchema.array().parse(data ?? [])
 }
 
 export async function reviewStrategy(strategyId: string, decision: ReviewDecision, note: string | null): Promise<void> {

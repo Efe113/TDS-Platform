@@ -53,7 +53,9 @@ export function ComparePanel({
     },
     { label: t('discover.cmpUses'), value: (row: SearchRow): string => formatLeaderboardScore(row.times_used) },
     { label: t('discover.cmpTrend'), value: (row: SearchRow): string => `+${String(row.trend_7d ?? 0)}` },
-    { label: t('discover.cmpUpdated'), value: (row: SearchRow): string => relativeTime(row.updated_at, language) }
+    { label: t('discover.cmpUpdated'), value: (row: SearchRow): string => relativeTime(row.updated_at, language) },
+    // The board already answered this per row; the comparison was the place someone actually asks it.
+    { label: t('discover.cmpWatched'), value: (row: SearchRow): string => (row.is_watched ? t('common.yes') : t('common.no')) }
   ]
 
   return (

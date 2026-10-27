@@ -208,6 +208,7 @@ function RuleCard({ rule, boost }: { rule: WalletRule; boost: { campaign: Active
 
 export function WalletPage(): ReactNode {
   const t = useT()
+  const catalogLanguage = useCatalogLanguage()
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
   const [ledgerQuery, setLedgerQuery] = useState('')
   const [copied, setCopied] = useState(false)
@@ -514,6 +515,9 @@ export function WalletPage(): ReactNode {
                   {entries.map((entry, index) => {
                     const kind = KIND_META[entry.kind]
                     const Icon = kind?.icon ?? Coins
+                    // A spend row already carries what left the balance; the catalogue says what it bought.
+                    const bought = entry.delta < 0 && entry.refType === 'order' ? (wallet.catalog.find((item) => item.sku === entry.ruleCode) ?? null) : null
+                    const productName = bought === null ? null : (catalogLanguage === 'en' ? (bought.nameEn ?? bought.name) : (bought.name ?? bought.nameEn))
                     return (
                       <li
                         key={`${String(entry.delta)}-${entry.at}-${String(index)}`}
@@ -529,6 +533,11 @@ export function WalletPage(): ReactNode {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] text-ink">{kind ? t(kind.key) : readableCode(entry.kind)}</span>
+                          {bought !== null ? (
+                            <span className="block truncate text-[11px] text-mute">
+                              {`${productName ?? readableCode(bought.sku)} · ${t('wallet.paidAmount', { count: String(-entry.delta) })}`}
+                            </span>
+                          ) : null}
                           {/* 0038: an admin move says why, next to the number it changed. */}
                           {entry.note ? <span className="block truncate text-[11px] text-mute">{entry.note}</span> : null}
                           <span className="block text-[10px] text-mute">{new Date(entry.at).toLocaleTimeString()}</span>

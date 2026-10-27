@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
-import { ChevronLeft, ChevronRight, Compass, Eye, EyeOff, RadioTower, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Compass, Eye, EyeOff, Pause, Play, RadioTower, RotateCcw } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { formatDuration, storageUrl } from '@tds/shared'
+import { formatDuration, storageUrl, type OverlayStepCard } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { navigate } from '../../lib/router'
 import { SUPABASE_BASE_URL } from '../../lib/storage-base'
 import { useTick } from '../../lib/use-tick'
+import { formatClock, useStepTimer } from '../../lib/use-step-timer'
 import { useAppStore } from '../../store/app-store'
 import { useOverlayControls } from './use-overlay'
 import { CachedBadge } from './OfflineShelf'
@@ -17,6 +18,51 @@ import { Chip } from '../../components/ui/system'
  * card buried in navigation. It is deliberately always in the same place, because the whole point of a
  * companion is that you can glance at it between waves.
  */
+/**
+ * The step's own duration, counted down. The rail is the surface you glance at from the corner of your
+ * eye, so it gets the clock and a bar that only ever changes a transform — never a width animation.
+ */
+function StepClock({ step }: { step: OverlayStepCard }): ReactNode {
+  const t = useT()
+  const timer = useStepTimer(step.stepNo, step.seconds)
+  if (step.seconds === undefined) return null
+
+  return (
+    <div className="mt-1.5 rounded-lg border border-line/70 bg-panel/50 px-2 py-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn('hud-num text-[12px] font-semibold', timer.done ? 'text-warn' : timer.running ? 'text-brand' : 'text-mute')}>
+          {timer.done ? t('overlay.timerDone') : formatClock(timer.remaining ?? 0)}
+        </span>
+        <span className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label={timer.running ? t('overlay.timerPause') : t('overlay.timerResume')}
+            onClick={timer.toggle}
+            className="no-drag grid size-5 place-items-center rounded text-mute transition-colors hover:bg-panel-soft hover:text-ink"
+          >
+            {timer.running ? <Pause size={11} /> : <Play size={11} />}
+          </button>
+          <button
+            type="button"
+            aria-label={t('overlay.timerReset')}
+            onClick={timer.reset}
+            className="no-drag grid size-5 place-items-center rounded text-mute transition-colors hover:bg-panel-soft hover:text-ink"
+          >
+            <RotateCcw size={11} />
+          </button>
+        </span>
+      </div>
+      <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-panel-soft">
+        {/* Fading the fill reads as "time is going"; animating its width would re-layout the rail. */}
+        <span
+          className="block h-full w-full rounded-full bg-gradient-to-r from-brand to-brand/50 transition-opacity duration-1000 ease-linear"
+          style={{ opacity: timer.done ? 0.15 : 0.3 + 0.7 * timer.ratio }}
+        />
+      </span>
+    </div>
+  )
+}
+
 export function RunRail(): ReactNode {
   const t = useT()
   const overlay = useOverlayControls()
@@ -90,18 +136,13 @@ export function RunRail(): ReactNode {
                 <p className="mt-0.5 text-[10px] text-mute">{`${t('overlay.alternatives')}: ${run.current.alternatives.join(', ')}`}</p>
               ) : null}
               {run.current.spec ? <p className="mt-0.5 text-[11px] text-mute">{run.current.spec}</p> : null}
-              {/* Duration and repetition are the two numbers a step can carry that are not "how many
-                  towers", and in-game they are the ones that decide whether you are on schedule. */}
-              {run.current.seconds !== undefined || run.current.repeat !== undefined ? (
-                <p className="mt-1 flex items-center gap-1.5">
-                  {run.current.seconds !== undefined ? (
-                    <Chip tone="brand">{t('overlay.seconds', { count: run.current.seconds })}</Chip>
-                  ) : null}
-                  {run.current.repeat !== undefined ? (
-                    <Chip tone="neutral">{t('overlay.times', { count: run.current.repeat })}</Chip>
-                  ) : null}
+              {/* Repetition stays a plain number; the duration is a clock now, not a chip. */}
+              {run.current.repeat !== undefined ? (
+                <p className="mt-1">
+                  <Chip tone="neutral">{t('overlay.times', { count: run.current.repeat })}</Chip>
                 </p>
               ) : null}
+              <StepClock step={run.current} />
               {run.current.condition ? (
                 <p className="mt-1 rounded-md border border-warn/40 bg-warn/12 px-1.5 py-0.5 text-[10px] leading-snug text-warn">
                   {t('overlay.condition', { condition: run.current.condition })}

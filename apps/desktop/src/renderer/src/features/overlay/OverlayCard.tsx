@@ -3,6 +3,7 @@ import type { OverlayState, OverlayStepCard } from '@tds/shared'
 import { translate } from '../../i18n/overlay-dict'
 import { actionKey } from '../../lib/actions'
 import { parseWave, relativeTime } from '../../lib/text'
+import { formatClock, useStepTimer } from '../../lib/use-step-timer'
 
 export interface OverlayPrefs {
   cardStyle: 'classic' | 'glow' | 'scan'
@@ -55,21 +56,44 @@ function StepHealth({ card }: { card: OverlayStepCard }): ReactNode {
 /**
  * The two numbers a step can carry besides "how many towers": how long it runs and how many times.
  * Both are parsed out of the document (0.3.8) and neither of them belongs in `count`.
+ *
+ * The duration is counted down rather than printed: "45s" on a card you stare at while a wave walks
+ * past you is a number you have to convert into a decision, and the decision is the whole point.
  */
-function StepTiming({ card }: { card: OverlayStepCard }): ReactNode {
-  const seconds = card.seconds
-  const repeat = card.repeat
-  if (seconds === undefined && repeat === undefined) return null
+function StepTiming({ card, interactive }: { card: OverlayStepCard; interactive: boolean }): ReactNode {
+  const total = card.seconds
+  const timer = useStepTimer(card.stepNo, total)
+  if (total === undefined && card.repeat === undefined) return null
+
+  const chipClass =
+    total === undefined
+      ? 'rounded-md border border-line bg-panel-soft px-1.5 py-0.5 tabular-nums text-mute'
+      : timer.done
+        ? 'rounded-md border border-warn/50 bg-warn/15 px-1.5 py-0.5 tabular-nums text-warn'
+        : timer.running
+          ? 'rounded-md border border-brand/40 bg-brand/15 px-1.5 py-0.5 tabular-nums text-brand'
+          : 'rounded-md border border-line bg-panel-soft px-1.5 py-0.5 tabular-nums text-mute'
+
   return (
-    <span className="mt-1 flex items-center gap-1.5 text-[11px]">
-      {seconds !== undefined ? (
-        <span className="rounded-md border border-brand/40 bg-brand/15 px-1.5 py-0.5 tabular-nums text-brand">
-          {translate('overlay.seconds', { count: seconds })}
+    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+      {total !== undefined ? (
+        <span className={chipClass} title={translate('overlay.seconds', { count: total })}>
+          {`⏱ ${timer.done ? translate('overlay.timerDone') : formatClock(timer.remaining ?? 0)}`}
         </span>
       ) : null}
-      {repeat !== undefined ? (
+      {total !== undefined && interactive ? (
+        <>
+          <MiniButton onClick={timer.toggle} label={timer.running ? translate('overlay.timerPause') : translate('overlay.timerResume')}>
+            {timer.running ? '❚❚' : '▶'}
+          </MiniButton>
+          <MiniButton onClick={timer.reset} label={translate('overlay.timerReset')}>
+            ↺
+          </MiniButton>
+        </>
+      ) : null}
+      {card.repeat !== undefined ? (
         <span className="rounded-md border border-line bg-panel-soft px-1.5 py-0.5 tabular-nums text-mute">
-          {translate('overlay.times', { count: repeat })}
+          {translate('overlay.times', { count: card.repeat })}
         </span>
       ) : null}
     </span>
@@ -86,7 +110,7 @@ function StepCondition({ card }: { card: OverlayStepCard }): ReactNode {
   )
 }
 
-function Hero({ card }: { card: OverlayStepCard }): ReactNode {
+function Hero({ card, interactive }: { card: OverlayStepCard; interactive: boolean }): ReactNode {
   const tower = card.towerLabelTr ?? card.towerLabel
 
   if (card.unresolved || !tower) {
@@ -94,7 +118,7 @@ function Hero({ card }: { card: OverlayStepCard }): ReactNode {
       <div className="mt-2">
         <p className="text-[11px] uppercase tracking-wide text-warn">{translate('overlay.unresolved')}</p>
         <p className="mt-1 text-base leading-snug font-semibold">{card.raw}</p>
-        <StepTiming card={card} />
+        <StepTiming card={card} interactive={interactive} />
         <StepHealth card={card} />
       </div>
     )
@@ -108,7 +132,7 @@ function Hero({ card }: { card: OverlayStepCard }): ReactNode {
         {card.level !== undefined ? <span className="ml-1 text-sm font-normal text-mute">Sv.{card.level}</span> : null}
         {card.count !== undefined ? <span className="ml-1 text-sm font-normal text-mute">×{card.count}</span> : null}
       </p>
-      <StepTiming card={card} />
+      <StepTiming card={card} interactive={interactive} />
       {card.alternatives.length > 0 ? (
         <p className="mt-1 text-[11px] text-mute">{`${translate('overlay.alternatives')}: ${card.alternatives.join(', ')}`}</p>
       ) : null}
@@ -238,7 +262,7 @@ export function OverlayCard({ state, dimmed, interactive, prefs, onHover, onStep
 
           <StepCondition card={card} />
 
-          <Hero card={card} />
+          <Hero card={card} interactive={interactive} />
 
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line">
             <div className="h-full rounded-full bg-brand" style={{ width: `${String(progress)}%` }} />

@@ -11,7 +11,7 @@ import { Chip, Metric, MetricGrid, Section, Segmented } from '../../components/u
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
 import { CoinAmount } from '../../components/brand/coin'
 import { FrameSample } from '../../components/brand/frame'
-import { fetchBadgeDefinitions, fetchSpendOrders, refundOrder, type AdminOrderRow } from './admin-api'
+import { fetchAdminWaitlist, fetchBadgeDefinitions, fetchSpendOrders, refundOrder, type AdminOrderRow } from './admin-api'
 import { formatDateTime } from './admin-ui'
 
 /**
@@ -128,6 +128,58 @@ const ORDER_TONE: Record<AdminOrderRow['status'], 'good' | 'warn' | 'danger'> = 
  * once: the coins return through the ledger — never by editing a balance — and the entitlement the
  * receipt was granting is taken back, which is why the reclaim switch is on by default.
  */
+/**
+ * 0057: who is waiting for which product. A `soon` row used to be a dead end twice over — the member
+ * could not say they wanted it and the roadmap had no number to sort by. This is that number, and the
+ * handles under it are the people to tell when the row finally goes on the shelf.
+ */
+function WaitlistSection(): ReactNode {
+  const t = useT()
+  const waitlist = useQuery({ queryKey: ['admin', 'waitlist'], queryFn: fetchAdminWaitlist, retry: 1 })
+  const rows = waitlist.data ?? []
+  const total = rows.reduce((sum, row) => sum + row.demand, 0)
+
+  return (
+    <Section
+      title={t('admin.waitlistTitle')}
+      hint={t('admin.waitlistHint')}
+      aside={total > 0 ? <Chip tone="brand">{t('admin.waitlistTotal', { count: String(total) })}</Chip> : null}
+    >
+      {waitlist.isPending ? <StateLoading variant="cards" count={1} /> : null}
+      {waitlist.isError ? <StateError detail={waitlist.error.message} onRetry={() => void waitlist.refetch()} busy={waitlist.isFetching} /> : null}
+      {!waitlist.isPending && !waitlist.isError && rows.length === 0 ? (
+        <StateEmpty icon={Store} title={t('admin.waitlistEmpty')} />
+      ) : null}
+      <ul className="space-y-1.5">
+        {rows.map((row) => (
+          <li key={row.sku} className="rounded-lg border border-line/70 bg-base/40 px-2.5 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-[12px] font-medium text-ink">{row.name ?? row.sku}</span>
+                {!row.enabled ? <Chip tone="neutral">{t('admin.waitlistRetired')}</Chip> : null}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Chip tone="brand">{t('admin.waitlistDemand', { count: String(row.demand) })}</Chip>
+                {row.lastAt ? <span className="hud-num text-[10px] text-mute">{formatDateTime(row.lastAt)}</span> : null}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate font-mono text-[10px] text-mute/70">{row.sku}</p>
+            {row.people.length > 0 ? (
+              <p className="mt-1 flex flex-wrap gap-1">
+                {row.people.map((person) => (
+                  <span key={person.handle} className="rounded border border-line bg-panel-soft px-1.5 py-0.5 text-[10px] text-mute">
+                    {`@${person.handle}`}
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </Section>
+  )
+}
+
 function OrderToolsSection(): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
@@ -818,6 +870,8 @@ export function MarketAdminSection(): ReactNode {
           </div>
         </Section>
       ) : null}
+
+      <WaitlistSection />
 
       <OrderToolsSection />
     </div>

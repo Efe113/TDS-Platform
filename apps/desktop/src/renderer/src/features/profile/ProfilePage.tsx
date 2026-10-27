@@ -3,17 +3,28 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BadgeCheck,
+  CalendarDays,
   Camera,
   Check,
   Crown,
+  FileDown,
+  FileText,
+  Flame,
   ImagePlus,
   Link2,
+  ListChecks,
   Lock,
+  Map as MapIcon,
+  MessageSquare,
   Pencil,
   Save,
   Sparkles,
+  ThumbsUp,
+  Timer,
   Trash2,
-  UserRound
+  Trophy,
+  UserRound,
+  type LucideIcon
 } from 'lucide-react'
 import {
   PROFILE_METRICS,
@@ -23,6 +34,7 @@ import {
   toggleShowcaseCode,
   type BadgeTier,
   type ProfileBadge,
+  type ProfileMetricKey,
   type ThemeKey
 } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
@@ -51,11 +63,31 @@ import { SkeletonCard } from '../../motion/primitives/Shimmer'
 
 const METRIC_LABEL: Record<string, MessageKey> = {
   strategies_published: 'profile.metricPublished',
-  sessions_qualified: 'profile.metricSessions',
+  approvals_received: 'profile.metricApprovals',
+  imports_completed: 'profile.metricImports',
   steps_completed: 'profile.metricSteps',
+  sessions_qualified: 'profile.metricSessions',
   distinct_maps: 'profile.metricMaps',
+  usage_rank_best: 'profile.metricBestRank',
   active_days: 'profile.metricDays',
-  streak: 'profile.metricStreak'
+  streak: 'profile.metricStreak',
+  comments_count: 'profile.metricComments',
+  upvotes_received: 'profile.metricUpvotes'
+}
+
+/** Keyed by the metric, not by a shared glyph: four identical icons on a strip says nothing. */
+const METRIC_ICON: Record<ProfileMetricKey, LucideIcon> = {
+  strategies_published: FileText,
+  approvals_received: BadgeCheck,
+  imports_completed: FileDown,
+  steps_completed: ListChecks,
+  sessions_qualified: Timer,
+  distinct_maps: MapIcon,
+  usage_rank_best: Trophy,
+  active_days: CalendarDays,
+  streak: Flame,
+  comments_count: MessageSquare,
+  upvotes_received: ThumbsUp
 }
 
 const TIER_LABEL: Record<BadgeTier, MessageKey> = {
@@ -342,17 +374,27 @@ export function ProfilePage(): ReactNode {
 
       {isOwn ? <PersonalizePanel profile={profile} /> : null}
 
-      <MetricGrid columns={4}>
-        {PROFILE_METRICS.slice(0, 4).map((key, index) => (
-          <Metric
-            key={key}
-            index={index}
-            icon={BadgeCheck}
-            label={METRIC_LABEL[key] ? t(METRIC_LABEL[key]) : key}
-            value={<CountUp value={metricValue(profile.metrics, key)} />}
-          />
-        ))}
-      </MetricGrid>
+      {/* All eleven, not the four that fit: the rollup already computes approvals, imports, rank,
+          comments and upvotes, and a vitrine that hides most of the shelf is not a vitrine. */}
+      <Section title={t('profile.metricsTitle')} hint={t('profile.metricsHint')}>
+        <MetricGrid columns={4}>
+          {PROFILE_METRICS.map((key, index) => (
+            <Metric
+              key={key}
+              index={index}
+              icon={METRIC_ICON[key]}
+              label={METRIC_LABEL[key] ? t(METRIC_LABEL[key]) : key}
+              value={
+                profile.metrics[key] === null ? (
+                  <span className="text-[13px] text-mute">—</span>
+                ) : (
+                  <CountUp value={metricValue(profile.metrics, key)} />
+                )
+              }
+            />
+          ))}
+        </MetricGrid>
+      </Section>
 
       {editing && isOwn ? (
         <div className="grid gap-4 lg:grid-cols-2">

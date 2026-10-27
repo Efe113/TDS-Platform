@@ -31,6 +31,7 @@ import {
   toggleFavorite
 } from '../../lib/discovery-api'
 import { useAuth, selectSignedIn, selectUserId } from '../../store/auth-store'
+import { toggleWatch } from '../../lib/intelligence-api'
 import { Badge, Banner, Button, Field, INPUT_CLASS, Row, cn } from '../../components/ui'
 import { Chip, PageHeader, Section, Segmented } from '../../components/ui/system'
 import { StateEmpty, StateError, StateLoading } from '../../components/ui/states'
@@ -331,6 +332,16 @@ export function DiscoverPage(): ReactNode {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['discover'] })
       void queryClient.invalidateQueries({ queryKey: ['strategy'] })
+    }
+  })
+
+  // `is_watched` already came back on every row; only the button was missing. The bell query is
+  // invalidated too, because a run tracked from here is a run the shell should ring about later.
+  const watchMutation = useMutation({
+    mutationFn: (strategyId: string) => toggleWatch(strategyId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['discover'] })
+      void queryClient.invalidateQueries({ queryKey: ['watch'] })
     }
   })
 
@@ -756,7 +767,9 @@ export function DiscoverPage(): ReactNode {
             </div>
           </div>
 
-          {favoriteMutation.isError ? <StateError detail={rawMessage(favoriteMutation.error)} /> : null}
+          {favoriteMutation.isError || watchMutation.isError ? (
+            <StateError detail={rawMessage(favoriteMutation.error ?? watchMutation.error)} />
+          ) : null}
 
           {searchQuery.isPending ? <StateLoading variant="cards" count={4} /> : null}
 
@@ -802,6 +815,8 @@ export function DiscoverPage(): ReactNode {
                       onToggleCompare={toggleCompare}
                       onOpen={(value) => navigate(`/strategy/${value.id}`)}
                       onToggleFavorite={(value) => favoriteMutation.mutate(value.id)}
+                      onToggleWatch={(value) => watchMutation.mutate(value.id)}
+                      watchBusy={watchMutation.isPending && watchMutation.variables === row.id}
                     />
                   </RevealItem>
                 ))}
@@ -820,6 +835,8 @@ export function DiscoverPage(): ReactNode {
                       onToggleCompare={toggleCompare}
                       onOpen={(value) => navigate(`/strategy/${value.id}`)}
                       onToggleFavorite={(value) => favoriteMutation.mutate(value.id)}
+                      onToggleWatch={(value) => watchMutation.mutate(value.id)}
+                      watchBusy={watchMutation.isPending && watchMutation.variables === row.id}
                     />
                   </RevealItem>
                 ))}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PROFILE_METRICS,
   metricValue,
+  profileMetricsSchema,
   profileShowcaseSchema,
   toggleShowcaseCode
 } from '../src/domain/profile'
@@ -79,8 +80,11 @@ describe('profile showcase contract', () => {
     expect(toggleShowcaseCode(['a', 'b'], 'a').codes).toEqual(['b'])
   })
 
-  it('lists only metrics the engine actually computes', () => {
-    expect(PROFILE_METRICS).not.toContain('comments_count')
-    expect(PROFILE_METRICS).toContain('sessions_qualified')
+  it('shows every metric the rollup computes, not the four that happened to fit', () => {
+    // 0020 gave comments_count and upvotes_received real triggers, so hiding them stopped being honest.
+    expect(PROFILE_METRICS).toContain('comments_count')
+    expect(PROFILE_METRICS).toContain('upvotes_received')
+    expect(new Set<string>(PROFILE_METRICS).size).toBe(PROFILE_METRICS.length)
+    for (const key of Object.keys(profileMetricsSchema.shape)) expect(PROFILE_METRICS).toContain(key)
   })
 })

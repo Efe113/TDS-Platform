@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Award,
   BadgeCheck,
+  Bell,
+  BellRing,
   Building2,
   Camera,
   Check,
@@ -26,7 +28,7 @@ import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
 import { navigate } from '../../lib/router'
-import { buyBoost, buySku, fetchWallet, newPurchaseKey, selectTheme } from '../../lib/wallet-api'
+import { buyBoost, buySku, fetchProductWaitlist, fetchWallet, newPurchaseKey, selectTheme, toggleProductWaitlist } from '../../lib/wallet-api'
 import { equipCosmetic, fetchShowcase } from '../../lib/profile-api'
 import { skinRows, SKIN_NAME_KEYS } from '../../lib/skins'
 import { showcaseQueryKey } from '../../lib/identity'
@@ -194,7 +196,10 @@ function ProductCard({
   balance,
   onBuy,
   onEquip,
-  onVip
+  onVip,
+  queue,
+  queueBusy,
+  onQueue
 }: {
   item: WalletItem
   shelf: Shelf
@@ -206,6 +211,10 @@ function ProductCard({
   onBuy: () => void
   onEquip?: () => void
   onVip?: () => void
+  /** 0057: the queue for a product that is not on the shelf. `null` means the read failed or is absent. */
+  queue?: { joined: boolean; demand: number } | null
+  queueBusy?: boolean
+  onQueue?: () => void
 }): ReactNode {
   const t = useT()
   const info = discountInfo(item)
@@ -364,10 +373,29 @@ function ProductCard({
           <PriceBlock item={item} />
         )}
         {soon ? (
-          <Button size="sm" variant="ghost" disabled className="w-full">
-            <Lock size={12} />
-            {t('market.comingSoon')}
-          </Button>
+          !onQueue || queue === null || queue === undefined ? (
+            <Button size="sm" variant="ghost" disabled className="w-full">
+              <Lock size={12} />
+              {t('market.comingSoon')}
+            </Button>
+          ) : (
+            <div className="space-y-1">
+              <Button
+                size="sm"
+                variant={queue.joined ? 'primary' : 'ghost'}
+                busy={queueBusy === true}
+                className="w-full"
+                title={queue.joined ? t('market.leaveQueue') : t('market.queueNote')}
+                onClick={onQueue}
+              >
+                {queue.joined ? <BellRing size={12} /> : <Bell size={12} />}
+                {queue.joined ? t('market.joinedQueue') : t('market.joinQueue')}
+              </Button>
+              <p className="text-[10px] leading-snug text-mute">
+                {queue.demand > 0 ? t('market.queueDemand', { count: String(queue.demand) }) : t('market.queueEmpty')}
+              </p>
+            </div>
+          )
         ) : vipOnly && !owned ? (
           <Button size="sm" variant="primary" disabled={!onVip} onClick={onVip}>
             <Crown size={13} />
@@ -571,6 +599,30 @@ export function MarketPage(): ReactNode {
     onSuccess: () => {
       setFailure(null)
       refresh()
+    },
+    onError: (error: unknown) => setFailure(error instanceof Error ? error.message : String(error))
+  })
+
+  // 0057: the queue in front of a product that is not on the shelf yet. If the read does not answer —
+  // a database that has not run the migration, for instance — the card keeps its locked button instead
+  // of promising a queue that would only error.
+  const waitlistQuery = useQuery({
+    queryKey: ['product', 'waitlist'],
+    queryFn: fetchProductWaitlist,
+    enabled: signedIn,
+    retry: 1,
+    staleTime: 60_000
+  })
+  const waitlist = useMemo(
+    () => new Map((waitlistQuery.data ?? []).map((row) => [row.sku, { joined: row.joined, demand: row.demand }])),
+    [waitlistQuery.data]
+  )
+
+  const queue = useMutation({
+    mutationFn: (input: { sku: string; joined: boolean }) => toggleProductWaitlist(input.sku, input.joined),
+    onSuccess: () => {
+      setFailure(null)
+      void queryClient.invalidateQueries({ queryKey: ['product', 'waitlist'] })
     },
     onError: (error: unknown) => setFailure(error instanceof Error ? error.message : String(error))
   })
@@ -945,6 +997,13 @@ export function MarketPage(): ReactNode {
                       onVip={
                         vipItem
                           ? () => document.getElementById('market-vip')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          : undefined
+                      }
+                      queue={waitlist.get(item.sku) ?? null}
+                      queueBusy={queue.isPending && queue.variables?.sku === item.sku}
+                      onQueue={
+                        item.tag === 'soon' && signedIn
+                          ? () => queue.mutate({ sku: item.sku, joined: waitlist.get(item.sku)?.joined === true })
                           : undefined
                       }
                     />
