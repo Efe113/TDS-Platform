@@ -59,6 +59,7 @@ import {
   MenuTrigger
 } from '../../components/ui/menu'
 import { useOverlayControls } from './use-overlay'
+import { WatchBell } from './WatchBell'
 
 const CRUMB_KEYS: Record<string, MessageKey> = {
   home: 'nav.home',
@@ -285,6 +286,8 @@ export function TitleBar({ skin }: { skin: ThemeSkin }): ReactNode {
           )
         })}
       </nav>
+
+      <WatchBell />
 
       <Menu>
         <MenuTrigger asChild>

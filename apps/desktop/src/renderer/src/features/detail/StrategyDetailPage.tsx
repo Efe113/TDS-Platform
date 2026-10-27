@@ -49,6 +49,8 @@ import {
   type CatalogLanguage
 } from '../../lib/catalog-labels'
 import { fetchStrategyDetail, isNotConfigured, readFavorite, toggleFavorite } from '../../lib/discovery-api'
+import { useTowerNamesTr } from '../../lib/tower-names'
+import { useTick } from '../../lib/use-tick'
 import { buyBoost, fetchWallet, newPurchaseKey } from '../../lib/wallet-api'
 import { formatCoin, spendErrorKey } from '@tds/shared'
 import { CoinAmount } from '../../components/brand/coin'
@@ -461,15 +463,6 @@ function CreditSection({ detail, onOpenSource, openError }: { detail: StrategyDe
 }
 
 /** A coarse clock, so a countdown changes without re-rendering the whole page every second. */
-function useTick(intervalMs: number): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), intervalMs)
-    return () => window.clearInterval(timer)
-  }, [intervalMs])
-  return now
-}
-
 function remainingLabel(ms: number): string {
   const hours = Math.floor(ms / 3_600_000)
   const minutes = Math.round((ms % 3_600_000) / 60_000)
@@ -530,6 +523,7 @@ export function StrategyDetailPage(): ReactNode {
     enabled: strategyId.length > 0 && signedIn && supabase !== null,
     retry: 1
   })
+  const towerNamesTr = useTowerNamesTr()
 
   const markMutation = useMutation({
     mutationFn: (input: { stepNo: number; note: string }) => setStepMark(strategyId, input.stepNo, input.note),
@@ -613,9 +607,23 @@ export function StrategyDetailPage(): ReactNode {
       if (!parsed.success) throw new IrValidationError(describeIrIssues(parsed.error))
 
       // The detail row is published by definition, so this run is counted.
+      // The catalogue's Turkish names and the step intelligence travel with the payload: the main
+      // process has no database, and the overlay is the one place a member needs "12 denedi, 4'ü
+      // tıkandı" and the tower's own language.
+      const health = healthQuery.data ?? []
+      const marks = marksQuery.data ?? []
+      const marked = new Set(marks.map((mark) => mark.stepNo))
       const state = await call<OverlayState | null>(IPC_CHANNELS.strategyLoad, {
         ir: parsed.data,
-        strategyId
+        strategyId,
+        towerNamesTr,
+        stepHealth: health.map((entry) => ({
+          stepNo: entry.stepNo,
+          worked: entry.worked,
+          stuck: entry.stuck,
+          marked: marked.has(entry.stepNo),
+          verdict: entry.stuck > entry.worked ? ('stuck' as const) : entry.worked > 0 ? ('worked' as const) : undefined
+        }))
       })
       await call(IPC_CHANNELS.overlayShow)
       return state
@@ -887,7 +895,7 @@ export function StrategyDetailPage(): ReactNode {
             </>
           ) : null}
 
-          {published ? <DiscussionSection strategyId={strategyId} /> : null}
+          {published ? <DiscussionSection strategyId={strategyId} isOwner={detail.is_author_own} /> : null}
         </div>
 
         <aside className="space-y-4 self-start lg:sticky lg:top-4">

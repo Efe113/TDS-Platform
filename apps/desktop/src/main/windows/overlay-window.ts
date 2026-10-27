@@ -212,6 +212,10 @@ export class OverlayWindowManager {
       stepIndex: 0,
       current: null,
       upcoming: [],
+      sessionId: null,
+      sessionStartedAt: null,
+      stepsAdvanced: 0,
+      maxStep: 0,
       totalSteps: 0,
       visible: true
     }

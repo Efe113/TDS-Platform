@@ -30,7 +30,7 @@ import { SettingsPage } from '../settings/SettingsPage'
 import { LegalPage } from '../legal/LegalPage'
 import { AboutPage } from '../about/AboutPage'
 import { ConsentGate } from '../legal/ConsentGate'
-import { ComingSoonPage } from '../milestone/ComingSoonPage'
+import { BadgesPage } from '../badges/BadgesPage'
 import { fetchWallet } from '../../lib/wallet-api'
 import { fetchActiveCampaigns, pickCampaignBanner } from '../../lib/campaign-api'
 import { fetchActiveAnnouncements, markAnnouncement } from '../../lib/announcement-api'
@@ -44,10 +44,6 @@ import { ThemeBackdrop } from '../../components/brand/theme-backdrop'
 import { MotionProvider } from '../../motion/context'
 import { RouteSwitch } from '../../motion/primitives/RouteSwitch'
 
-const COMING_SOON: Record<string, { titleKey: 'nav.discover' | 'nav.leaderboard' | 'nav.badges'; bodyKey: 'milestone.discover' | 'milestone.leaderboard' | 'milestone.badges'; milestone: string }> = {
-  badges: { titleKey: 'nav.badges', bodyKey: 'milestone.badges', milestone: '7' },
-}
-
 function renderRoute(path: string): ReactNode {
   const head = routeSegments(path)[0] ?? ''
   switch (head) {
@@ -60,6 +56,8 @@ function renderRoute(path: string): ReactNode {
       return <DiscoverPage />
     case 'leaderboard':
       return <LeaderboardPage />
+    case 'badges':
+      return <BadgesPage />
     case 'wallet':
       return <WalletPage />
     case 'market':
@@ -82,10 +80,8 @@ function renderRoute(path: string): ReactNode {
       return <LegalPage />
     case 'about':
       return <AboutPage />
-    default: {
-      const comingSoon = COMING_SOON[head]
-      return comingSoon ? <ComingSoonPage {...comingSoon} /> : <NotFoundPage />
-    }
+    default:
+      return <NotFoundPage />
   }
 }
 

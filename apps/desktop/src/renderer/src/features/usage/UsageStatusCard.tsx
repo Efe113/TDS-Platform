@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { IPC_CHANNELS, settingsSchema } from '@tds/shared'
+import { IPC_CHANNELS, formatDuration, settingsSchema } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { call } from '../../lib/ipc'
 import { useUsageFlush, useUsageStatus } from '../../lib/usage'
+import { useAppStore } from '../../store/app-store'
 import { Badge, Banner, Button, Card, Row } from '../../components/ui'
 
 /** Which reason text to show instead of a raw server message. */
@@ -18,6 +19,8 @@ function reasonKey(error: string | null): MessageKey | null {
 
 export function UsageStatusCard(): ReactNode {
   const t = useT()
+  // The overlay session is the same run whose steps the ledger below is buffering.
+  const run = useAppStore((state) => state.overlayState)
   const settingsQuery = useQuery({
     queryKey: ['settings'],
     queryFn: async () => settingsSchema.parse(await call<unknown>(IPC_CHANNELS.settingsGet)),
@@ -59,6 +62,21 @@ export function UsageStatusCard(): ReactNode {
             {!reason && status?.lastError ? <p className="mt-1 break-words text-xs text-mute">{status.lastError}</p> : null}
           </Banner>
         )}
+
+        {/* The numbers the ledger is written from were invisible: `sessionSummary()` had no caller. Here
+            they belong, because this card is the answer to "is my run being counted?". */}
+        {run?.sessionId ? (
+          <Row className="flex-wrap items-center gap-2 text-xs text-mute">
+            <Badge tone="accent">{t('run.sessionTitle')}</Badge>
+            <span className="truncate text-ink">{run.strategyName}</span>
+            <span>{t('overlay.step', { current: run.stepIndex + 1, total: run.totalSteps })}</span>
+            <span>{t('run.sessionSteps', { count: run.stepsAdvanced })}</span>
+            <span>{t('run.sessionMaxStep', { step: run.maxStep })}</span>
+            {run.sessionStartedAt !== null ? (
+              <span className="tabular-nums">{formatDuration(Math.round((Date.now() - run.sessionStartedAt) / 1000))}</span>
+            ) : null}
+          </Row>
+        ) : null}
 
         {flush.isSuccess ? (
           <Banner tone={flush.data.accepted ? 'good' : 'info'}>

@@ -23,6 +23,14 @@ export function waveLabel(step: StrategyStep): string | undefined {
   return `Wave ${step.waveFrom}-${step.waveTo}`
 }
 
+export interface TrackedStepHealth {
+  stepNo: number
+  worked: number
+  stuck: number
+  marked: boolean
+  verdict?: 'worked' | 'stuck'
+}
+
 export interface TrackedStrategy {
   id: string
   name: string
@@ -33,9 +41,18 @@ export interface TrackedStrategy {
   modifierNotes: string[]
   placementImageRef?: string
   steps: StrategyStep[]
+  /** Catalog keys to the member's language, filled by the renderer that owns the catalog. */
+  towerNamesTr: Record<string, string>
+  /** Step number to what the community and this account said about it. */
+  health: Record<number, TrackedStepHealth>
 }
 
-export function strategyFromIr(ir: StrategyIr, id = `local:${ir.meta.name}`): TrackedStrategy {
+export function strategyFromIr(
+  ir: StrategyIr,
+  id = `local:${ir.meta.name}`,
+  towerNamesTr: Record<string, string> = {},
+  stepHealth: TrackedStepHealth[] = []
+): TrackedStrategy {
   return {
     id,
     name: ir.meta.name,
@@ -45,6 +62,8 @@ export function strategyFromIr(ir: StrategyIr, id = `local:${ir.meta.name}`): Tr
     bestTime: ir.proofs[0]?.bestTime,
     modifierNotes: ir.mutators.map((mutator) => mutator.note ?? mutator.raw).filter(Boolean),
     placementImageRef: ir.placement.imageRef,
-    steps: ir.steps
+    steps: ir.steps,
+    towerNamesTr,
+    health: Object.fromEntries(stepHealth.map((entry) => [entry.stepNo, entry]))
   }
 }

@@ -30,6 +30,28 @@ function WaveChip({ card }: { card: OverlayStepCard }): ReactNode {
   return <span className="rounded-md border border-line bg-panel-soft px-2 py-0.5 text-[11px] text-mute">{label}</span>
 }
 
+/**
+ * What this step did for other people, and what this account said about it. The overlay is the one
+ * surface where "12 kişi işe yaradı dedi, 4'ü tıkandı" changes a decision in the moment — on the
+ * detail page the member has already left the fight.
+ */
+function StepHealth({ card }: { card: OverlayStepCard }): ReactNode {
+  const worked = card.worked ?? 0
+  const stuck = card.stuck ?? 0
+  if (worked + stuck === 0 && card.marked !== true) return null
+  return (
+    <p className="mt-1 flex items-center gap-2 text-[11px]">
+      {worked > 0 ? <span className="text-good">{translate('overlay.worked', { count: worked })}</span> : null}
+      {stuck > 0 ? <span className="text-warn">{translate('overlay.stuck', { count: stuck })}</span> : null}
+      {card.marked === true ? (
+        <span className="text-mute" title={translate('overlay.marked')}>
+          • {translate('overlay.marked')}
+        </span>
+      ) : null}
+    </p>
+  )
+}
+
 function Hero({ card }: { card: OverlayStepCard }): ReactNode {
   const tower = card.towerLabelTr ?? card.towerLabel
 
@@ -56,6 +78,7 @@ function Hero({ card }: { card: OverlayStepCard }): ReactNode {
         </span>
       ) : null}
       {card.note ? <p className="mt-1 line-clamp-2 text-xs text-mute">{card.note}</p> : null}
+      <StepHealth card={card} />
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { navigate } from '../../lib/router'
 import { fetchMyJourney, fetchStrategyStats, fetchWatchUpdates, markWatchSeen, toggleWatch } from '../../lib/intelligence-api'
 import { selectSignedIn, useAuth } from '../../store/auth-store'
 import { useAppStore } from '../../store/app-store'
-import { Badge, Button, KeyValue, Row } from '../../components/ui'
+import { Button, KeyValue, Row } from '../../components/ui'
 import { Metric, MetricGrid, Section } from '../../components/ui/system'
 import { CountUp } from '../../motion/primitives/CountUp'
 
@@ -179,27 +179,5 @@ export function WatchButton({ strategyId }: { strategyId: string }): ReactNode {
         </Button>
       ) : null}
     </Row>
-  )
-}
-
-/** The bell in the title area: only appears when a watched strategy actually shipped a new version. */
-export function WatchUpdatesBadge(): ReactNode {
-  const t = useT()
-  const signedIn = useAuth(selectSignedIn)
-  const updates = useQuery({
-    queryKey: ['watch', 'updates'],
-    queryFn: fetchWatchUpdates,
-    enabled: signedIn,
-    retry: 1,
-    staleTime: 60_000
-  })
-  const rows = updates.data ?? []
-  if (rows.length === 0) return null
-
-  return (
-    <Badge tone="accent" className="gap-1.5">
-      <BellRing size={12} />
-      {t('detail.watchCount', { count: rows.length })}
-    </Badge>
   )
 }

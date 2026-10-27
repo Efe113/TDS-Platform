@@ -52,7 +52,16 @@ export const overlayStepCardSchema = z.object({
   spec: z.string().optional(),
   note: z.string().optional(),
   raw: z.string(),
-  unresolved: z.boolean().default(false)
+  unresolved: z.boolean().default(false),
+  /**
+   * What the community and this account said about this step, carried in from the detail page: the
+   * overlay is the one place the member actually needs "14 denedi, 6'sı tıkandı" and the mark they
+   * left, and the main process has no database connection to ask for it.
+   */
+  worked: z.number().int().nonnegative().optional(),
+  stuck: z.number().int().nonnegative().optional(),
+  marked: z.boolean().optional(),
+  verdict: z.enum(['worked', 'stuck']).optional()
 })
 
 export type OverlayStepCard = z.infer<typeof overlayStepCardSchema>
@@ -70,7 +79,16 @@ export const overlayStateSchema = z.object({
   upcoming: z.array(overlayStepCardSchema).max(2).default([]),
   placementImageRef: z.string().optional(),
   totalSteps: z.number().int().nonnegative(),
-  visible: z.boolean().default(true)
+  visible: z.boolean().default(true),
+  /**
+   * The live session, on the state the shell already mirrors. `sessionSummary()` existed for two
+   * releases with no caller, so a member could not see how long they had been running or how far they
+   * got — the numbers the ledger is being written from were invisible to the person generating them.
+   */
+  sessionId: z.string().nullable().default(null),
+  sessionStartedAt: z.number().int().nonnegative().nullable().default(null),
+  stepsAdvanced: z.number().int().nonnegative().default(0),
+  maxStep: z.number().int().nonnegative().default(0)
 })
 
 export type OverlayState = z.infer<typeof overlayStateSchema>
@@ -351,7 +369,25 @@ export const openExternalPayloadSchema = z.object({ url: z.string().url() })
  */
 export const strategyLoadPayloadSchema = z.object({
   ir: strategyIrSchema,
-  strategyId: z.string().uuid().nullable().default(null)
+  strategyId: z.string().uuid().nullable().default(null),
+  /**
+   * Tower names in the member's language, keyed by catalog key. The overlay used to prettify the
+   * English catalog key forever (`medic_tower` → "Medic Tower") because `towerLabelTr` was declared on
+   * the card and produced by nobody; the renderer has the catalog, the main process has no database.
+   */
+  towerNamesTr: z.record(z.string(), z.string()).default({}),
+  /** Per-step community counts and this account's own mark, from the detail page's queries. */
+  stepHealth: z
+    .array(
+      z.object({
+        stepNo: z.number().int().positive(),
+        worked: z.number().int().nonnegative().default(0),
+        stuck: z.number().int().nonnegative().default(0),
+        marked: z.boolean().default(false),
+        verdict: z.enum(['worked', 'stuck']).optional()
+      })
+    )
+    .default([])
 })
 
 export type StrategyLoadPayload = z.input<typeof strategyLoadPayloadSchema>

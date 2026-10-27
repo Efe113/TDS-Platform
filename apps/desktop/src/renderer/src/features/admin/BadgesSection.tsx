@@ -18,7 +18,19 @@ import {
   uploadBadgeImage,
   type BadgeDefinitionRow
 } from './admin-api'
-import { CRITERION_GROUPS, isCriterionComplete, readCriteria, writeCriteria, type CriterionGroup, type CriterionRow } from './badge-conditions'
+import {
+  BADGE_METRICS,
+  CRITERION_GROUPS,
+  DEFAULT_CRITERION_OPS,
+  criteriaSentence,
+  humanMetric,
+  humanOp,
+  isCriterionComplete,
+  readCriteria,
+  writeCriteria,
+  type CriterionGroup,
+  type CriterionRow
+} from '../../lib/badge-criteria'
 
 /**
  * Badges, with names instead of machine keys.
@@ -26,7 +38,9 @@ import { CRITERION_GROUPS, isCriterionComplete, readCriteria, writeCriteria, typ
  * The stored conditions are `{ all_of: [{ metric, op, value }] }` - correct for the engine and opaque
  * for the person editing it. Every metric and operator now carries a translated label plus the
  * engine's own description, so the editor reads like a sentence ("Nitelikli koşu en az 10 VE
- * Tamamlanan adım en az 40"). The JSON stays available read-only for debugging, never as the input.
+ * Tamamlanan adım en az 40"). The sentence builder is the same one the member's catalogue page uses, so
+ * what an admin types and what a member reads come from one place. The JSON stays available read-only
+ * for debugging, never as the input.
  */
 
 const TIER_LABEL: Record<string, MessageKey> = {
@@ -36,50 +50,9 @@ const TIER_LABEL: Record<string, MessageKey> = {
   special: 'profile.tierSpecial'
 }
 
-const METRIC_LABEL: Record<string, string> = {
-  sessions_qualified: 'Nitelikli koşu',
-  steps_completed: 'Tamamlanan adım',
-  strategies_published: 'Yayınlanan strateji',
-  imports_completed: 'Tamamlanan içe aktarma',
-  approvals_received: 'Alınan onay',
-  distinct_maps: 'Farklı harita',
-  usage_rank_best: 'En iyi liderlik sırası',
-  active_days: 'Aktif gün',
-  streak: 'Seri (gün)',
-  comments_count: 'Yorum',
-  upvotes_received: 'Alınan oy',
-  runs_total: 'Toplam koşu'
-}
-
-const OP_LABEL: Record<string, string> = {
-  gte: 'en az',
-  lte: 'en çok',
-  eq: 'eşit',
-  gt: 'büyük',
-  lt: 'küçük'
-}
-
 const GROUP_LABEL: Record<CriterionGroup, string> = {
   all_of: 'Hepsi (VE)',
   any_of: 'Herhangi biri (VEYA)'
-}
-
-function humanMetric(metric: string): string {
-  return METRIC_LABEL[metric] ?? metric.replace(/[_-]+/g, ' ')
-}
-
-function humanOp(op: string): string {
-  return OP_LABEL[op] ?? op
-}
-
-function criteriaSentence(rows: CriterionRow[]): string {
-  const parts = CRITERION_GROUPS.flatMap((group) => {
-    const items = rows.filter((row) => row.group === group)
-    if (items.length === 0) return []
-    const joined = items.map((row) => `${humanMetric(row.metric)} ${humanOp(row.op)} ${String(row.value)}`).join(group === 'all_of' ? ' VE ' : ' VEYA ')
-    return [CRITERION_GROUPS.length > 1 && rows.some((row) => row.group !== group) ? `(${joined})` : joined]
-  })
-  return parts.length === 0 ? 'Ölçüt yok' : parts.join(' VE ')
 }
 
 interface Draft {
@@ -168,10 +141,12 @@ export function BadgesSection(): ReactNode {
 
   const badges = badgesQuery.data ?? []
   const metrics = metricsQuery.data ?? []
-  const metricOptions = useMemo(
-    () => (metrics.length > 0 ? metrics.map((metric) => metric.metric) : Object.keys(METRIC_LABEL)),
-    [metrics]
-  )
+  const metricOptions = useMemo(() => (metrics.length > 0 ? metrics.map((metric) => metric.metric) : [...BADGE_METRICS]), [metrics])
+  // The engine can only read the operators badge_metrics lists, so the editor offers nothing else.
+  const operatorsFor = useMemo(() => {
+    const index = new Map(metrics.map((metric) => [metric.metric, metric.operators] as [string, string[]]))
+    return (metric: string): string[] => index.get(metric) ?? [...DEFAULT_CRITERION_OPS]
+  }, [metrics])
 
   const totals = useMemo(
     () => ({
@@ -258,7 +233,7 @@ export function BadgesSection(): ReactNode {
                         {badge.award_mode === 'auto' ? t('admin.awardAuto') : t('admin.awardManual')}
                       </Chip>
                     </div>
-                    <p className="mt-0.5 truncate text-[11px] text-mute">{criteriaSentence(rows)}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-mute">{criteriaSentence(t, rows)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <CoinAmount value={badge.currency_reward} size="sm" tone="mute" />
@@ -412,13 +387,16 @@ export function BadgesSection(): ReactNode {
                         value={row.metric}
                         onChange={(event) => {
                           const rows = [...draft.rows]
-                          rows[index] = { ...row, metric: event.target.value }
+                          // An operator the engine cannot read for the new metric would award nothing,
+                          // so the row moves to one it can.
+                          const allowed = operatorsFor(event.target.value)
+                          rows[index] = { ...row, metric: event.target.value, op: allowed.includes(row.op) ? row.op : allowed[0] ?? 'gte' }
                           setDraft({ ...draft, rows })
                         }}
                       >
                         {metricOptions.map((metric) => (
                           <option key={metric} value={metric}>
-                            {humanMetric(metric)}
+                            {humanMetric(t, metric)}
                           </option>
                         ))}
                       </select>
@@ -431,9 +409,9 @@ export function BadgesSection(): ReactNode {
                           setDraft({ ...draft, rows })
                         }}
                       >
-                        {Object.entries(OP_LABEL).map(([op, label]) => (
+                        {[...new Set([...operatorsFor(row.metric), row.op])].map((op) => (
                           <option key={op} value={op}>
-                            {label}
+                            {humanOp(t, op)}
                           </option>
                         ))}
                       </select>
@@ -460,7 +438,7 @@ export function BadgesSection(): ReactNode {
                 </ul>
               )}
 
-              <p className="mt-2 rounded-lg bg-base/50 px-2.5 py-1.5 text-[11px] text-ink">{criteriaSentence(draft.rows)}</p>
+              <p className="mt-2 rounded-lg bg-base/50 px-2.5 py-1.5 text-[11px] text-ink">{criteriaSentence(t, draft.rows)}</p>
 
               <details className="mt-2">
                 <summary className="cursor-pointer text-[10px] text-mute hover:text-ink">{t('admin.rawConditions')}</summary>

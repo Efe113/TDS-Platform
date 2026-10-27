@@ -2,8 +2,14 @@ import { randomUUID } from 'node:crypto'
 import type { OverlayState, OverlayStepCard, UsageEvent } from '@tds/shared'
 import { prettifyTowerKey, waveLabel, type TrackedStrategy } from './labels'
 
-const cardFrom = (step: TrackedStrategy['steps'][number] | undefined, total: number): OverlayStepCard | null => {
+const cardFrom = (
+  step: TrackedStrategy['steps'][number] | undefined,
+  total: number,
+  strategy: TrackedStrategy
+): OverlayStepCard | null => {
   if (!step) return null
+  const localName = step.towerKey === undefined ? undefined : strategy.towerNamesTr[step.towerKey]
+  const health = strategy.health[step.stepNo]
   return {
     stepNo: step.stepNo,
     totalSteps: total,
@@ -12,12 +18,19 @@ const cardFrom = (step: TrackedStrategy['steps'][number] | undefined, total: num
     waveLabel: waveLabel(step),
     action: step.action,
     towerLabel: prettifyTowerKey(step.towerKey),
+    // The catalog's Turkish name when the renderer had one; the prettified key otherwise. The field
+    // existed on the card for two releases with nobody producing it.
+    towerLabelTr: localName,
     level: step.level,
     count: step.count,
     spec: step.spec,
     note: step.note,
     raw: step.raw,
-    unresolved: step.unresolved
+    unresolved: step.unresolved,
+    worked: health?.worked,
+    stuck: health?.stuck,
+    marked: health?.marked,
+    verdict: health?.verdict
   }
 }
 
@@ -92,7 +105,8 @@ export class OverlaySession {
     if (!this.strategy) return null
     const steps = this.strategy.steps
     const total = steps.length
-    const current = cardFrom(steps[this.cursor], total)
+    const current = cardFrom(steps[this.cursor], total, this.strategy)
+    const summary = this.sessionSummary()
 
     return {
       strategyId: this.strategy.id,
@@ -106,11 +120,15 @@ export class OverlaySession {
       current,
       upcoming: [steps[this.cursor + 1], steps[this.cursor + 2]]
         .filter((step): step is TrackedStrategy['steps'][number] => Boolean(step))
-        .map((step) => cardFrom(step, total))
+        .map((step) => cardFrom(step, total, this.strategy as TrackedStrategy))
         .filter((card): card is OverlayStepCard => card !== null),
       placementImageRef: this.strategy.placementImageRef,
       totalSteps: total,
-      visible: true
+      visible: true,
+      sessionId: summary.sessionId,
+      sessionStartedAt: summary.startedAt,
+      stepsAdvanced: summary.stepsAdvanced,
+      maxStep: summary.maxStep
     }
   }
 

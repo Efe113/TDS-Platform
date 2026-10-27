@@ -10,13 +10,14 @@ import {
   type ReportReason,
   type ReportTarget
 } from '@tds/shared'
-import { MessageSquare } from 'lucide-react'
+import { BadgeCheck, MessageSquare } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '../../lib/utils'
 import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { useCatalogLanguage } from '../../lib/catalog-labels'
 import { ProfileHoverCard } from '../../components/profile/profile-card'
+import { clearSolution, fetchSolution, markSolution } from '../../lib/intelligence-api'
 import { deleteComment, fetchDiscussion, fileReport, postComment, requestTakedown, rateStrategy, voteComment } from '../../lib/social-api'
 import { selectSignedIn, useAuth } from '../../store/auth-store'
 import { Badge, Banner, Button, Card, Field, INPUT_CLASS, Row } from '../../components/ui'
@@ -64,6 +65,11 @@ interface CommentActionsProps {
   canDelete: boolean
   /** The server refuses a self-vote (upvotes are a badge metric), so the control is not offered. */
   canVote: boolean
+  /** The owner may pin any thread; the author may pin their own. Everyone else gets no control. */
+  canMarkSolution: boolean
+  isSolution: boolean
+  /** Only the owner may unpin: clear_solution is owner-only on the server. */
+  canClearSolution: boolean
   up: number
   down: number
   myVote: 'up' | 'down' | null
@@ -72,11 +78,16 @@ interface CommentActionsProps {
   onDelete: () => void
   onReply: () => void
   onReport: () => void
+  onMarkSolution: () => void
+  onClearSolution: () => void
 }
 
 function CommentActions({
   canDelete,
   canVote,
+  canMarkSolution,
+  isSolution,
+  canClearSolution,
   up,
   down,
   myVote,
@@ -84,7 +95,9 @@ function CommentActions({
   onVote,
   onDelete,
   onReply,
-  onReport
+  onReport,
+  onMarkSolution,
+  onClearSolution
 }: CommentActionsProps): ReactNode {
   const t = useT()
   const score = voteScore({ up, down })
@@ -106,6 +119,17 @@ function CommentActions({
       <Button variant="ghost" disabled={busy} onClick={onReply}>
         {t('social.reply')}
       </Button>
+      {isSolution && canClearSolution ? (
+        <Button variant="ghost" disabled={busy} onClick={onClearSolution}>
+          {t('social.unmarkSolution')}
+        </Button>
+      ) : null}
+      {!isSolution && canMarkSolution ? (
+        <Button variant="subtle" disabled={busy} onClick={onMarkSolution}>
+          <BadgeCheck size={13} />
+          {t('social.markSolution')}
+        </Button>
+      ) : null}
       {canDelete ? (
         <Button variant="ghost" disabled={busy} onClick={onDelete}>
           {t('social.delete')}
@@ -118,7 +142,7 @@ function CommentActions({
   )
 }
 
-export function DiscussionSection({ strategyId }: { strategyId: string }): ReactNode {
+export function DiscussionSection({ strategyId, isOwner }: { strategyId: string; isOwner: boolean }): ReactNode {
   const t = useT()
   const locale = useCatalogLanguage()
   const signedIn = useAuth(selectSignedIn)
@@ -138,6 +162,14 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
   const discussionQuery = useQuery({
     queryKey: ['discussion', strategyId],
     queryFn: () => fetchDiscussion(strategyId),
+    enabled: strategyId.length > 0,
+    retry: 1
+  })
+
+  // Read separately from the thread so an un-migrated database loses the pin and not the comments.
+  const solutionQuery = useQuery({
+    queryKey: ['solution', strategyId],
+    queryFn: () => fetchSolution(strategyId),
     enabled: strategyId.length > 0,
     retry: 1
   })
@@ -173,6 +205,15 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
     onSuccess: refresh
   })
 
+  // One RPC per direction: the server keeps at most one pin per strategy, so marking is also moving.
+  const solutionMutation = useMutation({
+    mutationFn: (input: { commentId: string | null }) =>
+      input.commentId === null ? clearSolution(strategyId) : markSolution(strategyId, input.commentId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['solution', strategyId] })
+    }
+  })
+
   const reportMutation = useMutation({
     mutationFn: (input: { target: ReportTarget; id: string; reason: ReportReason; detail: string }) =>
       fileReport(input.target, input.id, input.reason, input.detail.trim().length > 0 ? input.detail.trim() : null),
@@ -191,16 +232,21 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
   })
 
   const discussion = discussionQuery.data
+  const solutionId = solutionQuery.data ?? null
   const average = discussion ? formatRating(discussion.ratingAvg, discussion.ratingCount, locale) : null
   // Only the top level is reordered: a reply has to stay under the comment it answers.
   const ordered = useMemo(() => {
-    const items = discussion?.items ?? []
-    if (sort === 'new') return items
-    return [...items].sort(
-      (a, b) => voteScore({ up: b.up, down: b.down }) - voteScore({ up: a.up, down: a.down }) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-  }, [discussion, sort])
-  const busy = postMutation.isPending || deleteMutation.isPending || voteMutation.isPending
+    const items = [...(discussion?.items ?? [])]
+    if (sort === 'top') {
+      items.sort(
+        (a, b) => voteScore({ up: b.up, down: b.down }) - voteScore({ up: a.up, down: a.down }) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+    }
+    // The pinned answer leads whichever sort is active, and sort is stable so nothing else moves.
+    const rank = (id: string): number => (id === solutionId ? 0 : 1)
+    return items.sort((a, b) => rank(a.id) - rank(b.id))
+  }, [discussion, sort, solutionId])
+  const busy = postMutation.isPending || deleteMutation.isPending || voteMutation.isPending || solutionMutation.isPending
   const err = (error: unknown): string => t(discussionErrorKey(rawMessage(error)) as MessageKey)
 
   const startReply = (commentId: string): void => {
@@ -300,8 +346,13 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
           ) : null}
 
           <RevealList className="space-y-2" count={Math.min(ordered.length, 8)}>
-            {ordered.map((comment) => (
-              <RevealItem key={comment.id} className="space-y-2 rounded-lg border border-line bg-panel-soft px-3 py-2">
+            {ordered.map((comment) => {
+              const pinned = comment.id === solutionId
+              return (
+              <RevealItem
+                key={comment.id}
+                className={cn('space-y-2 rounded-lg border px-3 py-2', pinned ? 'border-good/50 bg-good/[0.06]' : 'border-line bg-panel-soft')}
+              >
                 <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
                   {/* The same profile card the profile page paints, opened from anywhere a name appears. */}
                   <ProfileHoverCard userId={comment.authorId}>
@@ -309,11 +360,21 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
                   </ProfileHoverCard>
                   <span>{new Date(comment.createdAt).toLocaleString()}</span>
                   {comment.mine ? <Badge tone="accent">{t('social.mine')}</Badge> : null}
+                  {pinned ? (
+                    <Badge tone="good">
+                      <BadgeCheck size={12} />
+                      {t('social.solution')}
+                    </Badge>
+                  ) : null}
                 </div>
+                {pinned ? <p className="text-[11px] text-mute">{t('social.solutionNote')}</p> : null}
                 {commentBody(comment)}
                 <CommentActions
                   canDelete={comment.mine}
                   canVote={!comment.mine}
+                  canMarkSolution={signedIn && (isOwner || comment.mine)}
+                  isSolution={pinned}
+                  canClearSolution={isOwner}
                   up={comment.up}
                   down={comment.down}
                   myVote={comment.myVote}
@@ -322,6 +383,8 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
                   onDelete={() => deleteMutation.mutate(comment.id)}
                   onReply={() => startReply(comment.id)}
                   onReport={() => setReportTarget({ target: 'comment', id: comment.id })}
+                  onMarkSolution={() => solutionMutation.mutate({ commentId: comment.id })}
+                  onClearSolution={() => solutionMutation.mutate({ commentId: null })}
                 />
                 {comment.replies.map((reply) => (
                   <div key={reply.id} className="ml-4 space-y-1 border-l border-line pl-3">
@@ -329,11 +392,20 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
                       <span>{reply.authorDisplayName ?? reply.authorHandle}</span>
                       <span>{new Date(reply.createdAt).toLocaleString()}</span>
                       {reply.mine ? <Badge tone="accent">{t('social.mine')}</Badge> : null}
+                      {reply.id === solutionId ? (
+                        <Badge tone="good">
+                          <BadgeCheck size={12} />
+                          {t('social.solution')}
+                        </Badge>
+                      ) : null}
                     </div>
                     {commentBody(reply)}
                     <CommentActions
                       canDelete={reply.mine}
                       canVote={!reply.mine}
+                      canMarkSolution={signedIn && (isOwner || reply.mine)}
+                      isSolution={reply.id === solutionId}
+                      canClearSolution={isOwner}
                       up={reply.up}
                       down={reply.down}
                       myVote={reply.myVote}
@@ -343,12 +415,18 @@ export function DiscussionSection({ strategyId }: { strategyId: string }): React
                       // One level of threading is a server rule too: a reply always answers the top comment.
                       onReply={() => startReply(comment.id)}
                       onReport={() => setReportTarget({ target: 'comment', id: reply.id })}
+                      onMarkSolution={() => solutionMutation.mutate({ commentId: reply.id })}
+                      onClearSolution={() => solutionMutation.mutate({ commentId: null })}
                     />
                   </div>
                 ))}
               </RevealItem>
-            ))}
+              )
+            })}
           </RevealList>
+          {solutionMutation.isError ? (
+            <Banner tone="danger" title={t('common.errorTitle')}>{err(solutionMutation.error)}</Banner>
+          ) : null}
           </>
         ) : null}
 

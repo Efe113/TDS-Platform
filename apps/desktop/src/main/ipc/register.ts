@@ -335,8 +335,8 @@ export function registerIpc(context: RegisterContext): void {
 
   handle(IPC_CHANNELS.settingsSet, settingsPatchSchema, (_event, patch) => settingsStore.update(patch))
 
-  handle(IPC_CHANNELS.strategyLoad, strategyLoadPayloadSchema, (_event, { ir, strategyId }) => {
-    overlaySession.load(strategyFromIr(ir))
+  handle(IPC_CHANNELS.strategyLoad, strategyLoadPayloadSchema, (_event, { ir, strategyId, towerNamesTr, stepHealth }) => {
+    overlaySession.load(strategyFromIr(ir, undefined, towerNamesTr, stepHealth))
     context.overlay.show()
     // The session RPC is network-bound; the overlay must appear immediately either way, and the
     // usage service reports its own outcome through session:outboxStatus.

@@ -226,11 +226,27 @@ export const memberBadgeRowSchema = z.object({
   awardMode: z.enum(['auto', 'manual']).default('auto'),
   reward: z.coerce.number().int().nonnegative().default(0),
   iconPath: z.string().nullable().default(null),
-  active: z.boolean().default(true),
-  awarded: z.boolean().default(false),
+  active: z.boolean().nullish().transform((value) => value === true),
+  /**
+   * 0053: the member page has to say *how* a badge is earned, so the criteria ride with the row. The
+   * admin reader does not return it, hence the default.
+   */
+  conditions: z.record(z.string(), z.unknown()).optional().default({}),
+  // A null here means "nobody is signed in", not "the row is broken", so coerce instead of defaulting.
+  awarded: z.boolean().nullish().transform((value) => value === true),
   awardedAt: z.string().nullable().default(null),
   awardedBy: z.string().nullable().default(null)
 })
+
+/** What public.badge_catalog() (0053) answers: the shelf, the caller's holdings and the same metrics the award engine reads. */
+export const badgeCatalogSchema = z.object({
+  badges: z.array(memberBadgeRowSchema).default([]),
+  metrics: z.record(z.string(), z.coerce.number().int()).default({}),
+  owned: z.coerce.number().int().nonnegative().default(0),
+  total: z.coerce.number().int().nonnegative().default(0)
+})
+
+export type BadgeCatalog = z.infer<typeof badgeCatalogSchema>
 
 export type MemberBadgeRow = z.infer<typeof memberBadgeRowSchema>
 

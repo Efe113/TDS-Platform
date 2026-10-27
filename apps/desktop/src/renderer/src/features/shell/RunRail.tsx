@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Compass, Eye, EyeOff, RadioTower, RotateCcw } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { formatDuration, storageUrl } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
 import { navigate } from '../../lib/router'
+import { SUPABASE_BASE_URL } from '../../lib/storage-base'
+import { useTick } from '../../lib/use-tick'
 import { useAppStore } from '../../store/app-store'
 import { useOverlayControls } from './use-overlay'
 import { Button, cn } from '../../components/ui'
@@ -22,6 +25,8 @@ export function RunRail(): ReactNode {
 
   const total = active?.totalSteps ?? 0
   const percent = active && total > 0 ? Math.round(((active.stepIndex + 1) / total) * 100) : 0
+  // The session clock is coarse on purpose: a minute-scale number does not need a second-scale render.
+  const now = useTick(30_000)
 
   return (
     <aside className="hud-rail relative hidden w-[268px] shrink-0 flex-col lg:flex">
@@ -71,10 +76,49 @@ export function RunRail(): ReactNode {
                 ) : null}
               </div>
               <p className="mt-1.5 text-[13px] font-semibold leading-snug text-ink">{run.current.action}</p>
-              {run.current.towerLabel ? <p className="mt-0.5 text-[11px] text-brand">{run.current.towerLabel}</p> : null}
+              {/* The catalogue's own Turkish name when the tracker had one; the prettified key otherwise. */}
+              {run.current.towerLabelTr ?? run.current.towerLabel ? (
+                <p className="mt-0.5 text-[11px] text-brand">{run.current.towerLabelTr ?? run.current.towerLabel}</p>
+              ) : null}
               {run.current.spec ? <p className="mt-0.5 text-[11px] text-mute">{run.current.spec}</p> : null}
               <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-mute/80">{run.current.raw}</p>
             </div>
+          ) : null}
+
+          {/*
+            The session, on the rail rather than buried in the publish screen. These are the same
+            numbers the ledger is written from, and until now the person generating them could not see
+            them: `sessionSummary()` had no caller at all.
+          */}
+          {run.sessionId !== null && run.sessionId !== undefined ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line/70 bg-panel/50 px-2.5 py-1.5 text-[10px] text-mute">
+              <span className="hud-label">{t('run.sessionTitle')}</span>
+              <span className="hud-num">{formatDuration(Math.max(0, Math.round((now - (run.sessionStartedAt ?? now)) / 1000)))}</span>
+              <span className="opacity-50">·</span>
+              <span className="hud-num">{t('run.sessionSteps', { count: run.stepsAdvanced })}</span>
+              <span className="opacity-50">·</span>
+              <span className="hud-num">{t('run.sessionMaxStep', { step: run.maxStep })}</span>
+            </div>
+          ) : null}
+
+          {/* The placement image was carried through the whole IPC chain and drawn by nobody. The rail
+              is where a map belongs: bigger than the overlay card, and out of the fight. */}
+          {run.placementImageRef ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/strategy/${active?.strategyId}`)}
+              className="group overflow-hidden rounded-lg border border-line/70 bg-base/40"
+            >
+              <img
+                src={storageUrl(SUPABASE_BASE_URL, run.placementImageRef) ?? run.placementImageRef}
+                alt={t('run.placement')}
+                loading="lazy"
+                className="max-h-40 w-full object-cover transition-transform group-hover:scale-[1.02]"
+              />
+              <span className="hud-label block border-t border-line/60 px-2 py-1 text-left text-mute group-hover:text-ink">
+                {t('run.placement')}
+              </span>
+            </button>
           ) : null}
 
           {run.upcoming.length > 0 ? (
