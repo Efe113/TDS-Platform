@@ -216,6 +216,8 @@ export class OverlayWindowManager {
       sessionStartedAt: null,
       stepsAdvanced: 0,
       maxStep: 0,
+      source: 'live',
+      savedAt: null,
       totalSteps: 0,
       visible: true
     }

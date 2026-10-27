@@ -8,6 +8,7 @@ import { SUPABASE_BASE_URL } from '../../lib/storage-base'
 import { useTick } from '../../lib/use-tick'
 import { useAppStore } from '../../store/app-store'
 import { useOverlayControls } from './use-overlay'
+import { CachedBadge } from './OfflineShelf'
 import { Button, cn } from '../../components/ui'
 import { Chip } from '../../components/ui/system'
 
@@ -53,6 +54,11 @@ export function RunRail(): ReactNode {
             >
               {active.name}
             </button>
+            {run.source === 'cache' && run.savedAt !== null ? (
+              <p className="mt-1">
+                <CachedBadge savedAt={run.savedAt} />
+              </p>
+            ) : null}
             <div className="mt-1.5 flex items-center justify-between gap-2">
               <span className="hud-num text-[11px] text-mute">{`${String(active.stepIndex + 1)} / ${String(total)}`}</span>
               <span className="hud-num text-[11px] text-brand">{`${String(percent)}%`}</span>

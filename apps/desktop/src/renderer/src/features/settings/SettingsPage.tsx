@@ -70,6 +70,7 @@ import { HotkeysPanel } from './HotkeysPanel'
 import { OverlayPanel } from './OverlayPanel'
 import { OverlayEditor } from './OverlayEditor'
 import { UpdateSection } from './UpdateSection'
+import { OfflineShelfSection } from '../shell/OfflineShelf'
 
 /**
  * Settings is a console, not a long scroll of switches: the rail tells you which system you are
@@ -691,6 +692,8 @@ export function SettingsPage(): ReactNode {
           <Trash2 size={13} />
           {confirmClear ? t('settings.clearConfirm') : t('settings.clearCache')}
         </Button>
+        {/* The other thing this machine keeps: the tracked documents the offline shelf is built from. */}
+        <OfflineShelfSection />
       </SettingsSection>
 
       <SettingsSection

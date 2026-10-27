@@ -45,16 +45,25 @@ export interface TrackedStrategy {
   towerNamesTr: Record<string, string>
   /** Step number to what the community and this account said about it. */
   health: Record<number, TrackedStepHealth>
+  /**
+   * Where the document came from. A cached one carries numbers from the moment it was saved, so the
+   * surface has to be able to say "önbellekten" instead of showing them as live.
+   */
+  source: 'live' | 'cache'
+  savedAt: number | null
 }
 
-export function strategyFromIr(
-  ir: StrategyIr,
-  id = `local:${ir.meta.name}`,
-  towerNamesTr: Record<string, string> = {},
-  stepHealth: TrackedStepHealth[] = []
-): TrackedStrategy {
+export interface TrackedStrategyOptions {
+  id?: string
+  towerNamesTr?: Record<string, string>
+  stepHealth?: TrackedStepHealth[]
+  source?: 'live' | 'cache'
+  savedAt?: number | null
+}
+
+export function strategyFromIr(ir: StrategyIr, options: TrackedStrategyOptions = {}): TrackedStrategy {
   return {
-    id,
+    id: options.id ?? `local:${ir.meta.name}`,
     name: ir.meta.name,
     isEventStrategy: ir.meta.event.isEvent,
     mapName: ir.meta.map.key,
@@ -63,7 +72,9 @@ export function strategyFromIr(
     modifierNotes: ir.mutators.map((mutator) => mutator.note ?? mutator.raw).filter(Boolean),
     placementImageRef: ir.placement.imageRef,
     steps: ir.steps,
-    towerNamesTr,
-    health: Object.fromEntries(stepHealth.map((entry) => [entry.stepNo, entry]))
+    towerNamesTr: options.towerNamesTr ?? {},
+    health: Object.fromEntries((options.stepHealth ?? []).map((entry) => [entry.stepNo, entry])),
+    source: options.source ?? 'live',
+    savedAt: options.savedAt ?? null
   }
 }

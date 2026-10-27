@@ -88,7 +88,14 @@ export const overlayStateSchema = z.object({
   sessionId: z.string().nullable().default(null),
   sessionStartedAt: z.number().int().nonnegative().nullable().default(null),
   stepsAdvanced: z.number().int().nonnegative().default(0),
-  maxStep: z.number().int().nonnegative().default(0)
+  maxStep: z.number().int().nonnegative().default(0),
+  /**
+   * How the tracked document reached the rail. `cache` means main read it off the disk, so the
+   * community counts and the Turkish names are as fresh as the last online load — the surface says so
+   * instead of presenting a stale number as a live one.
+   */
+  source: z.enum(['live', 'cache']).default('live'),
+  savedAt: z.number().int().nonnegative().nullable().default(null)
 })
 
 export type OverlayState = z.infer<typeof overlayStateSchema>
@@ -289,6 +296,10 @@ export const IPC_CHANNELS = {
   strategyUnload: 'strategy:unload',
   strategyStep: 'strategy:step',
   strategyJump: 'strategy:jump',
+  /** The offline shelf: what main kept on disk, what to put back on the rail, and how to erase it. */
+  strategyCacheList: 'strategy:cacheList',
+  strategyCacheLoad: 'strategy:cacheLoad',
+  strategyCacheClear: 'strategy:cacheClear',
 
   sessionFlushNow: 'session:flushNow',
   sessionOutboxStatus: 'session:outboxStatus',
@@ -362,6 +373,17 @@ export const strategyJumpPayloadSchema = z.object({ step: z.number().int().min(0
 export type StrategyJumpPayload = z.infer<typeof strategyJumpPayloadSchema>
 export const openExternalPayloadSchema = z.object({ url: z.string().url() })
 
+/** Per-step community counts and this account's own mark, from the detail page's queries. */
+export const overlayStepHealthSchema = z.object({
+  stepNo: z.number().int().positive(),
+  worked: z.number().int().nonnegative().default(0),
+  stuck: z.number().int().nonnegative().default(0),
+  marked: z.boolean().default(false),
+  verdict: z.enum(['worked', 'stuck']).optional()
+})
+
+export type OverlayStepHealth = z.infer<typeof overlayStepHealthSchema>
+
 /**
  * `strategyId` is the database row the overlay is tracking. Usage sessions can only be opened for a
  * published strategy, so an imported document that has never been published arrives with null and
@@ -376,21 +398,43 @@ export const strategyLoadPayloadSchema = z.object({
    * the card and produced by nobody; the renderer has the catalog, the main process has no database.
    */
   towerNamesTr: z.record(z.string(), z.string()).default({}),
-  /** Per-step community counts and this account's own mark, from the detail page's queries. */
-  stepHealth: z
-    .array(
-      z.object({
-        stepNo: z.number().int().positive(),
-        worked: z.number().int().nonnegative().default(0),
-        stuck: z.number().int().nonnegative().default(0),
-        marked: z.boolean().default(false),
-        verdict: z.enum(['worked', 'stuck']).optional()
-      })
-    )
-    .default([])
+  stepHealth: z.array(overlayStepHealthSchema).default([])
 })
 
 export type StrategyLoadPayload = z.input<typeof strategyLoadPayloadSchema>
+
+/**
+ * One tracked document kept on disk by the main process (0.3.8). The overlay is the thing a member
+ * needs most when the connection is worst — mid-run, in-game, on a dropped Wi-Fi — and until now a
+ * restart meant the run was gone because only the renderer could assemble the payload.
+ *
+ * `key` is the session's own identity (`local:<name>` for an unpublished import), and it is never used
+ * as a file name raw: main hashes it into a safe slug.
+ */
+export const strategyCacheEntrySchema = z.object({
+  key: z.string().min(1).max(200),
+  name: z.string().min(1).max(200),
+  savedAt: z.number().int().nonnegative(),
+  ir: strategyIrSchema,
+  towerNamesTr: z.record(z.string(), z.string()).default({}),
+  stepHealth: z.array(overlayStepHealthSchema).default([])
+})
+
+export type StrategyCacheEntry = z.infer<typeof strategyCacheEntrySchema>
+
+/** The light row the shell lists; the IR itself is only read when the member picks one. */
+export const strategyCacheRowSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  savedAt: z.number().int().nonnegative(),
+  steps: z.number().int().nonnegative(),
+  mapName: z.string().optional(),
+  isEventStrategy: z.boolean().default(false)
+})
+
+export type StrategyCacheRow = z.infer<typeof strategyCacheRowSchema>
+
+export const strategyCacheLoadPayloadSchema = z.object({ key: z.string().min(1).max(200) })
 
 /**
  * What the renderer may show about the usage pipeline. `counted` is false while the tracked

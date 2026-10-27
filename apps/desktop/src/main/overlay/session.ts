@@ -128,7 +128,11 @@ export class OverlaySession {
       sessionId: summary.sessionId,
       sessionStartedAt: summary.startedAt,
       stepsAdvanced: summary.stepsAdvanced,
-      maxStep: summary.maxStep
+      maxStep: summary.maxStep,
+      // Which is what tells the rail and the card to say "önbellekten" instead of passing a number
+      // saved hours ago as if the database had just produced it.
+      source: this.strategy.source,
+      savedAt: this.strategy.savedAt
     }
   }
 

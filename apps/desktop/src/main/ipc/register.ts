@@ -15,6 +15,7 @@ import {
   importPastePayloadSchema,
   overlayGeometryPatchSchema,
   settingsPatchSchema,
+  strategyCacheLoadPayloadSchema,
   strategyLoadPayloadSchema,
   strategyJumpPayloadSchema,
   strategyStepPayloadSchema,
@@ -34,6 +35,7 @@ import type { AuthManager } from '../auth/manager'
 import { fetchGoogleDocsMarkdown, readMarkdownFile } from '../import/source'
 import { logger } from '../log'
 import { overlaySession } from '../overlay/session'
+import { strategyCache } from '../overlay/cache'
 import { strategyFromIr } from '../overlay/labels'
 import { settingsStore } from '../settings/store'
 import { updateService } from '../updater/service'
@@ -336,13 +338,35 @@ export function registerIpc(context: RegisterContext): void {
   handle(IPC_CHANNELS.settingsSet, settingsPatchSchema, (_event, patch) => settingsStore.update(patch))
 
   handle(IPC_CHANNELS.strategyLoad, strategyLoadPayloadSchema, (_event, { ir, strategyId, towerNamesTr, stepHealth }) => {
-    overlaySession.load(strategyFromIr(ir, undefined, towerNamesTr, stepHealth))
+    // A published strategy is tracked by its row id: the detail page matches on it to turn the step
+    // list into a remote, and an imported document has no row, so it keeps the `local:` identity.
+    const tracked = strategyFromIr(ir, { id: strategyId ?? undefined, towerNamesTr, stepHealth })
+    overlaySession.load(tracked)
     context.overlay.show()
-    // The session RPC is network-bound; the overlay must appear immediately either way, and the
-    // usage service reports its own outcome through session:outboxStatus.
+    // The overlay must appear immediately either way, and a slow disk must not delay it.
+    void strategyCache.save({ key: tracked.id, name: tracked.name, savedAt: Date.now(), ir, towerNamesTr, stepHealth })
+    // The session RPC is network-bound; what it cannot send now the outbox keeps for the next flush.
     void usageService.begin(strategyId)
     return overlaySession.state()
   })
+
+  /* The offline shelf. The renderer owns the database, so a run that has to survive a dropped
+     connection or a restart can only come from the process that owns the overlay. */
+  handle(IPC_CHANNELS.strategyCacheList, async () => strategyCache.list())
+
+  handle(IPC_CHANNELS.strategyCacheLoad, strategyCacheLoadPayloadSchema, async (_event, { key }) => {
+    const tracked = await strategyCache.track(key)
+    if (tracked === null) throw new Error('CACHE_MISS')
+    overlaySession.load(tracked)
+    context.overlay.show()
+    // An offline load still opens a session: the events buffer in the outbox and flush later, which is
+    // exactly what the outbox was built for.
+    const isRow = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(key)
+    void usageService.begin(isRow ? key : null)
+    return overlaySession.state()
+  })
+
+  handle(IPC_CHANNELS.strategyCacheClear, async () => ({ removed: await strategyCache.clear() }))
 
   handle(IPC_CHANNELS.strategyUnload, async () => {
     overlaySession.unload()

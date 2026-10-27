@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { OverlayState, OverlayStepCard } from '@tds/shared'
 import { translate } from '../../i18n/overlay-dict'
 import { actionKey } from '../../lib/actions'
-import { parseWave } from '../../lib/text'
+import { parseWave, relativeTime } from '../../lib/text'
 
 export interface OverlayPrefs {
   cardStyle: 'classic' | 'glow' | 'scan'
@@ -148,8 +148,17 @@ export function OverlayCard({ state, dimmed, interactive, prefs, onHover, onStep
       ) : null}
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-brand">
-          {card ? translate('overlay.step', { current: stepPosition, total }) : translate('overlay.empty')}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="text-xs font-semibold text-brand">
+            {card ? translate('overlay.step', { current: stepPosition, total }) : translate('overlay.empty')}
+          </span>
+          {/* Honest about its own freshness: the numbers on this card were true when the document was
+              saved, not now, and a member tracking from the shelf must not read them as live telemetry. */}
+          {state?.source === 'cache' && state.savedAt !== null ? (
+            <span className="truncate rounded-md border border-warn/40 bg-warn/15 px-1.5 py-0.5 text-[10px] text-warn">
+              {translate('shelf.cached', { when: relativeTime(new Date(state.savedAt).toISOString(), 'tr') })}
+            </span>
+          ) : null}
         </span>
         <span className="flex items-center gap-1">
           {prefs.showCounter ? (

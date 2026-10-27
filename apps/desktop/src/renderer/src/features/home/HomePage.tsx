@@ -41,6 +41,7 @@ import { useUsageStatus } from '../../lib/usage'
 import { useMotion } from '../../motion/context'
 import { STATUS_KEY } from '../settings/use-settings'
 import { useOverlayControls } from '../shell/use-overlay'
+import { OfflineShelfTile } from '../shell/OfflineShelf'
 import { CoinIcon } from '../../components/brand/coin'
 import { Button } from '../../components/ui'
 import { Chip, Section } from '../../components/ui/system'
@@ -556,6 +557,7 @@ export function HomePage(): ReactNode {
         <WatchTile />
         <LiveTile />
         <FeaturedTile />
+        <OfflineShelfTile />
       </div>
 
       <Section title={t('home.howTitle')} hint={t('home.howHint')}>
