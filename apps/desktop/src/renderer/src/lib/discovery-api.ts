@@ -50,6 +50,10 @@ export interface DiscoverFiltersInput {
   favoritesOnly?: boolean
   watchOnly?: boolean
   verifiedOnly?: boolean
+  playerCount?: string | null
+  waveFrom?: number | null
+  waveTo?: number | null
+  minUses?: number | null
 }
 
 function toOptions(data: unknown): CatalogOption[] {
@@ -77,7 +81,11 @@ export async function searchStrategies(input: DiscoverFiltersInput): Promise<Sea
     offset: input.offset,
     favoritesOnly: input.favoritesOnly ?? false,
     watchOnly: input.watchOnly ?? false,
-    verifiedOnly: input.verifiedOnly ?? false
+    verifiedOnly: input.verifiedOnly ?? false,
+    playerCount: input.playerCount ?? null,
+    waveFrom: input.waveFrom ?? null,
+    waveTo: input.waveTo ?? null,
+    minUses: input.minUses ?? null
   })
 
   // The parameter is only sent when the filter is on: an un-migrated database still exposes the old
@@ -96,6 +104,10 @@ export async function searchStrategies(input: DiscoverFiltersInput): Promise<Sea
     p_watch_only: filters.watchOnly
   }
   if (filters.verifiedOnly) args.p_verified_only = true
+  if (filters.playerCount) args.p_player_count = filters.playerCount
+  if (filters.waveFrom !== null) args.p_wave_from = filters.waveFrom
+  if (filters.waveTo !== null) args.p_wave_to = filters.waveTo
+  if (filters.minUses !== null && filters.minUses > 0) args.p_min_uses = filters.minUses
 
   const { data, error } = await db.rpc('search_strategies', args)
   if (error) throw new Error(error.message)

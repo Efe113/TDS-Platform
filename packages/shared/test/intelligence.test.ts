@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  creatorFeedItemSchema,
+  creatorWatchRowSchema,
   discoverFacetsSchema,
+  discoverFiltersSchema,
   formatDuration,
   myJourneySchema,
   recentStrategySchema,
@@ -67,5 +70,39 @@ describe('intelligence helpers', () => {
     })
     expect(facets.maps[0]?.count).toBe(5)
     expect(facets.modes).toHaveLength(1)
+  })
+
+  it('leaves the 0054 deep filters unset unless the member sets them', () => {
+    // An absent filter must stay null: the client only sends a parameter it actually has a value for,
+    // because an unknown named parameter fails the whole search on an un-migrated database.
+    const bare = discoverFiltersSchema.parse({ q: 'crater', offset: 0 })
+    expect(bare.playerCount).toBeNull()
+    expect(bare.waveFrom).toBeNull()
+    expect(bare.waveTo).toBeNull()
+    expect(bare.minUses).toBeNull()
+
+    const deep = discoverFiltersSchema.parse({ q: '', offset: 24, playerCount: 'quad', waveFrom: 21, waveTo: 40, minUses: 50 })
+    expect(deep.playerCount).toBe('quad')
+    expect(deep.waveTo).toBe(40)
+    expect(deep.minUses).toBe(50)
+  })
+
+  it('reads the author shelf even when the server answers nulls', () => {
+    const row = creatorWatchRowSchema.parse({ creatorId: '3f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8', handle: 'efe', verified: null })
+    expect(row.verified).toBe(false)
+    expect(row.newSinceLastSeen).toBe(0)
+    expect(row.displayName).toBeNull()
+
+    const item = creatorFeedItemSchema.parse({
+      strategyId: '3f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8',
+      slug: 'crater-quad',
+      name: 'Crater quad',
+      createdAt: '2026-10-24T09:00:00Z',
+      creatorId: '3f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8',
+      creator: 'Efe',
+      fresh: null
+    })
+    expect(item.fresh).toBe(false)
+    expect(item.mapKey).toBeNull()
   })
 })

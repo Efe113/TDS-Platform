@@ -17,7 +17,12 @@ export const discoverFiltersSchema = z.object({
   favoritesOnly: z.boolean().default(false),
   watchOnly: z.boolean().default(false),
   // 0037: verified authors sort above ordinary strategies, so the filter has to be server-side too.
-  verifiedOnly: z.boolean().default(false)
+  verifiedOnly: z.boolean().default(false),
+  // 0054: how people actually choose a run — who it is for, which waves it covers, whether it is played.
+  playerCount: z.string().nullable().default(null),
+  waveFrom: z.number().int().nonnegative().nullable().default(null),
+  waveTo: z.number().int().nonnegative().nullable().default(null),
+  minUses: z.number().int().nonnegative().nullable().default(null)
 })
 
 export type DiscoverFilters = z.input<typeof discoverFiltersSchema>

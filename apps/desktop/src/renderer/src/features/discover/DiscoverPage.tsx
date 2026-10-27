@@ -19,7 +19,7 @@ import { useT } from '../../i18n/use-t'
 import type { MessageKey } from '../../i18n/resources'
 import { navigate, useRoute } from '../../lib/router'
 import { supabase } from '../../lib/supabase'
-import { catalogName, difficultyEntry, useCatalogLanguage } from '../../lib/catalog-labels'
+import { catalogName, difficultyEntry, playerCountKey, useCatalogLanguage } from '../../lib/catalog-labels'
 import {
   DISCOVER_PAGE_SIZE,
   fetchCatalogOptions,
@@ -51,6 +51,11 @@ interface Filters {
   favorites: boolean
   watch: boolean
   verified: boolean
+  /** 0054: who the run is for, which waves it covers and whether people actually play it. */
+  players: string | null
+  waveFrom: number | null
+  waveTo: number | null
+  minUses: number | null
 }
 
 const SORT_KEYS: Record<DiscoverySort, MessageKey> = {
@@ -60,7 +65,15 @@ const SORT_KEYS: Record<DiscoverySort, MessageKey> = {
   trending: 'discover.sort.trending'
 }
 
+function readNumber(value: string | null): number | null {
+  if (value === null || value.trim().length === 0) return null
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
 const DIFFICULTY_OPTIONS: readonly string[] = ['easy', 'medium', 'hard', 'nightmare']
+const PLAYER_OPTIONS: readonly string[] = ['solo', 'duo', 'trio', 'quad']
+const MIN_USE_OPTIONS: readonly number[] = [1, 10, 50, 100]
 const VIEW_KEY = 'tds.discover.view'
 const SAVED_KEY = 'tds.discover.saved'
 
@@ -80,7 +93,11 @@ function readFilters(query: URLSearchParams): Filters {
     sort: (DISCOVERY_SORTS as readonly string[]).includes(query.get('sort') ?? '') ? (query.get('sort') as DiscoverySort) : 'new',
     favorites: query.get('fav') === '1',
     watch: query.get('watch') === '1',
-    verified: query.get('ver') === '1'
+    verified: query.get('ver') === '1',
+    players: query.get('players'),
+    waveFrom: readNumber(query.get('wf')),
+    waveTo: readNumber(query.get('wt')),
+    minUses: readNumber(query.get('uses'))
   }
 }
 
@@ -96,6 +113,10 @@ function writeFilters(filters: Filters): URLSearchParams {
   if (filters.favorites) next.set('fav', '1')
   if (filters.watch) next.set('watch', '1')
   if (filters.verified) next.set('ver', '1')
+  if (filters.players) next.set('players', filters.players)
+  if (filters.waveFrom !== null) next.set('wf', String(filters.waveFrom))
+  if (filters.waveTo !== null) next.set('wt', String(filters.waveTo))
+  if (filters.minUses !== null) next.set('uses', String(filters.minUses))
   return next
 }
 
@@ -238,6 +259,9 @@ export function DiscoverPage(): ReactNode {
     retry: false
   })
 
+  // Facet counts come from discover_facets, which has no deep-filter parameters (0054 added those to the
+  // search only). So a facet number is the population under the loose predicate set, not under the wave
+  // or player filter — the same reason the verified count is a hint rather than a promise.
   const facetsQuery = useQuery({
     queryKey: ['discover', 'facets', filters.q, filters.mode, filters.map, filters.difficulty, filters.event, filters.tag, filters.verified],
     queryFn: () =>
@@ -270,7 +294,11 @@ export function DiscoverPage(): ReactNode {
         offset: pageParam,
         favoritesOnly: filters.favorites,
         watchOnly: filters.watch,
-        verifiedOnly: filters.verified
+        verifiedOnly: filters.verified,
+        playerCount: filters.players,
+        waveFrom: filters.waveFrom,
+        waveTo: filters.waveTo,
+        minUses: filters.minUses
       }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => (lastPage.length < DISCOVER_PAGE_SIZE ? undefined : DISCOVER_PAGE_SIZE * allPages.length),
@@ -317,6 +345,17 @@ export function DiscoverPage(): ReactNode {
   if (filters.favorites) activeChips.push({ key: 'fav', label: t('discover.onlyFavorites'), clear: { favorites: false } })
   if (filters.watch) activeChips.push({ key: 'watch', label: t('discover.onlyWatch'), clear: { watch: false } })
   if (filters.verified) activeChips.push({ key: 'ver', label: t('discover.verifiedOnly'), clear: { verified: false } })
+  if (filters.players) {
+    const key = playerCountKey(filters.players)
+    activeChips.push({ key: 'players', label: key ? t(key) : filters.players, clear: { players: null } })
+  }
+  if (filters.waveFrom !== null || filters.waveTo !== null) {
+    const range = `${filters.waveFrom !== null ? String(filters.waveFrom) : '…'}–${filters.waveTo !== null ? String(filters.waveTo) : '…'}`
+    activeChips.push({ key: 'waves', label: `${t('discover.waveRange')}: ${range}`, clear: { waveFrom: null, waveTo: null } })
+  }
+  if (filters.minUses !== null) {
+    activeChips.push({ key: 'uses', label: t('discover.minUsesCount', { count: filters.minUses }), clear: { minUses: null } })
+  }
 
   const clearAll = (): void => {
     setText('')
@@ -551,6 +590,71 @@ export function DiscoverPage(): ReactNode {
                     { value: 'normal', label: t('discover.eventNormal') }
                   ]}
                 />
+              </div>
+
+              {/* 0054: the three questions a run is chosen with that the old search could not answer. */}
+              <div className="space-y-2 border-t border-line/70 pt-2">
+                <div>
+                  <p className="hud-label mb-1">{t('discover.players')}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PLAYER_OPTIONS.map((value) => {
+                      const key = playerCountKey(value)
+                      return (
+                        <Button
+                          key={value}
+                          size="sm"
+                          variant={filters.players === value ? 'primary' : 'ghost'}
+                          onClick={() => patch({ players: filters.players === value ? null : value })}
+                        >
+                          {key ? t(key) : value}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="hud-label mb-1">{t('discover.waveRange')}</p>
+                  <Row className="gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      inputMode="numeric"
+                      className={cn(INPUT_CLASS, 'no-drag h-8 w-24 py-1 text-xs')}
+                      placeholder={t('discover.waveFrom')}
+                      value={filters.waveFrom ?? ''}
+                      onChange={(event) => patch({ waveFrom: readNumber(event.target.value) })}
+                    />
+                    <span className="text-xs text-mute">–</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      inputMode="numeric"
+                      className={cn(INPUT_CLASS, 'no-drag h-8 w-24 py-1 text-xs')}
+                      placeholder={t('discover.waveTo')}
+                      value={filters.waveTo ?? ''}
+                      onChange={(event) => patch({ waveTo: readNumber(event.target.value) })}
+                    />
+                  </Row>
+                </div>
+
+                <div>
+                  <p className="hud-label mb-1">{t('discover.minUses')}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MIN_USE_OPTIONS.map((value) => (
+                      <Button
+                        key={String(value)}
+                        size="sm"
+                        variant={filters.minUses === value ? 'primary' : 'ghost'}
+                        onClick={() => patch({ minUses: filters.minUses === value ? null : value })}
+                      >
+                        {t('discover.minUsesCount', { count: value })}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-1.5 pt-1">

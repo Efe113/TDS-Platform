@@ -42,6 +42,7 @@ import { useMotion } from '../../motion/context'
 import { STATUS_KEY } from '../settings/use-settings'
 import { useOverlayControls } from '../shell/use-overlay'
 import { OfflineShelfTile } from '../shell/OfflineShelf'
+import { CreatorFeedTile } from '../discover/CreatorWatch'
 import { CoinIcon } from '../../components/brand/coin'
 import { Button } from '../../components/ui'
 import { Chip, Section } from '../../components/ui/system'
@@ -557,6 +558,7 @@ export function HomePage(): ReactNode {
         <WatchTile />
         <LiveTile />
         <FeaturedTile />
+        <CreatorFeedTile />
         <OfflineShelfTile />
       </div>
 

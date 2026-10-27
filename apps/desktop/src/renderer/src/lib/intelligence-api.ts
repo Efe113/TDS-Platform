@@ -1,10 +1,14 @@
 import {
+  creatorFeedItemSchema,
+  creatorWatchRowSchema,
   myJourneySchema,
   recentStrategySchema,
   stepHealthSchema,
   stepMarksSchema,
   strategyStatsSchema,
   watchUpdateSchema,
+  type CreatorFeedItem,
+  type CreatorWatchRow,
   type MyJourney,
   type RecentStrategy,
   type StepHealthEntry,
@@ -72,6 +76,26 @@ export function fetchWatchUpdates(): Promise<WatchUpdate[]> {
 
 export async function markWatchSeen(strategyId: string): Promise<void> {
   const { error } = await requireDb().rpc('mark_watch_seen', { p_strategy_id: strategyId })
+  if (error) throw new Error(error.message)
+}
+
+/** Following a person instead of a run (0054): the same toggle shape as a strategy watch. */
+export async function toggleCreatorWatch(creatorId: string): Promise<boolean> {
+  const { data, error } = await requireDb().rpc('toggle_creator_watch', { p_creator_id: creatorId })
+  if (error) throw new Error(error.message)
+  return (data as { watching?: boolean } | null)?.watching === true
+}
+
+export function fetchCreatorWatchList(): Promise<CreatorWatchRow[]> {
+  return rpc('creator_watch_list', {}, []).then((value) => creatorWatchRowSchema.array().parse(value))
+}
+
+export function fetchCreatorFeed(limit = 12): Promise<CreatorFeedItem[]> {
+  return rpc('creator_watch_feed', { p_limit: limit }, []).then((value) => creatorFeedItemSchema.array().parse(value))
+}
+
+export async function markCreatorSeen(creatorId: string): Promise<void> {
+  const { error } = await requireDb().rpc('mark_creator_seen', { p_creator_id: creatorId })
   if (error) throw new Error(error.message)
 }
 

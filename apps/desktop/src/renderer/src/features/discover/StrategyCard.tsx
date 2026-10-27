@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
-import { BookmarkCheck, BookmarkPlus, Check, GitCompareArrows, Users } from 'lucide-react'
+import { BookmarkCheck, BookmarkPlus, Check, GitCompareArrows, TrendingUp, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatWaveRange, type SearchRow } from '@tds/shared'
 import { useT } from '../../i18n/use-t'
-import { difficultyEntry, useCatalogLanguage } from '../../lib/catalog-labels'
+import { difficultyEntry, playerCountKey, useCatalogLanguage } from '../../lib/catalog-labels'
 import { relativeTime } from '../../lib/text'
 import { Badge, Button, Card, Row, cn } from '../../components/ui'
 import { VerifiedBadge } from '../../components/brand/verified-badge'
@@ -59,6 +59,8 @@ export function StrategyCard({
   const language = useCatalogLanguage()
   const waves = formatWaveRange(row.wave_from, row.wave_to)
   const difficulty = difficultyEntry(row.difficulty)
+  const playerKey = playerCountKey(row.player_count)
+  const playerLabel = playerKey ? t(playerKey) : row.player_count
   const list = layout === 'list'
 
   const favorite = (
@@ -92,7 +94,14 @@ export function StrategyCard({
       {row.player_count && row.player_count !== 'any' ? (
         <Badge tone="neutral" className="gap-1">
           <Users size={11} />
-          {row.player_count}
+          {playerLabel}
+        </Badge>
+      ) : null}
+      {/* trend_7d came back from 0023 and was only ever drawn in the compare table. */}
+      {row.trend_7d > 0 ? (
+        <Badge tone="good" className="gap-1">
+          <TrendingUp size={11} />
+          {t('discover.trendRuns', { count: row.trend_7d })}
         </Badge>
       ) : null}
     </Row>

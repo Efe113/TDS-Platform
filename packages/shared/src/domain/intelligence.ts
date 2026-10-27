@@ -73,6 +73,40 @@ export const recentStrategySchema = z.object({
 
 export type RecentStrategy = z.infer<typeof recentStrategySchema>
 
+/**
+ * Following an author (0054). A strategy watch asks "did this run change?"; a creator watch asks "did
+ * this person publish anything?" — and only the server can answer it, because it is a count across every
+ * row the author owns.
+ */
+export const creatorWatchRowSchema = z.object({
+  creatorId: z.string().uuid(),
+  handle: z.string(),
+  displayName: z.string().nullable().default(null),
+  avatarPath: z.string().nullable().default(null),
+  verified: z.boolean().nullish().transform((value) => value === true),
+  strategies: z.coerce.number().int().nonnegative().default(0),
+  newSinceLastSeen: z.coerce.number().int().nonnegative().default(0),
+  lastSeenAt: z.string().nullable().default(null)
+})
+
+export type CreatorWatchRow = z.infer<typeof creatorWatchRowSchema>
+
+export const creatorFeedItemSchema = z.object({
+  strategyId: z.string().uuid(),
+  slug: z.string(),
+  name: z.string(),
+  mapKey: z.string().nullable().default(null),
+  difficulty: z.string().nullable().default(null),
+  createdAt: z.string(),
+  creatorId: z.string().uuid(),
+  creator: z.string(),
+  avatarPath: z.string().nullable().default(null),
+  // Created after the caller's own last look — the only honest definition of "new" here.
+  fresh: z.boolean().nullish().transform((value) => value === true)
+})
+
+export type CreatorFeedItem = z.infer<typeof creatorFeedItemSchema>
+
 export const facetBucketSchema = z.object({
   key: z.string(),
   count: z.number().int().nonnegative()

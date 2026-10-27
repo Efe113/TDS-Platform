@@ -66,6 +66,7 @@ import { SkeletonCard } from '../../motion/primitives/Shimmer'
 import { StateError, StateLoading, StateNotice } from '../../components/ui/states'
 import { StepList } from '../import/StepList'
 import { DiscussionSection } from './DiscussionSection'
+import { CreatorFollowButton } from '../discover/CreatorWatch'
 import { ExportMenu } from './ExportMenu'
 import { JourneyPanel, StatsPanel, WatchButton } from './IntelligencePanel'
 import { fetchStepHealth, fetchStepMarks, rateStep, setStepMark } from '../../lib/intelligence-api'
@@ -434,6 +435,10 @@ function CreditSection({ detail, onOpenSource, openError }: { detail: StrategyDe
             author ?? t('common.none')
           )}
         </KeyValue>
+        {/* Following the person, not the run: 0054. Hidden for your own strategy and for visitors. */}
+        <Row>
+          <CreatorFollowButton creatorId={detail.profiles?.id ?? null} own={detail.is_author_own} />
+        </Row>
         <KeyValue label={t('import.credit.creator')}>{detail.credit_creator ?? t('common.none')}</KeyValue>
         {detail.credit_contributors.length > 0 ? (
           <KeyValue label={t('import.credit.contributors')}>{detail.credit_contributors.join(', ')}</KeyValue>
