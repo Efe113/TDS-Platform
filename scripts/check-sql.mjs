@@ -263,6 +263,95 @@ function lintDollarBlocks(file, sql, problems) {
   })
 }
 
+/**
+ * Postgres reads a block comment as inert, and apostrophes inside it are prose: "the campaign's
+ * earning sheet". The quote walkers below have no idea what a comment is, so such an apostrophe opens
+ * a string that runs to the next quote in the file, and the report then claims the migration contains
+ * SQL it does not contain. Block comments are blanked here, outside dollar-quoted bodies, and blanked
+ * with spaces so every line number stays honest for the messages that follow.
+ *
+ * Bodies are copied verbatim on purpose. Inside `$$ ... $$` an apostrophe is already the function's
+ * own text, and the walker has always handled that by suppressing reports while a tag is open;
+ * changing it here would move a rule nobody asked to move.
+ */
+function blankBlockComments(source) {
+  const out = []
+  let index = 0
+  let depth = 0
+  let tag = null
+
+  while (index < source.length) {
+    const rest = source.slice(index)
+
+    if (tag !== null) {
+      const close = rest.indexOf(tag)
+      if (close === -1) {
+        out.push(rest)
+        break
+      }
+      out.push(rest.slice(0, close + tag.length))
+      index += close + tag.length
+      tag = null
+      continue
+    }
+
+    const open = /^\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/.exec(rest)
+    if (open) {
+      tag = open[0]
+      out.push(tag)
+      index += tag.length
+      continue
+    }
+
+    // A line comment is inert too, and the walkers already skip it, so it is copied as written.
+    if (rest.startsWith('--')) {
+      const end = source.indexOf('\n', index)
+      const stop = end === -1 ? source.length : end
+      out.push(source.slice(index, stop))
+      index = stop
+      continue
+    }
+
+    if (rest.startsWith('/*')) {
+      depth += 1
+      out.push('  ')
+      index += 2
+      continue
+    }
+
+    if (rest.startsWith('*/') && depth > 0) {
+      depth -= 1
+      out.push('  ')
+      index += 2
+      continue
+    }
+
+    if (depth > 0) {
+      if (rest.startsWith('\n')) {
+        out.push('\n')
+        index += 1
+        continue
+      }
+      out.push(' ')
+      index += 1
+      continue
+    }
+
+    if (source[index] === "'") {
+      const end = source.indexOf("'", index + 1)
+      const stop = end === -1 ? source.length : end + 1
+      out.push(source.slice(index, stop))
+      index = stop
+      continue
+    }
+
+    out.push(source[index])
+    index += 1
+  }
+
+  return out.join('')
+}
+
 const files = DIRS.filter((dir) => existsSync(dir)).flatMap((dir) =>
   readdirSync(dir)
     .filter((name) => name.endsWith('.sql'))
@@ -272,7 +361,7 @@ const files = DIRS.filter((dir) => existsSync(dir)).flatMap((dir) =>
 const problems = []
 
 for (const file of files) {
-  const sql = readFileSync(file, 'utf8')
+  const sql = blankBlockComments(readFileSync(file, 'utf8'))
   const swallowed = []
   let index = 0
   let line = 1

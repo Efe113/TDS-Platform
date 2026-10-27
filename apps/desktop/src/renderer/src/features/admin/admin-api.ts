@@ -13,7 +13,13 @@ import {
   unmatchedRowSchema,
   versionSnapshotSchema,
   maintenanceState,
+  campaignAdminRowSchema,
+  campaignDraftPayload,
+  campaignRulesPayload,
   type AuditRow,
+  type CampaignAdminRow,
+  type CampaignDraft,
+  type CampaignRuleDraft,
   type MaintenanceMode,
   type MaintenanceState,
   type MemberBadgeRow,
@@ -665,6 +671,70 @@ export async function setMaintenance(input: MaintenanceInput): Promise<Maintenan
   })
   if (error) throw new Error(error.message)
   return fetchMaintenance()
+}
+
+/**
+ * Campaigns (0051). The member's band comes from `active_campaigns()`; the editor reads
+ * `admin_list_campaigns()` because it has to see disabled and finished rows too, and it has to read
+ * back the three separate inputs (multiplier, fixed amount, cap) rather than the one number the band
+ * shows.
+ *
+ * Two writes, not one: the campaign's own text, then its earning sheet. Saving the sheet replaces it
+ * wholesale, which is what a form with rows you can add and remove expects, and it means there is no
+ * "which rows did this delete" question for the audit trail.
+ */
+export async function fetchCampaigns(): Promise<CampaignAdminRow[]> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_list_campaigns')
+  if (error) throw new Error(error.message)
+  return campaignAdminRowSchema.array().parse(data ?? [])
+}
+
+export async function saveCampaign(draft: CampaignDraft): Promise<string> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_upsert_campaign', campaignDraftPayload(draft))
+  if (error) throw new Error(error.message)
+  return String((data as { state?: string } | null)?.state ?? 'off')
+}
+
+export async function setCampaignRules(key: string, rules: CampaignRuleDraft[]): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_set_campaign_rules', { p_key: key, p_rules: campaignRulesPayload(rules) })
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * Bind or detach a rule of the ordinary economy. The campaign editor offers this because a rule
+ * minted for a campaign reads better in the wallet ("etkinliğe özel") than a boosted everyday rule, but
+ * 0038's rule writer keeps its kind/unit validations — one editor, one writer.
+ */
+export async function setRuleCampaign(code: string, campaignKey: string | null): Promise<void> {
+  const db = requireDb()
+  const { error } = await db.rpc('admin_set_rule_campaign', { p_code: code, p_campaign_key: campaignKey })
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteCampaign(key: string): Promise<number> {
+  const db = requireDb()
+  const { data, error } = await db.rpc('admin_delete_campaign', { p_key: key })
+  if (error) throw new Error(error.message)
+  return Number((data as { rulesDisabled?: number } | null)?.rulesDisabled ?? 0)
+}
+
+/** One object per campaign, replaced in place, so re-uploading a poster never piles up versions. */
+export function campaignImagePath(key: string): string {
+  return `campaigns/${key.trim().toLowerCase()}.webp`
+}
+
+export async function uploadCampaignImage(key: string, file: File): Promise<string> {
+  const db = requireDb()
+  const path = campaignImagePath(key)
+  const { error } = await db.storage.from('strategy-media').upload(path, file, {
+    upsert: true,
+    contentType: file.type.length > 0 ? file.type : 'image/webp'
+  })
+  if (error) throw new Error(error.message)
+  return path
 }
 
 export function parseAlias(value: string): string[] {
