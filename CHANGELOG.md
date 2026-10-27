@@ -2,6 +2,83 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.8] — 2026-10-27
+
+Para tarafında üç sürüm geçirdik; bu turda odak özellik. On madde kodda doğrulanarak seçildi:
+dördü **zaten yapılmış ama takılmamış** yüzeyler, dördü yeni yetenek, ikisi eksik kapatılmış boşluklar.
+
+### Önce göçler: 0053 ve 0054
+
+Bu sürüm iki göç istiyor. Çalıştırılmadıklarında çökmezler — ilgili yüzey kendiliğinden kapanır ya da
+boş görünür — ama özellik de çalışmaz:
+
+1. `supabase/migrations/0053_badge_catalog.sql` — üyenin kendi rozet kataloğu.
+2. `supabase/migrations/0054_creator_watch_and_discover_filters.sql` — yazar takibi ve derin keşif
+   filtreleri (0037/0040 gibi eski `search_strategies` imzasını düşürüp yenisini kurar).
+
+### Yapılmış ama takılmamış dört yüzey
+
+- **Yorumda çözüm.** `mark_solution` / `clear_solution` / `solution_for` RPC'leri 0023'ten beri
+  çağrısızdı. Artık yazar ya da strateji sahibi bir yorumu çözüm işaretliyor; işaretlenen konu başlı
+  geliyor, kart `Çözüm` rozeti ve tek satırlık açıklama taşıyor. Sunucu kuralı arayüzde de duruyor:
+  işareti yalnız sahip kaldırabilir.
+- **Kalıcı izleme zili.** `watch_updates` ana ekran kutusunda okunuyordu; kabukta hiçbir yeri yoktu.
+  Üst bara zil geldi: sayısı, sürüm atlaması (`v3 → v4`) ve tek tuşla okundu işareti.
+- **Oturum özeti.** `sessionSummary()` iki sürümdür hiç çağrılmıyordu. Sayılar artık overlay durumunun
+  parçası: rayda koşu saati + ilerlenen adım + en ileri adım, Strateji Aktar'ın kullanım kartında da
+  aynı satır.
+- **Rozetler sayfası.** `/badges` bir "yakında" etiketiydi; rozet motoru 0003'ten beri çalışıyordu.
+  Kataloğu, kazanma cümlesini ve üyenin kendi ilerlemesini (`7 / 10 nitelikli koşu`) sunan sayfa geldi,
+  kenar çubuğuna girişi eklendi. Ölçüt cümlesini kuran kod admin editörü ile üye sayfasında artık aynı.
+
+### Overlay kartına taşınan bilgi
+
+Overlay, veritabanına erişemeyen süreçte yaşıyor; bilgi üyeye `strategy:load` yüküyle gidiyor.
+
+- **Topluluk:** adım başına "12 işe yaradı / 4 tıkandı" ve kendi işaretin.
+- **Yerel ad:** kataloğun Türkçe kule adı (`medic_tower` → "Saha Hemşiresi"); `towerLabelTr` alanı
+  var olup üreten olmayan bir alandı.
+- **Yerleşim görseli:** rayda küçük kapak.
+- **İzlenen stratejinin satır id'si:** oturum hep `local:<ad>` ile anılıyordu, detay sayfası ise uuid
+  ile karşılaştırıyordu — yani detaydaki uzaktan kumanda ve raydaki isim bağlantısı hiçbir zaman
+  çalışmadı. Yayınlanan satır artık kendi id'siyle izleniyor.
+
+### Çevrimdışı raf
+
+İzlemeye alınan her belge `userData/strategies` altına yazılıyor (30 gün, 12 kayıt, bozuk dosya
+üzerine yazılmaz kenara alınır). Uygulama yeniden başladığında ya da bağlantı düştüğünde ana ekrandaki
+raf kutusundan koşu geri alınabilir; dosya adını üreten fonksiyon paylaşımda ve testli, çünkü isim
+elle yazılmış bir belge başlığından geliyor. Önbellekten gelen sayıda kart ve ray "önbellekten · 3 sa
+once" diyor — bayat bilgiyi canlı gibi göstermektense etiketlemek. Ayarlar > Önbellek altından
+silinebilir.
+
+### Adım dili ve dışa aktarma
+
+- Adıma `süre`, `tekrar` ve `koşul` eklendi; dilbilgisi "45sn" / "2 dk" / "×3" / "3 kere" ve
+  "eğer X: yerleştir" kalıplarını ayrıştırıyor. "wait 45s" artık `note`a düşmüyor.
+- Süre/tekrar/koşul yalnız yazarın yayınladığı IR'da (`strategy_versions.content`) yaşıyor; tipli
+  satırla adım numarası üzerinden birleştiriliyor. `spec` jsonb'sındaki alternatifler de iki sürümdür
+  okunmadan atılıyordu, şimdi kartlarda.
+- Detayda **Dışa aktar**: Markdown/JSON panoya ya da native kayıt penceresiyle diske (`app:saveFile`,
+  yalnız `.md`/`.json`/`.txt`) ve `tdsapp://strategy/<id>` bağlantısı.
+
+### Yazar takibi ve derin keşif
+
+- `creator_watch`: kişiyi izle. Ana ekranda "İzlenen yazarlar" kutusu — yazar başına üç koşu, tazeye
+  nokta, "Gördüm" düğmesi; detayda yazar kartında izle/izlemeyi bırak.
+- Keşfet artık oyuncu sayısı, dalga aralığı (örtüşme testi) ve "en az N kullanım" ile süzüyor; yeni
+  parametreler yalnız değerleri varken gönderiliyor, böylece göçü henüz çalışmamış veritabanı aramayı
+  kaybetmiyor.
+- Kart haftalık koşu sayısını (`trend_7d`, 0023'ten beri geliyordu) ve çevrilmiş oyuncu sayısını
+  gösteriyor.
+
+### Testler ve doğrulama
+
+25 dosya / 277 test geçiyor; `check:ipc` (58 kanal), `check:sql` (56 dosya) ve `check:sql:drift` dahil.
+Yeni: `strategy-cache.test.ts` (raf dosya adı ve sözleşmesi), adım diline üç vaka, akıllı katmana derin
+filtre + yazar takımı vakaları. **Arayüz elle açılıp denenmedi** — bu oturumda GUI/CDP turu
+yapılmadı; görsel doğrulama üyenin kurulumunda olacak.
+
 ## [0.3.7] — 2026-10-27
 
 0.3.6'nın saha hataları: biri rafı düşürüyordu, biri üyeye şablon metni gösteriyordu.
