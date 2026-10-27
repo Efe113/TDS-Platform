@@ -2,6 +2,53 @@
 
 Tüm önemli değişiklikler bu dosyada tutulur. Sürümler [GitHub Releases](https://github.com/Efe113/TDS-Platform/releases) üzerinden yayınlanır.
 
+## [0.3.7] — 2026-10-27
+
+0.3.6'nın saha hataları: biri rafı düşürüyordu, biri üyeye şablon metni gösteriyordu.
+
+### Düzeltildi: etkinlik bandı "Could not load data / rules.0.own" ile çöküyordu
+
+`active_campaigns()` içinde `'own', r.campaign_key = c.key` yazıyordu. Sıradan (etkinliğe doğmamış) bir
+kuralda `campaign_key` NULL'dır ve Postgres üç değerli mantığında `NULL = 'x'` sonucu **NULL**'dır,
+`false` değil — jsonb bunu JSON `null` olarak yazıyor, şema `boolean` bekliyor, raf çöküyor.
+`admin_list_campaigns()`ta da aynı ifade vardı.
+
+- Her iki okuyucu artık `coalesce(r.campaign_key = c.key, false)` diyor.
+- Şema `z.boolean().default(false)` yerine `.catch(false)` kullanıyor: `default` yalnız **anahtar
+  yokken** çalışır, sunucu anahtarı `null` ile gönderdiğinde o geçerli bir değer gibi görünür. Aynı
+  sertleştirme duyurunun `dismissed` / `ackRequired` / `enabled` alanlarına da uygulandı.
+- Ödeme yolu etkilenmiyordu (`award_currency` önce `UNKNOWN_RULE` ile çıkıyor); bozulan tek şey raftı.
+
+Aynı ailenin ilk sürümü de bu turda yakalandı: `app.rule_payable_now()` `false` yerine NULL dönüyordu
+(eşleşen satır yoksa sorgu satır döndürmez, `coalesce`'e ulaşılamaz) — migration'ın kendi kanıt bloğu
+bunu çıkışta yakaladı, `bool_or` ile düzeltildi.
+
+### Düzeltildi: `{time}` ve `{name}` yazıları üyeye aynen basılıyordu
+
+i18next `{{ad}}` kullanır. Tek süslü parantez **hata değildir**: olduğu gibi basılır. Etkinlik bandı
+"Bitmesine {time}" / "Ends in {time}", cüzdan çipi "{name} etkinliğinde" / "During {name}" gösteriyordu.
+Anahtar var, tip geçiyor, değer geçerli bir cümle — yani araçların hiçbiri göremezdi, yalnız üye görürdü.
+
+16 yer düzeltildi (8 TR + 8 EN): `campaign.endsIn`, `campaign.startsIn`, `wallet.campaignBoost`,
+`notice.starts`, `notice.until`, `admin.noticeReads`, `admin.noticeDismisses` ve **`admin.badgesOf`** —
+sonuncusu bu turdan değil, Üyeler paneli üyenin adını değil `{name}` yazısını gösteriyordu.
+
+Yeni muhafız `i18n-interpolation.test.ts`: eşlenmemiş süslü parantez yasak, iki dildeki yer tutucu
+adları birebir aynı olmak zorunda, ve bu hatayı taşıyan cümleler birebir kilitli.
+
+### Testler
+
+**266 test** (24 dosya), `npm run verify` temiz. Yeni: `i18n-interpolation.test.ts` (3) ve
+`campaign.test.ts`de NULL-bayrak sözleşmesi (2) — SQL metninde çıplak eşitlik yasak, `own: null`
+artık `false` olarak parse ediliyor.
+
+### Kurulumdan sonra
+
+Uygulama 0.3.7'ye yükselsin; veritabanında 0051 **bir kez daha** çalıştırılmalı (`create or replace
+function`, tekrar çalıştırmaya güvenli) — `own` alanını düzelten taraftaki `coalesce` orada.
+Beklenen: `0051 ok: etkinlikler tarih penceresiyle yaşıyor — kurallar ya bu pencerede çarpanla ödüyor
+ya da kendi kampanyasıyla.`
+
 ## [0.3.6] — 2026-10-27
 
 ### Yeniden yapıldı: profil temaları artık **beş yüzey**, dört sabit span değil
