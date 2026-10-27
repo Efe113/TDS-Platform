@@ -197,8 +197,71 @@ export function titleIsValid(value: string): boolean {
  * The keys are the same vocabulary `app.profile_theme_unlocked()` carries; a test compares the two so
  * the list cannot drift the way the frame registry did (a skin with no catalog row could never be
  * equipped).
+ *
+ * 0.3.6 rebuilt these on the contract the frames got in 0049: a theme **is** five named surfaces.
+ * Before that the painter hard-coded four child spans and switched on `key === 'nebula'` to add a
+ * fifth, which meant `slate` was a ground and a sweep, `onyx` was a ground with two gold lines, and
+ * the registry could not tell you what a theme actually contains. Now the registry lists the surfaces,
+ * the painter draws whatever is listed, and the shelf sells those five names — so the catalogue row,
+ * the vitrine and the pixels are one vocabulary, and a theme that is short a layer cannot compile.
  */
 export type ProfileThemeSource = 'vip' | 'verified' | 'corporate' | 'purchase'
+
+/**
+ * The surface vocabulary. A key names one CSS recipe in `global.css`, not one colour: `fan` is light
+ * engraved from a point below the card, `brush` is a metal band, `caustic` is banded water light.
+ */
+export type ProfileLayer =
+  /** The five signature grounds — one per theme, so the themes differ by shape before colour. */
+  | 'fan' | 'brush' | 'facet' | 'cloud' | 'depth'
+  /** Sheets that travel: a gas veil, water light, a verification rail. */
+  | 'veil' | 'caustic' | 'circuit'
+  /** Particle fields, each with its own direction: up, in place, in orbit, down. */
+  | 'sparks' | 'stars' | 'dust' | 'motes'
+  /** Light: one crossing sheen, and the glow the avatar sits in. */
+  | 'sweep' | 'halo'
+  /** The edges and texture that only paint. */
+  | 'rule' | 'crown' | 'notch' | 'grain'
+
+export interface ProfileThemeLayer {
+  key: ProfileLayer
+  labelTr: string
+  labelEn: string
+  /** Seconds for this surface's own cycle; still layers ignore it. */
+  seconds: number
+  /** How strong the surface is, published as `--pt-op` so one recipe serves five themes. */
+  opacity: number
+}
+
+type ProfileLayerSpec = readonly [key: ProfileLayer, labelTr: string, labelEn: string, seconds: number, opacity: number]
+
+/** Exactly five surfaces, in the order the painter stacks them. */
+export function profileLayers(
+  first: ProfileLayerSpec,
+  second: ProfileLayerSpec,
+  third: ProfileLayerSpec,
+  fourth: ProfileLayerSpec,
+  fifth: ProfileLayerSpec
+): ProfileThemeLayer[] {
+  return [first, second, third, fourth, fifth].map(([key, labelTr, labelEn, seconds, opacity]) => ({
+    key,
+    labelTr,
+    labelEn,
+    seconds,
+    opacity
+  }))
+}
+
+/** Surfaces that cost nothing per frame, so a weak machine keeps them and only loses the movers. */
+export const STILL_PROFILE_LAYERS: readonly ProfileLayer[] = ['facet', 'brush', 'grain', 'rule', 'crown', 'notch', 'depth']
+
+export function isStillProfileLayer(layer: ProfileLayer): boolean {
+  return STILL_PROFILE_LAYERS.includes(layer)
+}
+
+export function movingProfileLayerCount(skin: ProfileThemeSkin): number {
+  return skin.layers.filter((layer) => !isStillProfileLayer(layer.key)).length
+}
 
 export interface ProfileThemeSkin {
   key: string
@@ -215,6 +278,10 @@ export interface ProfileThemeSkin {
   price: number | null
   descTr: string
   descEn: string
+  /** The five surfaces this theme stacks, bottom first. */
+  layers: ProfileThemeLayer[]
+  /** Set by the 0.3.6 rebuild: every theme is now on the layer engine. */
+  renewed: boolean
 }
 
 export const PROFILE_THEME_SKINS: ProfileThemeSkin[] = [
@@ -227,8 +294,16 @@ export const PROFILE_THEME_SKINS: ProfileThemeSkin[] = [
     ring: '#ffd97a',
     source: 'vip',
     price: null,
-    descTr: 'Kazınmış altın ışınlar, kayan kıvılcım alanı ve parlayan avatar halkası.',
-    descEn: 'Engraved gold rays, a drifting spark field and a lit avatar ring.'
+    descTr: 'Kazınmış altın yelpazesi, yükselen kıvılcım, erimiş dikiş ve üzerinden geçen parlama.',
+    descEn: 'An engraved gold fan, rising sparks, a molten seam and a sheen crossing all of it.',
+    renewed: true,
+    layers: profileLayers(
+      ['fan', 'Kazınmış ışık yelpazesi', 'Engraved light fan', 46, 0.24],
+      ['sparks', 'Yükselen kıvılcımlar', 'Rising sparks', 14, 0.72],
+      ['halo', 'Avatar halesi', 'Avatar halo', 6.5, 0.5],
+      ['sweep', 'Üzerinden geçen parlama', 'Specular sweep', 9, 1],
+      ['rule', 'Erimiş altın dikiş', 'Molten gold seam', 0, 0.85]
+    )
   },
   {
     key: 'slate',
@@ -239,8 +314,16 @@ export const PROFILE_THEME_SKINS: ProfileThemeSkin[] = [
     ring: '#8ff3c6',
     source: 'verified',
     price: null,
-    descTr: 'Mat yeşil metal zemin, doğrulanmış hesap için sakin bir parıltı.',
-    descEn: 'A matte green metal ground with a calm sheen for verified accounts.'
+    descTr: 'Fırçalanmış yeşil metal, dişli alt hizası ve üzerinde yürüyen doğrulama rayı.',
+    descEn: 'Brushed green metal, a notched base rule and a verification rail walking over it.',
+    renewed: true,
+    layers: profileLayers(
+      ['brush', 'Fırçalanmış metal bandı', 'Brushed metal band', 0, 0.3],
+      ['circuit', 'Yürüyen doğrulama rayı', 'Walking verification rail', 11, 0.55],
+      ['sweep', 'Yavaş tek parlama', 'One slow sheen', 13, 1],
+      ['notch', 'Dişli alt hizası', 'Notched base rule', 0, 0.7],
+      ['grain', 'Mat tane dokusu', 'Matte grain', 0, 0.16]
+    )
   },
   {
     key: 'onyx',
@@ -251,8 +334,16 @@ export const PROFILE_THEME_SKINS: ProfileThemeSkin[] = [
     ring: '#f6d98a',
     source: 'corporate',
     price: null,
-    descTr: 'Siyah-altın kurum zemini: kalın kenarlık ve altın baskı çizgisi.',
-    descEn: 'A black-and-gold corporate ground: heavy edge and a printed gold rule.'
+    descTr: 'Taş kesiti zemin, üstte altın baskı çizgisi, yörüngede altın tozu ve kalın alt hizası.',
+    descEn: 'A cut-stone ground, a printed gold crown, gold dust in orbit and a heavy base rule.',
+    renewed: true,
+    layers: profileLayers(
+      ['facet', 'Taş kesiti zemini', 'Cut-stone ground', 0, 0.4],
+      ['crown', 'Altın baskı çizgisi', 'Printed gold crown', 0, 0.9],
+      ['dust', 'Yörüngedeki altın tozu', 'Gold dust in orbit', 22, 0.5],
+      ['sweep', 'Geniş düşük parlama', 'Wide low sweep', 16, 1],
+      ['rule', 'Kalın alt hizası', 'Heavy base rule', 0, 0.85]
+    )
   },
   {
     key: 'nebula',
@@ -263,8 +354,16 @@ export const PROFILE_THEME_SKINS: ProfileThemeSkin[] = [
     ring: '#c4b5fd',
     source: 'purchase',
     price: 1400,
-    descTr: 'Mor-mavi bulut katmanları avatarın arkasında yavaşça sürüklenir.',
-    descEn: 'Violet and blue cloud layers drifting slowly behind the avatar.'
+    descTr: 'İki bulut farklı hızda sürükleniyor, altında gaz perdesi, üstünde seyrek yıldız ve çekirdek halesi.',
+    descEn: 'Two clouds drift at different speeds over a gas veil, under sparse stars and a core halo.',
+    renewed: true,
+    layers: profileLayers(
+      ['cloud', 'İki katman bulut', 'Two cloud layers', 28, 0.44],
+      ['veil', 'Ters yönde gaz perdesi', 'Counter-direction gas veil', 44, 0.3],
+      ['halo', 'Çekirdek parlaması', 'Core glow', 7.5, 0.4],
+      ['stars', 'Seyrek yıldız alanı', 'Sparse star field', 5.5, 0.62],
+      ['grain', 'Film greni', 'Film grain', 0, 0.14]
+    )
   },
   {
     key: 'abyss',
@@ -275,8 +374,16 @@ export const PROFILE_THEME_SKINS: ProfileThemeSkin[] = [
     ring: '#7bd88f',
     source: 'purchase',
     price: 2200,
-    descTr: 'Yıldız tozlu boşluk zeminine derinlik hizası ve soğuk kenarlık.',
-    descEn: 'A starfield void with a depth line and a cold rim.'
+    descTr: 'Derinlik ufku, bant bant su ışığı, süzülen zerreler ve soğuk yıldız alanı.',
+    descEn: 'A depth horizon, banded caustic light, sinking motes and a cold star field.',
+    renewed: true,
+    layers: profileLayers(
+      ['depth', 'Derinlik ufku', 'Depth horizon', 0, 0.7],
+      ['caustic', 'Bant bant su ışığı', 'Banded caustic light', 12, 0.34],
+      ['motes', 'Süzülen zerreler', 'Sinking motes', 9, 0.6],
+      ['stars', 'Soğuk yıldız alanı', 'Cold star field', 6.5, 0.8],
+      ['rule', 'Soğuk kenar hizası', 'Cold rim rule', 0, 0.75]
+    )
   }
 ]
 

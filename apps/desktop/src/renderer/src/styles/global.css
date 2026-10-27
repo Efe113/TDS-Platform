@@ -2399,11 +2399,23 @@ html.overlay-root ::-webkit-scrollbar {
   .title-badge[data-effect='corporate']::after { opacity: 0.7; transform: none; }
 }
 
-/* ---------------------------------------------------------------- profile themes (0043) */
+/* ---------------------------------------------------------------- profile themes (0043, layer engine 0.3.6) */
 
-/* A profile theme paints the card itself, never the app: ground wash, then per-theme layers.
-   The colours arrive as custom properties from the shared registry, so the database row and the
-   painter can never disagree about what a theme looks like. */
+/* A profile theme paints the card itself, never the app. The container is the ground; the surfaces
+   above it are whatever `PROFILE_THEME_SKINS[key].layers` lists, each published with its own cycle
+   (`--pt-dur`) and strength (`--pt-op`). That is the whole change of structure: the painter used to
+   emit four fixed spans and add a fifth for `nebula` only, so a theme could not have more surfaces
+   than the JSX had spans, and `slate` was a gradient with a sheen over it.
+
+   One recipe per layer kind, five grounds per theme: `fan`, `brush`, `facet`, `cloud` and `depth` are
+   the signatures, so the themes differ by shape before they differ by colour.
+
+   The cost rule, inherited from the skin engine: a moving surface animates `transform` or `opacity`
+   only. No `filter: blur()`, no animated `background-position`, no animated `box-shadow` — this card
+   already sits over an animated window skin, and a repainting card would tax every machine rather than
+   only the ones that picked a theme. Patterns that must crawl are drawn as oversized sheets that
+   translate by exactly one period (`--pt-dur`), and `is-frozen` parks them on reduced motion or a
+   machine the tier measured as low. */
 .profile-theme {
   position: absolute;
   inset: 0;
@@ -2417,7 +2429,7 @@ html.overlay-root ::-webkit-scrollbar {
 }
 
 /* Above a banner the theme must add light, not cover the picture: screen blending drops the dark
-   stops and keeps the rays, sparks and horizon. */
+   stops and keeps the fan, sparks and horizon. The blend sits on the container, which never moves. */
 .profile-theme--over {
   z-index: 1;
   mix-blend-mode: screen;
@@ -2435,25 +2447,131 @@ html.overlay-root ::-webkit-scrollbar {
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--pt-r) 70%, transparent), 0 0 26px -6px var(--pt-r);
 }
 
-.profile-theme__rays,
-.profile-theme__field,
+/* Every surface is an absolutely positioned sheet; only the kind rules below change its geometry. */
+.profile-theme__fan,
+.profile-theme__brush,
+.profile-theme__facet,
+.profile-theme__cloud,
+.profile-theme__depth,
+.profile-theme__veil,
+.profile-theme__caustic,
+.profile-theme__circuit,
+.profile-theme__sparks,
+.profile-theme__stars,
+.profile-theme__dust,
+.profile-theme__motes,
+.profile-theme__sweep,
+.profile-theme__halo,
 .profile-theme__rule,
-.profile-theme__cloud {
+.profile-theme__crown,
+.profile-theme__notch,
+.profile-theme__grain {
   position: absolute;
+  inset: 0;
   pointer-events: none;
+  opacity: var(--pt-op, 0.5);
 }
 
-.profile-theme__rays {
+.profile-theme [data-move] {
+  will-change: transform;
+}
+
+.profile-theme.is-frozen [data-move] {
+  animation: none;
+}
+
+/* --- the five grounds --------------------------------------------------------------- */
+
+/* Aurum: light engraved from a point below the card, swaying a few degrees. */
+.profile-theme__fan {
   inset: -40% -10% auto -10%;
   height: 150%;
-  opacity: 0.16;
+  transform-origin: 50% 120%;
   background: repeating-conic-gradient(from 200deg at 50% 120%, var(--pt-a) 0deg 1.4deg, transparent 1.4deg 9deg);
   mask-image: linear-gradient(to top, #000 8%, transparent 72%);
+  animation: profile-theme-rays var(--pt-dur, 46s) linear infinite alternate;
 }
 
-.profile-theme__field {
-  inset: 0;
-  opacity: 0.5;
+/* Slate: brushed metal, one direction only, and it stops at the name row. */
+.profile-theme__brush {
+  inset: 0 0 auto 0;
+  height: 78%;
+  background: repeating-linear-gradient(
+    96deg,
+    color-mix(in oklab, var(--pt-a) 18%, transparent) 0 2px,
+    transparent 2px 9px,
+    color-mix(in oklab, var(--pt-1) 40%, transparent) 9px 11px,
+    transparent 11px 20px
+  );
+  mask-image: linear-gradient(162deg, #000 6%, transparent 82%);
+}
+
+/* Onyx: cut stone — two hard conic wedges that read as facets, not as a wash. */
+.profile-theme__facet {
+  background:
+    conic-gradient(from 208deg at 28% 18%, color-mix(in oklab, var(--pt-a) 14%, transparent) 0 11deg, transparent 11deg 34deg),
+    conic-gradient(from 24deg at 76% 64%, color-mix(in oklab, var(--pt-a) 10%, transparent) 0 16deg, transparent 16deg 58deg),
+    linear-gradient(152deg, transparent 46%, color-mix(in oklab, var(--pt-1) 70%, transparent) 47%, transparent 62%);
+}
+
+/* Nebula: two clouds of different size and colour in one sheet, so the drift has something to move. */
+.profile-theme__cloud {
+  inset: -18% -8%;
+  background:
+    radial-gradient(38% 30% at 26% 40%, color-mix(in oklab, var(--pt-a) 55%, transparent) 0%, transparent 70%),
+    radial-gradient(30% 26% at 72% 62%, rgb(76 201 240 / 0.34) 0%, transparent 72%);
+  animation: profile-theme-drift var(--pt-dur, 28s) ease-in-out infinite alternate;
+}
+
+/* Abyss: the horizon of deep water — a hard line, light above it, weight below it. */
+.profile-theme__depth {
+  inset: auto 0 34% 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 4%, var(--pt-a) 30%, var(--pt-r) 55%, transparent 96%);
+  box-shadow: 0 22px 40px -26px color-mix(in oklab, var(--pt-a) 70%, transparent);
+}
+
+/* --- the sheets that travel --------------------------------------------------------- */
+
+/* Nebula: gas at a second depth, running the other way, which is what reads as distance. */
+.profile-theme__veil {
+  inset: -26% -12%;
+  background:
+    radial-gradient(46% 34% at 62% 34%, color-mix(in oklab, var(--pt-r) 26%, transparent) 0%, transparent 74%),
+    radial-gradient(34% 40% at 18% 70%, color-mix(in oklab, var(--pt-a) 20%, transparent) 0%, transparent 76%);
+  animation: profile-theme-drift var(--pt-dur, 44s) ease-in-out infinite alternate-reverse;
+}
+
+/* Abyss: caustic bands. The sheet is wider than the card and slides by exactly one band period. */
+.profile-theme__caustic {
+  inset: -10% -28px 0 -28px;
+  height: 62%;
+  background: repeating-linear-gradient(
+    104deg,
+    transparent 0 12px,
+    color-mix(in oklab, var(--pt-a) 22%, transparent) 12px 16px,
+    transparent 16px 24px
+  );
+  mask-image: linear-gradient(to bottom, #000 10%, transparent 92%);
+  animation: profile-theme-walk var(--pt-dur, 12s) linear infinite;
+}
+
+/* Slate: the verification rail — teeth under the name row that walk one period to the left. */
+.profile-theme__circuit {
+  inset: auto -24px 10px -24px;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--pt-r) 85%, transparent) 0 6px,
+    transparent 6px 24px
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+  animation: profile-theme-walk var(--pt-dur, 11s) linear infinite;
+}
+
+/* --- the fields, each with its own direction --------------------------------------- */
+
+.profile-theme__sparks {
   background-image:
     radial-gradient(1.5px 1.5px at 18% 62%, var(--pt-r) 50%, transparent 51%),
     radial-gradient(1.5px 1.5px at 42% 28%, var(--pt-r) 50%, transparent 51%),
@@ -2461,114 +2579,138 @@ html.overlay-root ::-webkit-scrollbar {
     radial-gradient(1.5px 1.5px at 82% 38%, var(--pt-a) 50%, transparent 51%),
     radial-gradient(1px 1px at 30% 84%, var(--pt-r) 50%, transparent 51%),
     radial-gradient(1px 1px at 56% 12%, var(--pt-a) 50%, transparent 51%);
+  animation: profile-theme-sparks var(--pt-dur, 14s) ease-in-out infinite alternate;
 }
+
+.profile-theme__stars {
+  background-image:
+    radial-gradient(1px 1px at 12% 24%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1px 1px at 34% 58%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 58% 18%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1px 1px at 72% 66%, var(--pt-a) 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 42%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 22% 78%, var(--pt-a) 50%, transparent 51%);
+  animation: profile-theme-twinkle var(--pt-dur, 6s) ease-in-out infinite;
+}
+
+/* Onyx: gold dust in orbit. The sheet is oversized and turns around the card's own centre. */
+.profile-theme__dust {
+  inset: -34%;
+  background-image:
+    radial-gradient(1px 1px at 30% 22%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 66% 34%, var(--pt-a) 50%, transparent 51%),
+    radial-gradient(1px 1px at 44% 72%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 62%, var(--pt-a) 50%, transparent 51%);
+  mask-image: radial-gradient(60% 60% at 50% 50%, #000 30%, transparent 78%);
+  animation: profile-theme-orbit var(--pt-dur, 22s) linear infinite;
+}
+
+/* Abyss: motes sink. The field is taller than the card so the loop never shows a seam. */
+.profile-theme__motes {
+  inset: -60% 0 0 0;
+  height: 160%;
+  background-image:
+    radial-gradient(1px 1px at 24% 18%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 62% 34%, var(--pt-a) 50%, transparent 51%),
+    radial-gradient(1px 1px at 40% 58%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 80% 72%, var(--pt-r) 50%, transparent 51%),
+    radial-gradient(1px 1px at 12% 86%, var(--pt-a) 50%, transparent 51%);
+  animation: profile-theme-sink var(--pt-dur, 9s) linear infinite;
+}
+
+/* --- the light ---------------------------------------------------------------------- */
+
+.profile-theme__sweep {
+  inset: 0 -80%;
+  background: linear-gradient(
+    104deg,
+    transparent 34%,
+    color-mix(in oklab, var(--pt-r) 26%, transparent) 47%,
+    transparent 58%
+  );
+  animation: profile-theme-sweep var(--pt-dur, 9s) ease-in-out infinite;
+}
+
+.profile-theme__halo {
+  inset: auto -22% -52% -22%;
+  height: 120%;
+  background: radial-gradient(
+    50% 50% at 22% 62%,
+    color-mix(in oklab, var(--pt-r) 45%, transparent) 0%,
+    transparent 72%
+  );
+  animation: profile-theme-breathe var(--pt-dur, 7s) ease-in-out infinite;
+}
+
+/* --- the edges and the texture that only paint -------------------------------------- */
 
 .profile-theme__rule {
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: auto 0 0 0;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--pt-a), transparent);
-  opacity: 0.65;
 }
 
-/* Aurum: the flagship. Engraved rays, an upward spark drift and a specular sweep over everything. */
-.profile-theme[data-theme='aurum'] .profile-theme__rays {
-  opacity: 0.22;
-  animation: profile-theme-rays 46s linear infinite;
+.profile-theme__crown {
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--pt-a) 90%, #fff2cf) 40%, transparent);
 }
 
-.profile-theme[data-theme='aurum'] .profile-theme__field {
-  opacity: 0.7;
-  animation: profile-theme-sparks 14s ease-in-out infinite alternate;
+.profile-theme__notch {
+  inset: auto 0 0 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--pt-a) 90%, transparent) 0 10px,
+    transparent 10px 22px
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
 
-.profile-theme[data-theme='aurum']::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  inset-block: 0;
-  left: -80%;
-  width: 260%;
-  background: linear-gradient(104deg, transparent 34%, rgb(255 236 190 / 0.18) 47%, transparent 58%);
-  will-change: transform;
-  animation: profile-theme-sweep 9s ease-in-out infinite;
+.profile-theme__grain {
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgb(255 255 255 / 0.6) 50%, transparent 51%),
+    radial-gradient(1px 1px at 70% 64%, rgb(255 255 255 / 0.45) 50%, transparent 51%),
+    radial-gradient(1px 1px at 46% 88%, rgb(255 255 255 / 0.4) 50%, transparent 51%);
+  background-size: 7px 7px, 11px 11px, 13px 13px;
+}
+
+/* --- per-theme geometry: the same kinds, weighted differently by the flagship -------- */
+
+.profile-theme[data-theme='aurum'] {
+  background:
+    radial-gradient(140% 100% at 50% 118%, color-mix(in oklab, var(--pt-1) 90%, transparent) 0%, transparent 58%),
+    radial-gradient(100% 80% at 92% 8%, color-mix(in oklab, var(--pt-a) 20%, var(--pt-2)) 0%, transparent 58%),
+    linear-gradient(168deg, var(--pt-2) 0%, var(--pt-3) 74%);
 }
 
 .profile-theme[data-theme='aurum'] .profile-theme__rule {
   height: 3px;
-  box-shadow: 0 -8px 22px -8px rgb(242 193 78 / 0.8);
+  background: linear-gradient(90deg, transparent, var(--pt-a) 26%, #fff2cf 50%, var(--pt-a) 74%, transparent);
+  box-shadow: 0 -8px 22px -8px color-mix(in oklab, var(--pt-a) 80%, transparent);
 }
 
-/* Slate: brushed metal, one slow sheen, no spark field. */
-.profile-theme[data-theme='slate'] .profile-theme__field { opacity: 0.22; }
-.profile-theme[data-theme='slate'] .profile-theme__rays { opacity: 0.1; }
-
-.profile-theme[data-theme='slate']::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  inset-block: 0;
-  left: -90%;
-  width: 280%;
-  background: linear-gradient(96deg, transparent 40%, rgb(143 243 198 / 0.14) 52%, transparent 62%);
-  will-change: transform;
-  animation: profile-theme-sweep 13s linear infinite;
-}
-
-/* Onyx: the corporate ground. Heavy gold edge, double rule, a wide low sweep. */
 .profile-theme[data-theme='onyx'] .profile-theme__rule {
   height: 4px;
   background: linear-gradient(90deg, transparent, var(--pt-a) 22%, #fff2cf 50%, var(--pt-a) 78%, transparent);
-  opacity: 0.85;
 }
 
-.profile-theme[data-theme='onyx']::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(232 182 76 / 0.9), transparent);
-}
-
-.profile-theme[data-theme='onyx'] .profile-theme__field { opacity: 0.16; }
-
-.profile-theme[data-theme='onyx']::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  inset-block: 0;
-  left: -85%;
-  width: 270%;
-  background: linear-gradient(100deg, transparent 30%, rgb(255 240 194 / 0.1) 50%, transparent 68%);
-  will-change: transform;
-  animation: profile-theme-sweep 16s ease-in-out infinite;
-}
-
-/* Nebula: two clouds drifting at different speeds, which is what reads as depth. */
-.profile-theme[data-theme='nebula'] .profile-theme__cloud {
-  inset: -20% -10%;
+.profile-theme[data-theme='abyss'] {
   background:
-    radial-gradient(38% 30% at 26% 40%, rgb(167 139 250 / 0.4), transparent 70%),
-    radial-gradient(30% 26% at 72% 62%, rgb(76 201 240 / 0.32), transparent 72%);
-  animation: profile-theme-drift 28s ease-in-out infinite alternate;
-}
-
-.profile-theme[data-theme='nebula'] .profile-theme__field {
-  opacity: 0.4;
-  animation: profile-theme-drift 44s ease-in-out infinite alternate-reverse;
-}
-
-/* Abyss: a cold starfield with a depth line under the horizon. */
-.profile-theme[data-theme='abyss'] .profile-theme__field {
-  opacity: 0.85;
-  animation: profile-theme-twinkle 5.5s ease-in-out infinite;
+    linear-gradient(182deg, color-mix(in oklab, var(--pt-1) 80%, transparent) 0%, transparent 46%),
+    linear-gradient(168deg, var(--pt-2) 0%, var(--pt-3) 74%);
 }
 
 .profile-theme[data-theme='abyss'] .profile-theme__rule {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(123 216 143 / 0.8) 45%, var(--pt-a) 70%, transparent);
-  box-shadow: 0 6px 18px -10px rgb(76 201 240 / 0.7);
+  background: linear-gradient(90deg, transparent, var(--pt-r) 45%, var(--pt-a) 70%, transparent);
+  box-shadow: 0 6px 18px -10px color-mix(in oklab, var(--pt-a) 70%, transparent);
+}
+
+/* The shelf: sample on the left, the five surfaces listed by name on the right. */
+.profile-theme-vitrine {
+  position: relative;
+  isolation: isolate;
 }
 
 @keyframes profile-theme-rays {
@@ -2592,23 +2734,39 @@ html.overlay-root ::-webkit-scrollbar {
 }
 
 @keyframes profile-theme-twinkle {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 0.92; }
+  0%, 100% { opacity: calc(var(--pt-op, 0.6) * 0.72); }
+  50% { opacity: var(--pt-op, 0.6); }
+}
+
+/* Gold dust turns around the card's centre; opacity never changes, so nothing repaints. */
+@keyframes profile-theme-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Motes sink by exactly the height the field was made taller by, so the loop is invisible. */
+@keyframes profile-theme-sink {
+  from { transform: translate3d(0, -37.5%, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+/* A crawling pattern is a sheet translated by one period of its own repeating gradient. */
+@keyframes profile-theme-walk {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-24px, 0, 0); }
+}
+
+@keyframes profile-theme-breathe {
+  0%, 100% { transform: scale(1); opacity: calc(var(--pt-op, 0.4) * 0.7); }
+  50% { transform: scale(1.04); opacity: var(--pt-op, 0.4); }
+}
+
+/* Frozen, the sweep sheet still sits across the card rather than parked off its left edge. */
+.profile-theme.is-frozen .profile-theme__sweep {
+  transform: translate3d(-12%, 0, 0);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .profile-theme[data-theme='aurum'] .profile-theme__rays,
-  .profile-theme[data-theme='aurum'] .profile-theme__field,
-  .profile-theme[data-theme='aurum']::after,
-  .profile-theme[data-theme='slate']::after,
-  .profile-theme[data-theme='onyx']::after,
-  .profile-theme[data-theme='nebula'] .profile-theme__cloud,
-  .profile-theme[data-theme='nebula'] .profile-theme__field,
-  .profile-theme[data-theme='abyss'] .profile-theme__field {
-    animation: none;
-  }
-  /* Frozen, the sheet still sits across the card rather than off its left edge. */
-  .profile-theme[data-theme='aurum']::after,
-  .profile-theme[data-theme='slate']::after,
-  .profile-theme[data-theme='onyx']::after { transform: translate3d(-12%, 0, 0); }
+  .profile-theme [data-move] { animation: none; }
+  .profile-theme__sweep { transform: translate3d(-12%, 0, 0); }
 }

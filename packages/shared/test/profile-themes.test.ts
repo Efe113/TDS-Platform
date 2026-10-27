@@ -6,12 +6,15 @@ import {
   FRAME_SKINS,
   PROFILE_THEME_KEYS,
   PROFILE_THEME_SKINS,
+  isStillProfileLayer,
+  movingProfileLayerCount,
   pronounsIsValid,
   profileLink,
   profileShowcaseSchema,
   profileThemeSkin,
   routeFromDeepLink
 } from '../src/index'
+import { TIER_BUDGETS } from '../src/domain/motion'
 
 /**
  * 0043 puts three vocabularies side by side — the frame skins, the profile themes and the unlock rule
@@ -195,5 +198,105 @@ describe('the profile reader contract', () => {
 
   it('sends the equipped frame from the profile row, not from a receipt', () => {
     expect(latestShowcase).toContain("'frameKey', v_profile.frame_key,")
+  })
+})
+
+/**
+ * 0.3.6 rebuilt the profile themes on the contract the frames got in 0049: a theme *is* five named
+ * surfaces, declared in the registry, drawn by a painter that has no per-theme branches, and sold by
+ * those five words. These tests hold the four places that agreement lives in — registry, painter's
+ * CSS, catalogue row and the tier budget.
+ */
+describe('the profile theme layer engine (0050)', () => {
+  const layers = readFileSync(join(migrationsDir, '0050_profile_theme_layers.sql'), 'utf8')
+  const css = readFileSync(
+    join(here, '../../../apps/desktop/src/renderer/src/styles/global.css'),
+    'utf8'
+  )
+
+  it('gives every theme exactly five surfaces, each named in both languages', () => {
+    for (const skin of PROFILE_THEME_SKINS) {
+      expect(skin.layers, `${skin.key} layer count`).toHaveLength(5)
+      expect(new Set(skin.layers.map((layer) => layer.key)).size, `${skin.key} duplicate surface`).toBe(5)
+      for (const layer of skin.layers) {
+        expect(layer.labelTr.length, `${skin.key}/${layer.key} TR label`).toBeGreaterThan(1)
+        expect(layer.labelEn.length, `${skin.key}/${layer.key} EN label`).toBeGreaterThan(1)
+      }
+    }
+  })
+
+  it('leads each theme with a different signature, so the five are not one shape in five colours', () => {
+    // The old painter could not do this: it emitted four fixed spans, so every theme had the same
+    // silhouette and only the stops changed.
+    const grounds = PROFILE_THEME_SKINS.map((skin) => skin.layers[0]?.key ?? 'none')
+    expect(new Set(grounds).size).toBe(grounds.length)
+    expect(grounds).toEqual(['fan', 'brush', 'facet', 'cloud', 'depth'])
+    for (const skin of PROFILE_THEME_SKINS) expect(skin.renewed).toBe(true)
+  })
+
+  it('gives every theme surfaces that actually move, and no cycle to the ones that do not', () => {
+    for (const skin of PROFILE_THEME_SKINS) {
+      const moving = movingProfileLayerCount(skin)
+      expect(moving, `${skin.key} movers`).toBeGreaterThanOrEqual(2)
+      expect(TIER_BUDGETS.high.ambientLayers, `${skin.key} needs headroom`).toBeGreaterThanOrEqual(moving)
+      for (const layer of skin.layers) {
+        if (isStillProfileLayer(layer.key)) expect(layer.seconds, `${skin.key}/${layer.key} still cycle`).toBe(0)
+        else expect(layer.seconds, `${skin.key}/${layer.key} cycle`).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('paints every declared surface, and ships no recipe nothing asks for', () => {
+    const declared = new Set(PROFILE_THEME_SKINS.flatMap((skin) => skin.layers.map((layer) => layer.key)))
+    for (const key of declared) expect(css, `.profile-theme__${key}`).toContain(`.profile-theme__${key}`)
+    const written = new Set(
+      [...css.matchAll(/\.profile-theme__([a-z]+)\b/g)].map((match) => match[1])
+    )
+    expect([...written].filter((key) => !declared.has(key as never)).sort()).toEqual([])
+  })
+
+  it('sells exactly the five surfaces the client paints, in the registry order', () => {
+    for (const skin of PROFILE_THEME_SKINS) {
+      const start = layers.indexOf(`'theme_${skin.key}', 'cosmetic'`)
+      expect(start, `theme_${skin.key} row`).toBeGreaterThan(-1)
+      const stop = layers.indexOf("'::jsonb", start)
+      const block = layers.slice(start, stop)
+      const labels = skin.layers.map((layer) => layer.labelTr)
+      expect(block, `theme_${skin.key} perks`).toContain(`["${labels.join('","')}"]`)
+      expect((block.match(/"/g) ?? []).length, `theme_${skin.key} sells five surfaces`).toBe(10)
+      expect(block).toContain(skin.descTr)
+      expect(block).toContain(skin.descEn)
+    }
+  })
+
+  it('keeps the prices and leaves the tier grants alone', () => {
+    // 'renewed' is marketing. On aurum/slate/onyx it would take the row out of the benefit list the
+    // till reads by tag, and the flagship would stop arriving with VIP.
+    expect(layers).toContain(`'theme_aurum', 'cosmetic', 0, 'aurum'`)
+    expect(layers).toContain(`'theme_nebula', 'cosmetic', 1400, 'nebula'`)
+    expect(layers).toContain(`'theme_abyss', 'cosmetic', 2200, 'abyss'`)
+    for (const [ref, tag] of [['aurum', 'vip'], ['slate', 'verified'], ['onyx', 'corporate']] as const) {
+      const start = layers.indexOf(`'theme_${ref}'`)
+      const jsonb = layers.indexOf("'::jsonb", start)
+      // The tag is the last column of the row: slice past the perks cast to the row's own paren.
+      const row = layers.slice(start, layers.indexOf(')', jsonb) + 1)
+      expect(row).toContain(`'${tag}'`)
+      expect(row).not.toContain("'renewed'")
+    }
+  })
+
+  it('re-declares the identical chip vocabulary', () => {
+    const in50 = layers.match(/check \(tag in \(([^)]*)\)/)?.[1] ?? ''
+    const earlier = ['0045_forge_theme_renewal.sql', '0049_void_theme_and_five_layer_frames.sql'].map(
+      (name) => readFileSync(join(migrationsDir, name), 'utf8').match(/check \(tag in \(([^)]*)\)/)?.[1] ?? ''
+    )
+    expect(in50).toContain("'renewed'")
+    for (const list of earlier) expect(in50).toBe(list)
+  })
+
+  it('resolves a theme by key and answers null for anything else', () => {
+    expect(profileThemeSkin('abyss')?.layers).toHaveLength(5)
+    expect(profileThemeSkin('ember')).toBeNull()
+    expect(PROFILE_THEME_KEYS).toEqual(['aurum', 'slate', 'onyx', 'nebula', 'abyss'])
   })
 })

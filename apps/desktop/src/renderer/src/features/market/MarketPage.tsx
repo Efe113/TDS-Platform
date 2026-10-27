@@ -34,7 +34,7 @@ import { selectSignedIn, selectUserId, useAuth } from '../../store/auth-store'
 import { CoinAmount, CoinIcon } from '../../components/brand/coin'
 import { FrameSample, FrameVitrine } from '../../components/brand/frame'
 import { TitleBadge } from '../../components/brand/title-badge'
-import { ProfileThemeSky } from '../../components/brand/profile-theme'
+import { ProfileThemeVitrine } from '../../components/brand/profile-theme'
 import { Button, Banner, cn } from '../../components/ui'
 import { Chip, PageHeader, Section } from '../../components/ui/system'
 import { StateEmpty, StateError } from '../../components/ui/states'
@@ -237,13 +237,15 @@ function ProductCard({
       </div>
 
       {/* Kind-specific preview: this is what the buyer is actually looking at. */}
+      {/* Kind-specific preview: this is what the buyer is actually looking at. A profile theme is sold
+          as the five surfaces it stacks, listed by name, because the ring on a member's card is exactly
+          those five and nothing else. */}
       {item.kind === 'cosmetic' && PROFILE_THEME_KEYS.includes(item.refCode ?? '') ? (
-        <div className="relative h-20 overflow-hidden rounded-lg border border-line/70 bg-base/50">
-          <ProfileThemeSky skin={profileThemeSkin(item.refCode)} />
-          <span className="absolute bottom-1.5 left-2 text-[10px] uppercase tracking-widest text-mute">
-            {t('profile.themesTitle')}
-          </span>
-        </div>
+        <ProfileThemeVitrine
+          skin={profileThemeSkin(item.refCode)}
+          language={language === 'en' ? 'en' : 'tr'}
+          className="rounded-lg border border-line/70 bg-base/50 p-2"
+        />
       ) : null}
 
       {item.kind === 'frame' ? (

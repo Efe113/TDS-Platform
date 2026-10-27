@@ -217,7 +217,7 @@ export function PersonalizePanel({ profile }: { profile: ProfileShowcase }): Rea
                 }
                 preview={
                   <span className="relative grid size-full place-items-center">
-                    <ProfileThemeSky skin={skin} over />
+                    <ProfileThemeSky skin={skin} over cap={2} />
                     <MiniAvatar frame={profile.frameKey} initials={initials} />
                   </span>
                 }
